@@ -45,6 +45,7 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+
         // Enforce that the selected tab matches the account's actual role
         if (Auth::user()->role !== $this->input('role')) {
             Auth::logout();
@@ -53,7 +54,7 @@ class LoginRequest extends FormRequest
             $selected = $this->input('role') === 'Startup' ? 'Founder' : 'Admin';
 
             throw ValidationException::withMessages([
-                'email' => "This account is not registered as a {$selected}. Please select the correct sign-in type.",
+                'email' => "This account is not registered as {$selected}. Please select the correct sign-in type.",
             ]);
         }
 
