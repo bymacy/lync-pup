@@ -95,5 +95,3 @@ class RoleAccessTest extends TestCase
         $this->assertFalse($startup->isAdmin());
     }
 }
-
-#asdasdas ashdashdas dasd
