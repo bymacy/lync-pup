@@ -4,55 +4,65 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sign In - LYNC PUP</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    <style>
+        body { font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif; }
+    </style>
 </head>
-<body class="antialiased">
-    <div class="min-h-screen flex" x-data="{ activeTab: 'Startup' }">
+<body class="antialiased font-['Poppins']">
+    <div class="h-screen lg:overflow-hidden flex flex-col lg:flex-row" x-data="{ activeTab: 'Startup' }">
 
         {{-- Left panel --}}
-        <div class="hidden lg:flex lg:w-1/2 relative bg-[#5c0f1e] text-white flex-col justify-between p-10 overflow-hidden bg-cover bg-center"
-             style="background-image: linear-gradient(rgba(60,10,20,0.85), rgba(60,10,20,0.9)), url('/images/tbido-building.jpg');">
+        <div class="hidden lg:flex lg:w-1/2 relative bg-[#5c0f1e] text-white flex-col justify-between
+                    p-6 xl:p-10 2xl:p-12 overflow-hidden bg-cover bg-center h-full"
+             style="background-image: linear-gradient(rgba(60,10,20,0.85), rgba(60,10,20,0.9)), url('/images/login-signup/login-signup-bg.png'); background-position: center bottom;">
 
-            <a href="{{ url('/') }}" class="text-white/80 hover:text-white w-fit">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <a href="{{ url('/') }}" class="text-white/80 hover:text-white w-fit -mt-3 xl:-mt-5 2xl:-mt-6">
+                <svg class="w-5 h-5 xl:w-6 xl:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                 </svg>
             </a>
 
-            <div>
-                <div class="flex items-center gap-3 mb-10">
-                    <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
-                        <img src="/images/lync-pup-logo.png" alt="LYNC PUP" class="w-8 h-8">
+            <div class="overflow-y-auto">
+                <div class="flex items-center gap-3 mb-6 xl:mb-8 2xl:mb-10">
+                    <div class="w-11 h-11 xl:w-12 xl:h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                        <img src="/images/login-signup/lync-logo.png" alt="LYNC PUP" class="w-7 h-7 xl:w-8 xl:h-8 object-contain">
                     </div>
                     <div>
-                        <p class="font-bold tracking-wide leading-tight">LYNC PUP</p>
-                        <p class="text-xs text-white/70 leading-tight">Startup Incubation Management System</p>
+                        <p class="font-bold tracking-wide leading-tight text-sm xl:text-base">LYNC PUP</p>
+                        <p class="text-[11px] xl:text-xs text-white/70 leading-tight">Startup Incubation Management System</p>
                     </div>
                 </div>
 
-                <h1 class="text-4xl font-bold leading-tight mb-2">Empowering Ideas.</h1>
-                <h1 class="text-4xl font-bold text-amber-400 leading-tight mb-4">Building the future.</h1>
-                <p class="text-white/80 max-w-sm mb-8">
+                <h1 class="text-2xl xl:text-3xl 2xl:text-4xl font-bold leading-tight mb-1 xl:mb-2">Empowering Ideas.</h1>
+                <h1 class="text-2xl xl:text-3xl 2xl:text-4xl font-bold text-amber-400 leading-tight mb-3 xl:mb-4">Building the future.</h1>
+                <p class="text-white/80 max-w-sm mb-5 xl:mb-6 2xl:mb-8 text-sm xl:text-base">
                     The PUP Technology Business Incubator nurtures innovative startups and connects
                     them with mentors and opportunities for growth.
                 </p>
 
-                <div class="w-16 h-0.5 bg-amber-400 mb-8"></div>
+                <div class="w-16 h-0.5 bg-amber-400 mb-5 xl:mb-6 2xl:mb-8"></div>
 
-                <div class="space-y-4">
+                 <div class="space-y-2 xl:space-y-2">
                     @foreach ([
-                        ['icon' => 'check-square', 'title' => 'Readiness', 'desc' => 'Track TRL, MRL, TMRL & SRL signals across every venture.'],
-                        ['icon' => 'trending-up', 'title' => 'Progress Analytics', 'desc' => 'Identify at-risk ventures through real-time monitoring'],
-                        ['icon' => 'check-square', 'title' => 'Mentoring', 'desc' => 'Connect with experts to clear roadblocks.'],
-                        ['icon' => 'trending-up', 'title' => 'Centralized', 'desc' => 'Incubation lifecycle through a unified growth portal.'],
+                        ['icon' => 'feature1', 'title' => 'Readiness', 'desc' => 'Track TRL, MRL, TMRL & SRL signals across every venture.'],
+                        ['icon' => 'feature2', 'title' => 'Progress Analytics', 'desc' => 'Identify at-risk ventures through real-time monitoring'],
+                        ['icon' => 'feature1', 'title' => 'Mentoring', 'desc' => 'Connect with experts to clear roadblocks.'],
+                        ['icon' => 'feature2', 'title' => 'Centralized', 'desc' => 'Incubation lifecycle through a unified growth portal.'],
                     ] as $feature)
                         <div class="flex items-start gap-3">
-                            <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                                <div class="w-4 h-4 border-2 border-amber-400 rounded-sm"></div>
+                            <div class="w-11 h-11 xl:w-12 xl:h-12 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <img src="/images/login-signup/{{ $feature['icon'] }}.png" alt="{{ $feature['title'] }}" class="w-9 h-9 xl:w-10 xl:h-10 object-contain">
                             </div>
                             <div>
-                                <p class="font-semibold text-sm">{{ $feature['title'] }}</p>
-                                <p class="text-xs text-white/60">{{ $feature['desc'] }}</p>
+                                <p class="font-semibold text-sm xl:text-base">{{ $feature['title'] }}</p>
+                                <p class="text-xs xl:text-sm text-white/60">{{ $feature['desc'] }}</p>
                             </div>
                         </div>
                     @endforeach
@@ -63,16 +73,16 @@
         </div>
 
         {{-- Right panel --}}
-        <div class="w-full lg:w-1/2 flex items-center justify-center bg-white p-6">
-            <div class="w-full max-w-sm">
+        <div class="w-full lg:w-1/2 flex items-center justify-center bg-white p-6 h-full overflow-y-auto">
+            <div class="w-full max-w-sm py-6 lg:py-0">
 
                 <div class="flex justify-center mb-4">
-                    <div class="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center">
-                        <img src="/images/lync-pup-icon.png" alt="LYNC PUP" class="w-9 h-9">
+                    <div class="w-14 h-14 xl:w-16 xl:h-16 rounded-full bg-rose-50 flex items-center justify-center">
+                        <img src="/images/login-signup/lync-logo.png" alt="LYNC PUP" class="w-8 h-8 xl:w-9 xl:h-9 object-contain">
                     </div>
                 </div>
 
-                <h2 class="text-2xl font-bold text-center text-gray-900 mb-1">Welcome back!</h2>
+                <h2 class="text-xl xl:text-2xl font-bold text-center text-gray-900 mb-1">Welcome back!</h2>
                 <p class="text-sm text-gray-500 text-center mb-6">
                     Founders are admitted via TBIDO. Use your issued account to continue.
                 </p>
