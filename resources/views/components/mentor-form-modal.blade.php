@@ -1,4 +1,5 @@
 @props(['mode', 'action', 'mentor' => null])
+@php $photoInputId = 'mentor_photo_input_'.($mentor?->mentor_id ?? 'new'); @endphp
 
 <div class="bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between">
     <h3 class="font-bold">{{ $mode === 'edit' ? 'Edit Mentor' : 'Add Mentor' }}</h3>
@@ -61,15 +62,45 @@
         </div>
     </div>
 
-    <div>
+    <div x-data="{ photoPreview: '{{ $mentor?->mentor_photo_path ? Storage::url($mentor->mentor_photo_path) : '' }}' }">
         <label class="block text-sm font-medium text-gray-700 mb-1">Profile Photo</label>
-        <div class="border-2 border-dashed rounded-lg p-6 text-center bg-rose-50">
-            <p class="text-sm text-gray-500 mb-2">Drag-and-drop</p>
-            <label class="inline-block bg-rose-900 text-white text-sm rounded-lg px-4 py-2 cursor-pointer">
-                Browse Files
-                <input type="file" name="mentor_photo" accept="image/*" class="hidden">
-            </label>
+
+        <div class="border-2 border-dashed rounded-lg overflow-hidden bg-rose-50 relative"
+             @dragover.prevent
+             @drop.prevent="
+                const file = $event.dataTransfer.files[0];
+                if (file) {
+                    $refs.photoInput.files = $event.dataTransfer.files;
+                    photoPreview = URL.createObjectURL(file);
+                }
+             ">
+
+            <div x-show="photoPreview" x-cloak class="relative">
+                <img :src="photoPreview" class="w-full h-48 object-cover">
+                <button type="button"
+                        @click="photoPreview = ''; $refs.photoInput.value = ''"
+                        class="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                    &times;
+                </button>
+                <label for="{{ $photoInputId }}" class="absolute bottom-2 right-2 bg-rose-900 text-white text-xs rounded-lg px-3 py-1.5 cursor-pointer">
+                    Change Photo
+                </label>
+            </div>
+
+            <div x-show="!photoPreview" class="p-6 text-center">
+                <p class="text-sm text-gray-500 mb-2">Drag-and-drop</p>
+                <label for="{{ $photoInputId }}" class="inline-block bg-rose-900 text-white text-sm rounded-lg px-4 py-2 cursor-pointer">
+                    Browse Files
+                </label>
+            </div>
+
+            <input type="file" x-ref="photoInput" id="{{ $photoInputId }}" name="mentor_photo" accept="image/*" class="hidden"
+                   @change="
+                      const file = $event.target.files[0];
+                      if (file) { photoPreview = URL.createObjectURL(file); }
+                   ">
         </div>
+
         @error('mentor_photo') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
     </div>
 

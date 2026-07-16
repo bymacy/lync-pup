@@ -11,6 +11,13 @@ class StoreMentorRequest extends FormRequest
         return $this->user()->isAdmin();
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->hasFile('mentor_photo') && ! $this->file('mentor_photo')->isValid()) {
+            $this->files->remove('mentor_photo');
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -20,7 +27,7 @@ class StoreMentorRequest extends FormRequest
             'specialization' => ['required', 'string', 'in:Engineering,Business,Marketing,Legal,Finance,Technology'],
             'contact_email' => ['nullable', 'email', 'max:150'],
             'contact_number' => ['nullable', 'string', 'max:20'],
-            'mentor_photo' => ['nullable', 'image', 'max:2048'],
+            'mentor_photo' => ['nullable', 'image', 'max:20480'], // 20MB raw upload cap; gets compressed to ~2MB on save,
         ];
     }
 

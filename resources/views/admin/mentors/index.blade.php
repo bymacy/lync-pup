@@ -21,10 +21,11 @@
     <h2 class="font-bold text-gray-900 mb-4">Manage Mentor</h2>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+
         @forelse ($mentors as $mentor)
-            <div class="border rounded-xl overflow-hidden relative" x-data="{ menuOpen: false, editOpen: false }">
-                <div class="absolute top-3 right-3 z-10">
-                    <button @click="menuOpen = !menuOpen" @click.outside="menuOpen = false" class="text-white text-xl leading-none">&#8942;</button>
+            <div class="border rounded-xl overflow-hidden relative aspect-[3/4]" x-data="{ menuOpen: false, editOpen: false }">
+                <div class="absolute top-3 right-3 z-20">
+                    <button @click="menuOpen = !menuOpen" @click.outside="menuOpen = false" class="text-white text-xl leading-none drop-shadow">&#8942;</button>
                     <div x-show="menuOpen" x-cloak class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg overflow-hidden border" style="display: none;">
                         <button @click="editOpen = true; menuOpen = false" class="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50">
                             Edit
@@ -39,7 +40,8 @@
                     </div>
                 </div>
 
-                <div class="h-48 bg-gray-200">
+                {{-- Photo fills the entire card, positioned absolutely as the base layer --}}
+                <div class="absolute inset-0 bg-gray-200">
                     @if ($mentor->mentor_photo_path)
                         <img src="{{ Storage::url($mentor->mentor_photo_path) }}" class="w-full h-full object-cover">
                     @else
@@ -47,7 +49,8 @@
                     @endif
                 </div>
 
-                <div class="bg-gray-900 text-white p-4">
+                {{-- Text overlays ON TOP of the photo, anchored to the bottom, with a gradient that fades UP INTO the photo --}}
+                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent text-white p-4 pt-16">
                     <p class="font-bold">{{ $mentor->display_name }}</p>
                     <p class="text-xs text-white/70 mb-2">{{ $mentor->specialization }} Mentor</p>
                     <div class="border-t border-white/20 pt-2 space-y-1 text-xs text-white/80">
