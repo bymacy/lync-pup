@@ -4,8 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\StartupProfileController;
 use App\Http\Controllers\Admin\CoordinatorAssignmentController;
 use App\Http\Controllers\Admin\InformationSheetController;
+use App\Http\Controllers\Admin\MentorController;
 use App\Http\Controllers\ProfileController;
-
 
 require __DIR__.'/auth.php';
 
@@ -21,17 +21,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// Admin-only route group (future modules nest here)
-Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->group(function () {
-    // Admin module routes will go here
-});
-
-// Startup-only route group (future modules nest here)
-Route::middleware(['auth', 'role:Startup'])->prefix('startup')->name('startup.')->group(function () {
-    // Startup module routes will go here
-});
-
-
+// Admin-only routes
 Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->group(function () {
 
     Route::get('startups', [StartupProfileController::class, 'index'])->name('startups.index');
@@ -46,4 +36,15 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
         ->name('information-sheet.approve');
     Route::patch('startups/{startup}/information-sheet/reject', [InformationSheetController::class, 'reject'])
         ->name('information-sheet.reject');
+
+    Route::resource('mentors', MentorController::class)
+        ->except(['create', 'edit', 'show'])
+        ->names('mentors');
+
+    // Future modules (Coordinator Profile, Assessment Hub, Roadblock Management, Risk Monitoring) nest here
+});
+
+// Startup-only routes (future modules nest here)
+Route::middleware(['auth', 'role:Startup'])->prefix('startup')->name('startup.')->group(function () {
+    //
 });
