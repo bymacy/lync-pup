@@ -21,7 +21,7 @@
                 <nav class="mt-2 space-y-1 px-3">
                     @php
                         $navItems = [
-                            ['route' => 'admin.dashboard', 'label' => 'Dashboard'],
+                            ['route' => 'dashboard', 'label' => 'Dashboard'],
                             ['route' => 'admin.startups.index', 'label' => 'Startup Profile'],
                             ['route' => 'admin.mentors.index', 'label' => 'Mentor Profile'],
                             ['route' => 'admin.coordinators.index', 'label' => 'Coordinator Profile'],

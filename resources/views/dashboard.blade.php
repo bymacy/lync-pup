@@ -1,17 +1,11 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Dashboard') }}
-        </h2>
-    </x-slot>
-
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 dark:text-gray-100">
-                    {{ __("You're logged in!") }}
-                </div>
-            </div>
+<x-layouts.admin title="Dashboard">
+    <div class="mb-6">
+        <div class="flex items-center justify-between">
+            <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <div class="border rounded-lg px-4 py-2 text-sm text-gray-600">All Cohort</div>
         </div>
+        <p class="text-gray-500 mt-1">Overview of intervention, sheets, request, updates, and mentor coordination</p>
     </div>
-</x-app-layout>
+
+    {{-- Content intentionally left blank for now — built out in the Dashboard module --}}
+</x-layouts.admin>

@@ -12,9 +12,15 @@ class InformationSheetController extends Controller
 {
     public function show(Startup $startup): View
     {
-        $startup->load(['informationSheet', 'teamMembers', 'user']);
+    $startup->load([
+        'informationSheet.incubationInvolvements',
+        'informationSheet.ldInterventions',
+        'informationSheet.references',
+        'teamMembers',
+        'user',
+    ]);
 
-        return view('admin.information-sheets.show', compact('startup'));
+    return view('admin.information-sheets.show', compact('startup'));
     }
 
     public function approve(Startup $startup): RedirectResponse

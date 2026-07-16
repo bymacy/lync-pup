@@ -9,9 +9,12 @@ class TeamMember extends Model
 {
     use HasFactory;
 
-    protected $primaryKey = 'member_id';
+    protected $fillable = ['startup_id', 'full_name', 'designation', 'role', 'phone', 'address', 'date_of_birth', 'email', 'citizenship', 'sex', 'civil_status'];
 
-    protected $fillable = ['startup_id', 'full_name', 'role', 'email'];
+    protected function casts(): array
+    {
+        return ['date_of_birth' => 'date'];
+    }
 
     public function startup()
     {
