@@ -4,7 +4,7 @@
      x-init="coordinators = @js($coordinators = \App\Models\Coordinator::all(['coordinator_id', 'name', 'role_title', 'email', 'phone']))">
 
     <button type="button" @click="open = true; step = 1"
-            class="mt-3 bg-rose-900 text-white text-sm font-medium rounded-lg px-4 py-2 hover:bg-rose-950">
+            class="mt-3 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-sm font-medium rounded-lg px-4 py-2 hover:shadow-lg">
         Assign Coordinator
     </button>
 

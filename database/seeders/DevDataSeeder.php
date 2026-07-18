@@ -21,7 +21,7 @@ class DevDataSeeder extends Seeder
         // Admin account
         User::firstOrCreate(
             ['email' => 'admin@pup.edu.ph'],
-            ['name' => 'TBI Administrator', 'password' => 'password', 'role' => 'Admin']
+            ['name' => 'TBI Administrator', 'password' => 'password', 'role' => 'Admin',]
         );
 
         // Founder test account
