@@ -6,7 +6,7 @@
         </div>
 
         <div x-data="{ open: false }">
-            <button @click="open = true" class="flex items-center gap-2 bg-rose-900 hover:bg-rose-950 text-white text-sm font-medium rounded-lg px-4 py-2.5">
+            <button @click="open = true" class="flex items-center gap-2 bg-gradient-to-r from-[#6D0D23] to-[#11386A] hover:from-[#5A0A1D] hover:to-[#0D2F59] text-white text-sm font-medium rounded-lg px-4 py-2.5">
                 <span class="text-lg leading-none">+</span> Add Mentor
             </button>
 
