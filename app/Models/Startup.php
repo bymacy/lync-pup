@@ -13,13 +13,14 @@ class Startup extends Model
     protected $primaryKey = 'startup_id';
 
     protected $fillable = [
-        'user_id',
-        'company_name',
-        'industry_sector',
-        'cohort_number',
-        'contact_phone',
-        'location',
+        'user_id', 'company_name', 'industry_sector', 'cohort_number',
+        'contact_phone', 'location', 'website', 'startup_photo_path',
     ];
+
+    public function getBatchLabelAttribute(): string
+    {
+        return "Cohort {$this->cohort_number}";
+    }
 
     public function user()
     {

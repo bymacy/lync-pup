@@ -8,11 +8,18 @@ class CoordinatorFactory extends Factory
 {
     public function definition(): array
     {
+        $first = fake()->firstName();
+        $last = fake()->lastName();
+        $honorific = fake()->randomElement(['Sir', "Ma'am"]);
+
         return [
-            'name' => 'Sir '.fake()->firstName(),
+            'honorific' => $honorific,
+            'first_name' => $first,
+            'last_name' => $last,
+            'name' => "{$honorific} {$first} {$last}",
             'role_title' => 'Portfolio Coordinator',
             'email' => fake()->safeEmail(),
-            'phone' => fake()->phoneNumber(),
+            'phone' => '09'.fake()->numerify('#########'),
         ];
     }
 }

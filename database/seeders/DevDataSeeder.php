@@ -21,11 +21,11 @@ class DevDataSeeder extends Seeder
         // Admin account
         User::firstOrCreate(
             ['email' => 'admin@pup.edu.ph'],
-            ['name' => 'TBI Administrator', 'password' => 'password', 'role' => 'Admin',]
+            ['name' => 'TBI Administrator', 'password' => 'password', 'role' => 'Admin']
         );
 
         // Founder test account
-        User::firstOrCreate(
+        $founder = User::firstOrCreate(
             ['email' => 'founder@test.com'],
             ['name' => 'Maria Santos', 'password' => 'password', 'role' => 'Startup']
         );
@@ -38,8 +38,15 @@ class DevDataSeeder extends Seeder
         // AgriSense PH - Pending
         $pending = Startup::firstOrCreate(
             ['company_name' => 'AgriSense PH'],
-            (Startup::factory()->make())->toArray()
+            [
+                'user_id' => $founder->id,
+                'industry_sector' => 'AgriTech',
+                'cohort_number' => 3,
+                'contact_phone' => '09171234567',
+                'location' => 'Mandaluyong City, PH',
+            ]
         );
+        $pending->update(['user_id' => $founder->id]);
 
         $sheet = InformationSheet::firstOrCreate(
             ['startup_id' => $pending->startup_id],
@@ -96,9 +103,20 @@ class DevDataSeeder extends Seeder
         }
 
         // EcoWatt Solutions - Approved, needs coordinator
+        $ecowattFounder = User::firstOrCreate(
+            ['email' => 'ecowatt.founder@test.com'],
+            ['name' => 'EcoWatt Founder', 'password' => 'password', 'role' => 'Startup']
+        );
+
         $needsCoordinator = Startup::firstOrCreate(
             ['company_name' => 'EcoWatt Solutions'],
-            (Startup::factory()->make())->toArray()
+            [
+                'user_id' => $ecowattFounder->id,
+                'industry_sector' => 'CleanTech',
+                'cohort_number' => 3,
+                'contact_phone' => '09181234567',
+                'location' => 'Taguig City, PH',
+            ]
         );
 
         InformationSheet::firstOrCreate(
@@ -127,6 +145,17 @@ class DevDataSeeder extends Seeder
         Mentor::firstOrCreate(
             ['contact_email' => 'itsargeebueno@gmail.com'],
             ['honorific' => 'Mr.', 'first_name' => 'Argee', 'last_name' => 'Bueno', 'full_name' => 'Mr. Argee Bueno', 'specialization' => 'Business', 'contact_number' => '09695641213']
+        );
+
+        // Sample coordinators
+        Coordinator::firstOrCreate(
+            ['email' => 'jennie@pup.edu.ph'],
+            ['honorific' => "Ma'am", 'first_name' => 'Jennie', 'last_name' => 'Kim', 'name' => "Ma'am Jennie Kim", 'role_title' => 'Portfolio Coordinator', 'phone' => '09562549512']
+        );
+
+        Coordinator::firstOrCreate(
+            ['email' => 'tristan@pup.edu.ph'],
+            ['honorific' => 'Sir', 'first_name' => 'Tristan', 'last_name' => 'Velardo', 'name' => 'Sir Tristan Velardo', 'role_title' => 'Portfolio Coordinator', 'phone' => '09562549512']
         );
 
         $this->command->info('Dev data seeded successfully.');
