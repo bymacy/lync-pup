@@ -96,10 +96,10 @@
     <div class="flex gap-3 pt-2">
         @if ($mode === 'edit')
             <button type="button" @click="editOpen = false" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Cancel</button>
-            <button type="submit" class="flex-1 bg-rose-900 text-white rounded-lg py-2.5 text-sm font-medium">Save Changes</button>
+            <button type="submit" class="flex-1 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium">Save Changes</button>
         @else
             <button type="reset" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Clear Form</button>
-            <button type="submit" class="flex-1 bg-rose-900 text-white rounded-lg py-2.5 text-sm font-medium">Add Coordinator</button>
+            <button type="submit" class="flex-1 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium">Add Coordinator</button>
         @endif
     </div>
 </form>

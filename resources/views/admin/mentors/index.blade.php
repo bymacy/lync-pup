@@ -11,8 +11,26 @@
             </button>
 
             <div x-show="open" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display: none;">
-                <div class="bg-white rounded-xl w-full max-w-lg overflow-hidden" @click.outside="open = false">
-                    <x-mentor-form-modal mode="add" :action="route('admin.mentors.store')" />
+                <div x-show="open" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display: none;">
+                    <div
+                        class="relative bg-white rounded-xl w-full max-w-lg overflow-hidden"
+                        @click.outside="open = false">
+                        <!-- Close Button -->
+                        <button
+                            @click="open = false"
+                            type="button"
+                            class="absolute top-4 right-4 z-20
+           flex h-8 w-8 items-center justify-center
+           text-3xl text-gray-400 hover:text-gray-700
+           transition-colors duration-200"
+                            aria-label="Close">
+                            <span class="-mt-2.5">&times;</span>
+                        </button>
+
+                        <x-coordinator-form-modal
+                            mode="add"
+                            :action="route('admin.coordinators.store')" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -23,51 +41,51 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
 
         @forelse ($mentors as $mentor)
-            <div class="border rounded-xl overflow-hidden relative aspect-[3/4]" x-data="{ menuOpen: false, editOpen: false }">
-                <div class="absolute top-3 right-3 z-20">
-                    <button @click="menuOpen = !menuOpen" @click.outside="menuOpen = false" class="text-white text-xl leading-none drop-shadow">&#8942;</button>
-                    <div x-show="menuOpen" x-cloak class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg overflow-hidden border" style="display: none;">
-                        <button @click="editOpen = true; menuOpen = false" class="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50">
-                            Edit
+        <div class="border rounded-xl overflow-hidden relative aspect-[3/4]" x-data="{ menuOpen: false, editOpen: false }">
+            <div class="absolute top-3 right-3 z-20">
+                <button @click="menuOpen = !menuOpen" @click.outside="menuOpen = false" class="text-white text-xl leading-none drop-shadow">&#8942;</button>
+                <div x-show="menuOpen" x-cloak class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg overflow-hidden border" style="display: none;">
+                    <button @click="editOpen = true; menuOpen = false" class="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50">
+                        Edit
+                    </button>
+                    <form method="POST" action="{{ route('admin.mentors.destroy', $mentor) }}" onsubmit="return confirm('Remove this mentor?')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-700 bg-rose-900 hover:bg-rose-950 hover:text-white">
+                            Delete
                         </button>
-                        <form method="POST" action="{{ route('admin.mentors.destroy', $mentor) }}" onsubmit="return confirm('Remove this mentor?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-700 bg-rose-900 hover:bg-rose-950 hover:text-white">
-                                Delete
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
-                {{-- Photo fills the entire card, positioned absolutely as the base layer --}}
-                <div class="absolute inset-0 bg-gray-200">
-                    @if ($mentor->mentor_photo_path)
-                        <img src="{{ Storage::url($mentor->mentor_photo_path) }}" class="w-full h-full object-cover">
-                    @else
-                        <div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">No Photo</div>
-                    @endif
-                </div>
-
-                {{-- Text overlays ON TOP of the photo, anchored to the bottom, with a gradient that fades UP INTO the photo --}}
-                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent text-white p-4 pt-16">
-                    <p class="font-bold">{{ $mentor->display_name }}</p>
-                    <p class="text-xs text-white/70 mb-2">{{ $mentor->specialization }} Mentor</p>
-                    <div class="border-t border-white/20 pt-2 space-y-1 text-xs text-white/80">
-                        <p>{{ $mentor->contact_number ?? '—' }}</p>
-                        <p>{{ $mentor->contact_email ?? '—' }}</p>
-                        <p>{{ $mentor->cases_count }} Cases</p>
-                    </div>
-                </div>
-
-                <div x-show="editOpen" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display: none;">
-                    <div class="bg-white rounded-xl w-full max-w-lg overflow-hidden" @click.outside="editOpen = false">
-                        <x-mentor-form-modal mode="edit" :mentor="$mentor" :action="route('admin.mentors.update', $mentor)" />
-                    </div>
+                    </form>
                 </div>
             </div>
+
+            {{-- Photo fills the entire card, positioned absolutely as the base layer --}}
+            <div class="absolute inset-0 bg-gray-200">
+                @if ($mentor->mentor_photo_path)
+                <img src="{{ Storage::url($mentor->mentor_photo_path) }}" class="w-full h-full object-cover">
+                @else
+                <div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">No Photo</div>
+                @endif
+            </div>
+
+            {{-- Text overlays ON TOP of the photo, anchored to the bottom, with a gradient that fades UP INTO the photo --}}
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent text-white p-4 pt-16">
+                <p class="font-bold">{{ $mentor->display_name }}</p>
+                <p class="text-xs text-white/70 mb-2">{{ $mentor->specialization }} Mentor</p>
+                <div class="border-t border-white/20 pt-2 space-y-1 text-xs text-white/80">
+                    <p>{{ $mentor->contact_number ?? '—' }}</p>
+                    <p>{{ $mentor->contact_email ?? '—' }}</p>
+                    <p>{{ $mentor->cases_count }} Cases</p>
+                </div>
+            </div>
+
+            <div x-show="editOpen" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display: none;">
+                <div class="bg-white rounded-xl w-full max-w-lg overflow-hidden" @click.outside="editOpen = false">
+                    <x-mentor-form-modal mode="edit" :mentor="$mentor" :action="route('admin.mentors.update', $mentor)" />
+                </div>
+            </div>
+        </div>
         @empty
-            <p class="text-gray-500 col-span-full">No mentors added yet.</p>
+        <p class="text-gray-500 col-span-full">No mentors added yet.</p>
         @endforelse
     </div>
 </x-layouts.admin>
