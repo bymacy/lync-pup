@@ -14,6 +14,8 @@ use Illuminate\View\View;
 
 class MentorController extends Controller
 {
+    use CompressesImages;
+
     public function index(): View
     {
         $mentors = Mentor::latest()->get();
