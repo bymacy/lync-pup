@@ -27,9 +27,9 @@
                             <span class="-mt-2.5">&times;</span>
                         </button>
 
-                        <x-coordinator-form-modal
+                        <x-mentor-form-modal
                             mode="add"
-                            :action="route('admin.coordinators.store')" />
+                            :action="route('admin.mentors.store')" />
                     </div>
                 </div>
             </div>
@@ -41,20 +41,114 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
 
         @forelse ($mentors as $mentor)
-        <div class="border rounded-xl overflow-hidden relative aspect-[3/4]" x-data="{ menuOpen: false, editOpen: false }">
+        <div class="border rounded-xl overflow-hidden relative aspect-[3/4]" x-data="{ menuOpen: false, editOpen: false, deleteOpen: false }">
             <div class="absolute top-3 right-3 z-20">
-                <button @click="menuOpen = !menuOpen" @click.outside="menuOpen = false" class="text-white text-xl leading-none drop-shadow">&#8942;</button>
-                <div x-show="menuOpen" x-cloak class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg overflow-hidden border" style="display: none;">
-                    <button @click="editOpen = true; menuOpen = false" class="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50">
+                <button
+                    @click="menuOpen = !menuOpen"
+                    @click.outside="menuOpen = false"
+                    class="flex items-center justify-center w-9 h-9 rounded-full text-gray-600 hover:bg-gray-100 hover:text-[#6D0D23] transition duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <circle cx="12" cy="5" r="2" />
+                        <circle cx="12" cy="12" r="2" />
+                        <circle cx="12" cy="19" r="2" />
+                    </svg>
+                </button>
+                <div
+                    x-show="menuOpen"
+                    x-transition.origin.top.right
+                    x-cloak
+                    class="absolute right-0 top-10 z-50 w-40 overflow-hidden rounded-xl bg-white border border-gray-200 shadow-xl">
+
+                    <button
+                        @click="editOpen = true; menuOpen = false"
+                        class="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-100 hover:text-[#6D0D23]">
+
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4"
+                            fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M16.862 3.487a2.1 2.1 0 113 2.97L8.5 17.82l-4 1 1-4L16.862 3.487z" />
+                        </svg>
+
                         Edit
                     </button>
-                    <form method="POST" action="{{ route('admin.mentors.destroy', $mentor) }}" onsubmit="return confirm('Remove this mentor?')">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-700 bg-rose-900 hover:bg-rose-950 hover:text-white">
-                            Delete
-                        </button>
-                    </form>
+
+                    <div class="border-t border-gray-100"></div>
+
+                    <button
+                        type="button"
+                        @click="deleteOpen = true; menuOpen = false"
+                        class="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition">
+
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4"
+                            fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M19 7L5 7M10 11v6M14 11v6M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+                        </svg>
+
+                        Delete
+                    </button>
+                </div>
+
+                <div
+                    x-show="deleteOpen"
+                    x-cloak
+                    x-transition.opacity
+                    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                    style="display:none;">
+                    <div
+                        @click.outside="deleteOpen = false"
+                        class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+
+                        <div class="px-8 py-8 text-center">
+
+                            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="h-7 w-7 text-red-600"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+                                </svg>
+                            </div>
+
+                            <h2 class="mt-5 text-xl font-semibold text-gray-900">
+                                Delete Mentor
+                            </h2>
+
+                            <p class="mt-3 text-sm leading-6 text-gray-600">
+                                You're about to permanently delete
+                                <span class="font-semibold text-gray-900">
+                                    {{ $mentor->display_name }}
+                                </span>.
+                                This action cannot be undone.
+                            </p>
+
+                            <div class="mt-8 flex justify-center gap-3">
+                                <button
+                                    type="button"
+                                    @click="deleteOpen = false"
+                                    class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
+                                    Cancel
+                                </button>
+
+                                <form method="POST" action="{{ route('admin.mentors.destroy', $mentor) }}">
+                                    @csrf
+                                    @method('DELETE')
+
+                                    <button
+                                        type="submit"
+                                        class="rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-2.5 text-sm font-medium text-white shadow-md hover:opacity-90 transition">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+
+                        </div>
+                    </div>
                 </div>
             </div>
 

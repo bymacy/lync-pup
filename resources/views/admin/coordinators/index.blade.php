@@ -140,7 +140,7 @@
 
                                     <button
                                         type="submit"
-                                        class="rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 transition">
+                                        class="rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-2.5 text-sm font-medium text-white shadow-md hover:opacity-90 transition">
                                         Delete
                                     </button>
                                 </form>
