@@ -10,6 +10,7 @@ use App\Http\Controllers\ProfileController;
 
 use App\Http\Controllers\Startup\DashboardController as StartupDashboardController;
 use App\Http\Controllers\Startup\StartupProfileController as FounderProfileController;
+use App\Http\Controllers\Startup\InformationSheetController as FounderInfoSheetController;
 
 require __DIR__.'/auth.php';
 
@@ -62,4 +63,21 @@ Route::middleware(['auth', 'role:Startup'])->prefix('startup')->name('startup.')
     Route::post('profile/team-members', [FounderProfileController::class, 'storeTeamMember'])->name('team-members.store');
     Route::patch('profile/team-members/{teamMember}', [FounderProfileController::class, 'updateTeamMember'])->name('team-members.update');
     Route::delete('profile/team-members/{teamMember}', [FounderProfileController::class, 'destroyTeamMember'])->name('team-members.destroy');
+
+    Route::get('information-sheet', [FounderInfoSheetController::class, 'edit'])->name('information-sheet.edit');
+    Route::patch('information-sheet', [FounderInfoSheetController::class, 'update'])->name('information-sheet.update');
+
+    Route::patch('team-members/{teamMember}/details', [FounderProfileController::class, 'updateTeamMemberDetails'])->name('team-members.update-details');
+
+    Route::post('information-sheet/incubation', [FounderInfoSheetController::class, 'storeIncubation'])->name('incubation.store');
+    Route::patch('information-sheet/incubation/{incubationInvolvement}', [FounderInfoSheetController::class, 'updateIncubation'])->name('incubation.update');
+    Route::delete('information-sheet/incubation/{incubationInvolvement}', [FounderInfoSheetController::class, 'destroyIncubation'])->name('incubation.destroy');
+
+    Route::post('information-sheet/ld', [FounderInfoSheetController::class, 'storeLd'])->name('ld.store');
+    Route::patch('information-sheet/ld/{ldIntervention}', [FounderInfoSheetController::class, 'updateLd'])->name('ld.update');
+    Route::delete('information-sheet/ld/{ldIntervention}', [FounderInfoSheetController::class, 'destroyLd'])->name('ld.destroy');
+
+    Route::post('information-sheet/references', [FounderInfoSheetController::class, 'storeReference'])->name('references.store');
+    Route::patch('information-sheet/references/{reference}', [FounderInfoSheetController::class, 'updateReference'])->name('references.update');
+    Route::delete('information-sheet/references/{reference}', [FounderInfoSheetController::class, 'destroyReference'])->name('references.destroy');
 });

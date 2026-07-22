@@ -82,4 +82,13 @@ class StartupProfileController extends Controller
 
         return redirect()->route('startup.profile.edit')->with('status', 'Team member removed.');
     }
+
+    public function updateTeamMemberDetails(UpdateTeamMemberDetailsRequest $request, TeamMember $teamMember): RedirectResponse
+    {
+    abort_unless($teamMember->startup_id === auth()->user()->startup->startup_id, 403);
+
+    $teamMember->update($request->validated());
+
+    return redirect()->route('startup.information-sheet.edit')->with('status', 'Team member updated.');
+    }
 }
