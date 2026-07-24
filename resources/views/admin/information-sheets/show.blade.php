@@ -262,38 +262,25 @@
                 </div>
             @endif
 
-            <div class="flex gap-3" x-data="{ rejecting: false }">
+            <div class="flex gap-3">
                 <a href="{{ route('admin.startups.show', $startup) }}"
-                   class="flex-1 text-center border rounded-lg py-3 text-sm font-medium text-blue-900 border-blue-900">
+                class="flex-1 text-center border rounded-lg py-3 text-sm font-medium text-blue-900 border-blue-900">
                     BACK
                 </a>
 
-                @if ($sheet?->approval_status === 'Pending')
-                    <button type="button" @click="rejecting = !rejecting"
-                            class="flex-1 border border-red-700 text-red-700 rounded-lg py-3 text-sm font-medium">
-                        REJECT
-                    </button>
-
+                @if ($startup->informationSheet?->approval_status === 'Pending')
                     <form method="POST" action="{{ route('admin.information-sheet.approve', $startup) }}" class="flex-1">
                         @csrf
                         @method('PATCH')
                         <button type="submit" class="w-full bg-rose-900 text-white rounded-lg py-3 text-sm font-medium">
-                            APPROVE
+                            APPROVE & LOCK
                         </button>
                     </form>
+                @else
+                    <div class="flex-1 text-center bg-gray-100 text-gray-500 rounded-lg py-3 text-sm font-medium">
+                        Approved & Locked
+                    </div>
                 @endif
-            </div>
-
-            <div x-data="{ rejecting: false }" x-show="rejecting" x-cloak class="mt-4">
-                <form method="POST" action="{{ route('admin.information-sheet.reject', $startup) }}">
-                    @csrf
-                    @method('PATCH')
-                    <textarea name="evaluator_remarks" rows="3" placeholder="Reason for rejection..."
-                              class="w-full border rounded-lg p-3 text-sm"></textarea>
-                    <button type="submit" class="mt-2 bg-red-700 text-white rounded-lg px-4 py-2 text-sm font-medium">
-                        Confirm Rejection
-                    </button>
-                </form>
             </div>
         </div>
     </div>

@@ -94,18 +94,28 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-2xl border border-[#F2B8C2] shadow-sm p-6 h-fit">
+        <div class="bg-white rounded-xl border border-rose-200 p-6 h-fit">
             <h2 class="font-bold text-gray-900 mb-4">Contact & Links</h2>
             <div class="space-y-3 text-sm text-gray-700">
+                @if ($startup->website)
+                    <p><a href="{{ $startup->website }}" target="_blank" class="hover:underline">{{ $startup->website }}</a></p>
+                @endif
                 <p>{{ $startup->user->email }}</p>
                 <p>{{ $startup->contact_phone }}</p>
                 <p>{{ $startup->location }}</p>
             </div>
-            @if ($startup->status === 'Pending')
-            <a href="{{ route('admin.information-sheet.show', $startup) }}"
-                class="mt-6 block text-center bg-rose-900 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-rose-950">
-                View Information Sheet
-            </a>
+
+            <form method="POST" action="{{ route('admin.startups.request-pitch-deck', $startup) }}" class="mt-6">
+                @csrf
+                <button type="submit" class="w-full bg-rose-900 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-rose-950">
+                    Request Pitch Deck
+                </button>
+            </form>
+
+            @if ($startup->pitch_deck_requested_at)
+                <p class="text-xs text-gray-400 text-center mt-2">
+                    Last requested {{ $startup->pitch_deck_requested_at->diffForHumans() }}
+                </p>
             @endif
         </div>
     </div>

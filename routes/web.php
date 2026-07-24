@@ -39,8 +39,6 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
         ->name('information-sheet.show');
     Route::patch('startups/{startup}/information-sheet/approve', [InformationSheetController::class, 'approve'])
         ->name('information-sheet.approve');
-    Route::patch('startups/{startup}/information-sheet/reject', [InformationSheetController::class, 'reject'])
-        ->name('information-sheet.reject');
 
     Route::resource('mentors', MentorController::class)
         ->except(['create', 'edit', 'show'])
@@ -49,6 +47,9 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
     Route::resource('coordinators', CoordinatorProfileController::class)
         ->except(['create', 'edit', 'show'])
         ->names('coordinators');
+
+    Route::post('startups/{startup}/request-pitch-deck', [StartupProfileController::class, 'requestPitchDeck'])
+        ->name('startups.request-pitch-deck');
 
     // Future modules (Coordinator Profile, Assessment Hub, Roadblock Management, Risk Monitoring) nest here
 });

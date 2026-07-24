@@ -37,9 +37,11 @@ class InformationSheetController extends Controller
     public function update(UpdateInformationSheetRequest $request): RedirectResponse
     {
         $startup = auth()->user()->startup;
-        $data = $request->validated();
-
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
+
+        abort_if($sheet->approval_status === 'Approved', 403, 'This Information Sheet is approved and locked. Contact your Coordinator for changes.');
+
+        $data = $request->validated();
 
         if ($request->hasFile('founder_signature')) {
             if ($sheet->founder_signature_path) {

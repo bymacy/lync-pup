@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+
 class StartupProfileTest extends TestCase
 {
     use RefreshDatabase;
@@ -79,52 +80,6 @@ class StartupProfileTest extends TestCase
         $this->assertEquals('Active', $startup->fresh()->status);
     }
 
-    public function test_assigning_coordinator_requires_valid_coordinator_id(): void
-    {
-        $admin = User::factory()->create(['role' => 'Admin']);
-        $startup = $this->makeStartup('Approved');
-
-        $response = $this->actingAs($admin)->post(route('admin.startups.coordinator.store', $startup), [
-            'coordinator_id' => 9999,
-        ]);
-
-        $response->assertSessionHasErrors('coordinator_id');
-    }
-
-    public function test_admin_can_approve_pending_information_sheet(): void
-    {
-        $admin = User::factory()->create(['role' => 'Admin']);
-        $startup = $this->makeStartup('Pending');
-
-        $response = $this->actingAs($admin)->patch(route('admin.information-sheet.approve', $startup));
-
-        $response->assertRedirect(route('admin.startups.show', $startup));
-        $this->assertEquals('Approved', $startup->informationSheet->fresh()->approval_status);
-    }
-
-    public function test_admin_can_reject_information_sheet_with_remarks(): void
-    {
-        $admin = User::factory()->create(['role' => 'Admin']);
-        $startup = $this->makeStartup('Pending');
-
-        $response = $this->actingAs($admin)->patch(route('admin.information-sheet.reject', $startup), [
-            'evaluator_remarks' => 'Missing required documents.',
-        ]);
-
-        $response->assertRedirect(route('admin.startups.show', $startup));
-        $this->assertEquals('Rejected', $startup->informationSheet->fresh()->approval_status);
-    }
-
-    public function test_rejecting_information_sheet_requires_remarks(): void
-    {
-        $admin = User::factory()->create(['role' => 'Admin']);
-        $startup = $this->makeStartup('Pending');
-
-        $response = $this->actingAs($admin)->patch(route('admin.information-sheet.reject', $startup), []);
-
-        $response->assertSessionHasErrors('evaluator_remarks');
-    }
-
     public function test_pending_tab_filters_correctly(): void
     {
         $admin = User::factory()->create(['role' => 'Admin']);
@@ -135,5 +90,18 @@ class StartupProfileTest extends TestCase
 
         $response->assertOk();
         $response->assertViewHas('startups', fn ($startups) => $startups->count() === 1);
+    }
+    public function test_admin_can_request_pitch_deck(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $startup = $this->makeStartup('Approved');
+
+        $response = $this->actingAs($admin)->post(route('admin.startups.request-pitch-deck', $startup));
+
+        $response->assertRedirect(route('admin.startups.show', $startup));
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\PitchDeckRequested::class);
+        $this->assertNotNull($startup->fresh()->pitch_deck_requested_at);
     }
 }

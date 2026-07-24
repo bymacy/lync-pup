@@ -6,7 +6,7 @@
 
     @php $sheet = $startup->informationSheet; @endphp
 
-    <div class="bg-white rounded-xl border border-gray-200 max-w-5xl" x-data="{ editing: false }">
+    <div class="bg-white rounded-xl border border-gray-200 max-w-5xl" x-data="{ editing: false, isLocked: {{ $sheet?->approval_status === 'Approved' ? 'true' : 'false' }} }"><div class="flex gap-3">
         <div class="bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4">
             <h2 class="font-bold">{{ $startup->company_name }}</h2>
         </div>
@@ -123,7 +123,7 @@
                     @if ($sheet?->founder_signature_path)
                         <img src="{{ Storage::url($sheet->founder_signature_path) }}" class="h-16 mb-2 border rounded">
                     @endif
-                    <input type="file" name="founder_signature" accept="image/*" x-show="editing" x-cloak class="text-sm mb-3">
+                    <input type="file" name="founder_signature" accept="image/*" x-show="editing && !isLocked" x-cloak class="text-sm mb-3">
                     @error('founder_signature') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
 
                     <label class="block text-xs text-gray-500 mb-1 mt-3">Date Accomplished</label>
@@ -132,10 +132,17 @@
                 </div>
 
                 <div class="flex gap-3">
-                    <button type="button" @click="editing = !editing" x-show="!editing" class="flex-1 border rounded-lg py-2.5 text-sm font-medium text-blue-900 border-blue-900">
-                        Edit
-                    </button>
-                    <button type="submit" x-show="editing" class="flex-1 bg-rose-900 text-white rounded-lg py-2.5 text-sm font-medium">
+                    <template x-if="isLocked">
+                        <div class="flex-1 text-center bg-gray-100 text-gray-500 rounded-lg py-2.5 text-sm font-medium">
+                            Approved & Locked — contact your Coordinator for changes
+                        </div>
+                    </template>
+                    <template x-if="!isLocked">
+                        <button type="button" @click="editing = !editing" x-show="!editing" class="flex-1 border rounded-lg py-2.5 text-sm font-medium text-blue-900 border-blue-900">
+                            Edit
+                        </button>
+                    </template>
+                    <button type="submit" x-show="editing && !isLocked" class="flex-1 bg-rose-900 text-white rounded-lg py-2.5 text-sm font-medium">
                         Save
                     </button>
                 </div>

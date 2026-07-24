@@ -14,8 +14,13 @@ class Startup extends Model
 
     protected $fillable = [
         'user_id', 'company_name', 'industry_sector', 'cohort_number',
-        'contact_phone', 'location', 'website', 'startup_photo_path',
+        'contact_phone', 'location', 'website', 'startup_photo_path', 'pitch_deck_requested_at',
     ];
+
+    protected function casts(): array
+    {
+        return ['pitch_deck_requested_at' => 'datetime'];
+    }
 
     public function getBatchLabelAttribute(): string
     {

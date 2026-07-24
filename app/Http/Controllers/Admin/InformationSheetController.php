@@ -34,16 +34,4 @@ class InformationSheetController extends Controller
             ->route('admin.startups.show', $startup)
             ->with('status', 'Information sheet approved.');
     }
-
-    public function reject(RejectInformationSheetRequest $request, Startup $startup): RedirectResponse
-    {
-        $startup->informationSheet()->update([
-            'approval_status' => 'Rejected',
-            'evaluator_remarks' => $request->validated('evaluator_remarks'),
-        ]);
-
-        return redirect()
-            ->route('admin.startups.show', $startup)
-            ->with('status', 'Information sheet rejected.');
-    }
 }

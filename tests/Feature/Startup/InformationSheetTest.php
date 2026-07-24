@@ -13,11 +13,11 @@ class InformationSheetTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function makeFounder(): array
+    protected function makeFounder(string $status = 'Pending'): array
     {
         $user = User::factory()->create(['role' => 'Startup']);
         $startup = Startup::factory()->create(['user_id' => $user->id]);
-        InformationSheet::factory()->create(['startup_id' => $startup->startup_id, 'approval_status' => 'Approved']);
+        InformationSheet::factory()->create(['startup_id' => $startup->startup_id, 'approval_status' => $status]);
 
         return [$user, $startup];
     }
@@ -33,7 +33,7 @@ class InformationSheetTest extends TestCase
 
     public function test_saving_resets_approval_status_to_pending(): void
     {
-        [$user, $startup] = $this->makeFounder();
+        [$user, $startup] = $this->makeFounder('Pending');
 
         $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
             'surname' => 'Santos',
@@ -64,6 +64,18 @@ class InformationSheetTest extends TestCase
         $otherReference = StartupReference::factory()->create(['info_sheet_id' => $otherSheet->info_sheet_id]);
 
         $response = $this->actingAs($user)->delete(route('startup.references.destroy', $otherReference));
+
+        $response->assertForbidden();
+    }
+
+    public function test_founder_cannot_edit_locked_approved_information_sheet(): void
+    {
+        [$user] = $this->makeFounder('Approved');
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'surname' => 'Attempted Change',
+            'first_name' => 'Still Attempted',
+        ]);
 
         $response->assertForbidden();
     }

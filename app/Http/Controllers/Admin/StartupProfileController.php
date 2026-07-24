@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Startup;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use App\Mail\PitchDeckRequested;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Http\RedirectResponse;
 
 class StartupProfileController extends Controller
 {
@@ -42,5 +45,16 @@ class StartupProfileController extends Controller
         ]);
 
         return view('admin.startups.show', compact('startup'));
+    }
+
+    public function requestPitchDeck(Startup $startup): RedirectResponse
+    {
+        Mail::to($startup->user->email)->send(new PitchDeckRequested($startup));
+
+        $startup->update(['pitch_deck_requested_at' => now()]);
+
+        return redirect()
+            ->route('admin.startups.show', $startup)
+            ->with('status', 'Pitch deck request sent to '.$startup->user->email.'.');
     }
 }
