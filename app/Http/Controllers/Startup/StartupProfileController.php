@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Startup;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Startup\StoreTeamMemberRequest;
 use App\Http\Requests\Startup\UpdateStartupProfileRequest;
+use App\Http\Requests\Startup\UpdateTeamMemberDetailsRequest;
 use App\Http\Requests\Startup\UpdateTeamMemberRequest;
+
 use App\Models\Startup;
 use App\Models\TeamMember;
 use App\Traits\CompressesImages;
