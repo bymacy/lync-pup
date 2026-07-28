@@ -32,8 +32,8 @@
             };
             @endphp
 
-            <div class="min-h-screen flex">
-                <aside class="w-64 flex-shrink-0 bg-gradient-to-b from-[#6D0D23] to-[#11386A] text-white flex flex-col justify-between">
+            <div class="h-screen flex">
+                <aside class="sticky top-0 h-screen w-64 flex-shrink-0 bg-gradient-to-b from-[#6D0D23] to-[#11386A] text-white flex flex-col justify-between">
                     <div>
                         {{-- Logo / header --}}
                         <div class="flex items-center gap-3 px-5 pt-6 pb-5">
@@ -121,7 +121,7 @@
                     </div>
                 </aside>
 
-                <main class="flex-1 p-8 overflow-y-auto">
+                <main class="flex-1 h-screen overflow-y-auto p-8">
                     @if (session('status'))
                     <div
                         x-data="{ show: true }"
