@@ -272,7 +272,7 @@
                     <form method="POST" action="{{ route('admin.information-sheet.approve', $startup) }}" class="flex-1">
                         @csrf
                         @method('PATCH')
-                        <button type="submit" class="w-full bg-rose-900 text-white rounded-lg py-3 text-sm font-medium">
+                        <button type="submit" class="w-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] hover:opacity-90 transition-all duration-200 text-white rounded-lg py-3 text-sm font-medium">
                             APPROVE & LOCK
                         </button>
                     </form>
