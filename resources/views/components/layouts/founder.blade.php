@@ -136,8 +136,52 @@
 
                 <main class="flex-1 h-screen overflow-y-auto p-8">
                     @if (session('status'))
-                    <div class="mb-4 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3">
-                        {{ session('status') }}
+                    <div
+                        x-data="{ show: true }"
+                        x-init="setTimeout(() => show = false, 3000)"
+                        x-show="show"
+                        x-transition:enter="transform ease-out duration-300"
+                        x-transition:enter-start="translate-x-full opacity-0"
+                        x-transition:enter-end="translate-x-0 opacity-100"
+                        x-transition:leave="transform ease-in duration-200"
+                        x-transition:leave-start="translate-x-0 opacity-100"
+                        x-transition:leave-end="translate-x-full opacity-0"
+                        class="fixed top-6 right-6 z-50">
+
+                        <div class="flex items-center gap-3 rounded-xl border border-[#6D0D23]/20 bg-white shadow-xl px-5 py-4 min-w-[340px]">
+
+                            <!-- Check Icon -->
+                            <div class="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white shadow-lg ring-2 ring-white">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="h-5 w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="2.8">
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+
+                            <div class="flex-1">
+                                <p class="text-sm font-semibold text-gray-900">
+                                    Success
+                                </p>
+
+                                <p class="text-sm text-gray-600">
+                                    {{ session('status') }}
+                                </p>
+                            </div>
+
+                            <button
+                                @click="show = false"
+                                class="text-gray-400 hover:text-gray-600 transition">
+                                ✕
+                            </button>
+
+                        </div>
                     </div>
                     @endif
 
