@@ -107,7 +107,7 @@
 
             <form method="POST" action="{{ route('admin.startups.request-pitch-deck', $startup) }}" class="mt-6">
                 @csrf
-                <button type="submit" class="w-full bg-rose-900 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-rose-950">
+                <button type="submit" class="w-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] hover:opacity-90 transition-all duration-200 text-white rounded-lg py-2.5 text-sm font-medium">
                     Request Pitch Deck
                 </button>
             </form>
