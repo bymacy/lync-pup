@@ -22,7 +22,10 @@ class StartupProfileController extends Controller
     public function edit(): View
     {
         $startup = auth()->user()->startup->load([
-            'informationSheet', 'teamMembers', 'activeCoordinatorAssignment.coordinator', 'latestReadinessAssessment',
+            'informationSheet',
+            'teamMembers',
+            'activeCoordinatorAssignment.coordinator',
+            'latestReadinessAssessment',
         ]);
 
         return view('startup.profile.edit', compact('startup'));
@@ -39,7 +42,44 @@ class StartupProfileController extends Controller
             'contact_phone' => $data['contact_phone'] ?? null,
             'website' => $data['website'] ?? null,
             'location' => $data['location'] ?? null,
+
+
         ]);
+
+        if ($request->has('team_members')) {
+            foreach ($request->team_members as $id => $name) {
+
+                if (blank($name)) {
+                    continue;
+                }
+
+                TeamMember::where('member_id', $id)
+                    ->where('startup_id', $startup->startup_id)
+                    ->update([
+                        'full_name' => $name,
+                    ]);
+            }
+        }
+
+        if ($request->has('new_team_members')) {
+
+            foreach ($request->new_team_members as $name) {
+                if (blank($name)) {
+                    continue;
+                }
+
+                $startup->teamMembers()->create([
+                    'full_name' => $name,
+                ]);
+            }
+        }
+
+        if ($request->has('deleted_team_members')) {
+
+            TeamMember::where('startup_id', $startup->startup_id)
+                ->whereIn('member_id', $request->deleted_team_members)
+                ->delete();
+        }
 
         $startup->informationSheet()->updateOrCreate(
             ['startup_id' => $startup->startup_id],
@@ -87,10 +127,10 @@ class StartupProfileController extends Controller
 
     public function updateTeamMemberDetails(UpdateTeamMemberDetailsRequest $request, TeamMember $teamMember): RedirectResponse
     {
-    abort_unless($teamMember->startup_id === auth()->user()->startup->startup_id, 403);
+        abort_unless($teamMember->startup_id === auth()->user()->startup->startup_id, 403);
 
-    $teamMember->update($request->validated());
+        $teamMember->update($request->validated());
 
-    return redirect()->route('startup.information-sheet.edit')->with('status', 'Team member updated.');
+        return redirect()->route('startup.information-sheet.edit')->with('status', 'Team member updated.');
     }
 }

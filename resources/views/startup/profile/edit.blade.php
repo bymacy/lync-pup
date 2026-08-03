@@ -1,6 +1,28 @@
 <x-layouts.founder title="Startup Profile">
 
-    <div x-data="{ editing: false }">
+    <div
+        x-data="{
+        editing: false,
+        dirty: false,
+
+        showLeaveModal: false,
+        nextUrl: null,
+
+        newMembers: [''],
+        deletedMembers: []
+    }"
+        x-init="
+    $watch('dirty', value => {
+        $store.navigation.hasUnsavedChanges = value;
+    });
+
+    window.addEventListener('beforeunload', (e) => {
+        if ($store.navigation.hasUnsavedChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+">
 
         <div class="flex items-center justify-between mb-6">
 
@@ -30,7 +52,14 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-6">
 
-                <form method="POST" action="{{ route('startup.profile.update') }}" enctype="multipart/form-data">
+                <form
+                    method="POST"
+                    action="{{ route('startup.profile.update') }}"
+                    enctype="multipart/form-data"
+                    @submit="
+        dirty = false;
+        $store.navigation.hasUnsavedChanges = false;
+    ">
                     @csrf
                     @method('PATCH')
 
@@ -40,12 +69,15 @@
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Startup Name</label>
                             <input
+
                                 type="text"
                                 name="company_name"
                                 value="{{ old('company_name', $startup->company_name) }}"
                                 :readonly="!editing"
                                 :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
-                                class="w-full border rounded-lg px-3 py-2 text-sm">
+                                class="w-full border rounded-lg px-3 py-2 text-sm"
+                                @input="dirty = true">
+
                             @error('company_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                         </div>
 
@@ -58,7 +90,9 @@
                                     value="{{ old('industry_sector', $startup->industry_sector) }}"
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
-                                    class="w-full border rounded-lg px-3 py-2 text-sm">
+                                    class="w-full border rounded-lg px-3 py-2 text-sm"
+                                    @input="dirty = true">
+
                                 @error('industry_sector') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                             <div>
@@ -82,7 +116,10 @@
                                 rows="4"
                                 :readonly="!editing"
                                 :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
-                                class="w-full border rounded-lg px-3 py-2 text-sm">{{ old('business_description', $startup->informationSheet?->business_description) }}</textarea>
+                                class="w-full border rounded-lg px-3 py-2 text-sm"
+                                @input="dirty = true">{{ old('business_description', $startup->informationSheet?->business_description) }}
+
+                            </textarea>
 
                             @error('business_description')
                             <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
@@ -101,7 +138,8 @@
                                 value="{{ old('founder_name', auth()->user()->name) }}"
                                 :readonly="!editing"
                                 :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
-                                class="w-full border rounded-lg px-3 py-2 text-sm">
+                                class="w-full border rounded-lg px-3 py-2 text-sm"
+                                @input="dirty = true">
                             @error('founder_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                         </div>
 
@@ -120,7 +158,8 @@
                                     value="{{ old('contact_phone', $startup->contact_phone) }}"
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
-                                    class="w-full border rounded-lg px-3 py-2 text-sm">
+                                    class="w-full border rounded-lg px-3 py-2 text-sm"
+                                    @input="dirty = true">
                                 @error('contact_phone') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                         </div>
@@ -135,7 +174,8 @@
                                     placeholder="https://"
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
-                                    class="w-full border rounded-lg px-3 py-2 text-sm">
+                                    class="w-full border rounded-lg px-3 py-2 text-sm"
+                                    @input="dirty = true">
                                 @error('website') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                             <div>
@@ -146,91 +186,152 @@
                                     value="{{ old('location', $startup->location) }}"
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
-                                    class="w-full border rounded-lg px-3 py-2 text-sm">
+                                    class="w-full border rounded-lg px-3 py-2 text-sm"
+                                    @input="dirty = true">
                                 @error('location') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                         </div>
+                    </div>
 
-                        <div
-                            x-show="editing"
-                            x-transition
-                            class="mt-4"
-                            x-data="{ photoPreview: '' }">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Startup Logo (optional update)</label>
-                            <input type="file" name="startup_photo" accept="image/*"
-                                @change="const f = $event.target.files[0]; if (f) photoPreview = URL.createObjectURL(f)"
-                                class="text-sm">
-                            <img x-show="photoPreview" :src="photoPreview" x-cloak class="mt-2 w-20 h-20 rounded-lg object-cover border">
-                            @error('startup_photo') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                    <div class="bg-white rounded-xl border border-gray-200 p-6 mt-6">
+                        <h2 class="font-bold text-gray-900 mb-4">Team Members</h2>
+
+                        <div class="space-y-3 mb-4">
+                            @foreach($startup->teamMembers as $member)
+
+                            <div
+                                x-show="!deletedMembers.includes({{ $member->member_id }})"
+                                class="grid grid-cols-[1fr_32px] gap-2 items-center">
+
+                                <input
+                                    type="text"
+                                    name="team_members[{{ $member->member_id }}]"
+                                    value="{{ old("team_members.$member->member_id", $member->full_name) }}"
+                                    :readonly="!editing"
+                                    :class="editing
+                                        ? 'bg-white'
+                                        : 'bg-gray-50 text-gray-600 cursor-default'"
+                                    class="flex-1 border rounded-lg px-3 py-2 text-sm"
+                                    @input="dirty = true">
+
+                                <button
+                                    x-show="editing"
+                                    type="button"
+                                    @click="
+                                        deletedMembers.push({{ $member->member_id }});
+                                        dirty = true;
+                                    "
+                                    class="text-red-600 hover:text-red-800 text-lg px-2">
+                                    ×
+                                </button>
+
+                                <input
+                                    type="hidden"
+                                    x-bind:disabled="!deletedMembers.includes({{ $member->member_id }})"
+                                    value="{{ $member->member_id }}"
+                                    name="deleted_team_members[]">
+
+                            </div>
+
+                            @endforeach
                         </div>
 
-                        <div x-show="editing" x-transition class="mt-6 flex justify-end">
+                        <div x-show="editing" class="space-y-3 mt-4">
+
+                            <template x-for="(member, index) in newMembers" :key="index">
+                                <div class="grid grid-cols-[1fr_32px] gap-2 items-center">
+
+                                    <input
+                                        type="text"
+                                        :name="'new_team_members[' + index + ']'"
+                                        x-model="newMembers[index]"
+                                        placeholder="New team member name"
+                                        class="w-full border rounded-lg px-3 py-2 text-sm"
+                                        @input="dirty = true">
+
+                                    <button
+                                        type="button"
+                                        @click="
+                                            newMembers.splice(index,1);
+                                            dirty = true;
+                                        "
+                                        x-show="newMembers.length > 1"
+                                        class="text-red-600 hover:text-red-800 text-lg">
+                                        ×
+                                    </button>
+                                </div>
+                            </template>
 
                             <button
-                                type="submit"
-                                class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-sm font-medium rounded-lg px-5 py-2.5">
-                                Save Changes
+                                type="button"
+                                @click="newMembers.push('');
+                                dirty = true"
+                                class="text-rose-900 text-sm font-medium">
+                                + Add another member
                             </button>
 
                         </div>
+                        @error('full_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div x-show="editing" x-transition class="mt-6 flex justify-end">
+
+                        <button
+                            type="submit"
+                            class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-sm font-medium rounded-lg px-5 py-2.5">
+                            Save Changes
+                        </button>
+
                     </div>
                 </form>
-                <div class="bg-white rounded-xl border border-gray-200 p-6">
-                    <h2 class="font-bold text-gray-900 mb-4">Team Members</h2>
-
-                    <div class="space-y-3 mb-4">
-                        @forelse ($startup->teamMembers as $member)
-                        <div class="flex items-center gap-2">
-                            <form method="POST" action="{{ route('startup.team-members.update', $member) }}" class="flex items-center gap-2 flex-1">
-                                @csrf
-                                @method('PATCH')
-                                <input type="text" name="full_name" value="{{ $member->full_name }}" :readonly="!editing"
-                                    :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
-                                    class="flex-1 border rounded-lg px-3 py-2 text-sm">
-                                <button
-                                    x-show="editing"
-                                    type="submit"
-                                    class="text-gray-500 hover:text-gray-800 text-sm px-2">
-                                    Save
-                                </button>
-                            </form>
-
-                            <form
-                                x-show="editing"
-                                method="POST"
-                                action="{{ route('startup.team-members.destroy', $member) }}"
-                                onsubmit="return confirm('Remove this team member?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-800 text-sm px-2">&times;</button>
-                            </form>
-                        </div>
-                        @empty
-                        <p class="text-sm text-gray-400">No team members added yet.</p>
-                        @endforelse
-                    </div>
-
-                    <form
-                        x-show="editing"
-                        method="POST"
-                        action="{{ route('startup.team-members.store') }}"
-                        class="flex items-center gap-2">
-                        @csrf
-                        <input type="text" name="full_name" placeholder="New team member name"
-                            :readonly="!editing"
-                            :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
-                            class="flex-1 border rounded-lg px-3 py-2 text-sm">
-                        <button type="submit" class="text-rose-900 text-sm font-medium">+ Add team member</button>
-                    </form>
-                    @error('full_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-                </div>
             </div>
 
             <div class="bg-white rounded-xl border border-gray-200 p-6 h-fit">
                 <h2 class="font-bold text-gray-900 mb-4">Startup Overview</h2>
-                <div class="flex justify-center mb-4">
+                <div
+                    class="flex justify-center mb-4"
+                    x-data="{ photoPreview: '' }">
+                    <input
+                        x-ref="photoInput"
+                        type="file"
+                        name="startup_photo"
+                        accept="image/*"
+                        class="hidden"
+                        @change="
+        dirty = true;
+        const file = $event.target.files[0];
+        if (file) {
+            photoPreview = URL.createObjectURL(file);
+        }
+    ">
                     @if ($startup->startup_photo_path)
-                    <img src="{{ Storage::url($startup->startup_photo_path) }}" class="w-20 h-20 rounded-full object-cover">
+                    <div class="relative inline-block">
+
+                        <img
+                            :src="photoPreview || '{{ Storage::url($startup->startup_photo_path) }}'"
+                            @click="editing && $refs.photoInput.click()"
+                            class="w-24 h-24 rounded-full object-cover cursor-pointer hover:brightness-90 transition">
+
+                        <button
+                            x-show="editing"
+                            type="button"
+                            @click="$refs.photoInput.click()"
+                            class="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white shadow-lg flex items-center justify-center hover:scale-105 transition">
+
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                class="w-4 h-4">
+                                <path stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M16.862 3.487a2.25 2.25 0 113.182 3.182L8.25 18.463 4 19.5l1.037-4.25L16.862 3.487z" />
+                            </svg>
+
+                        </button>
+
+                    </div>
                     @else
                     <div class="w-20 h-20 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-xl">
                         {{ substr($startup->company_name, 0, 1) }}

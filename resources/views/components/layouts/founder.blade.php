@@ -8,7 +8,12 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="antialiased bg-gray-50">
+<body
+    x-data="{
+        showLeaveModal: false,
+        nextUrl: null
+    }"
+    class="antialiased bg-gray-50">
     @php
     $icon = function (string $name, string $class = 'w-5 h-5') {
     $path = public_path('images/icons/' . $name);
@@ -87,7 +92,16 @@
 
                             @foreach ($navItems as $item)
                             @php $isActive = request()->routeIs($item['route'].'*'); @endphp
-                            <a href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
+                            <a
+                                href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
+                                @click="
+                                if ($store.navigation.hasUnsavedChanges) {
+                                    $event.preventDefault();
+
+                                    $store.navigation.nextUrl = $el.href;
+                                    $store.navigation.showLeaveModal = true;
+                                }
+                            "
                                 class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
         {{ $isActive
             ? 'bg-white text-[#6D0D23] shadow-sm'
@@ -187,6 +201,69 @@
 
                     {{ $slot }}
                 </main>
+            </div>
+
+            <div
+                x-show="$store.navigation.showLeaveModal"
+                x-cloak
+                class="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+
+                <div
+                    @click.outside="showLeaveModal = false"
+                    class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+
+                    <!-- Close -->
+                    <button
+                        type="button"
+                        @click="$store.navigation.showLeaveModal = false"
+                        class="absolute right-4 top-4 text-gray-400 hover:text-gray-600">
+                        ✕
+                    </button>
+
+                    <!-- Icon -->
+                    <div class="flex justify-center mb-4">
+
+                        <div class="h-14 w-14 rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] flex items-center justify-center text-white text-xl font-bold">
+
+                            !
+
+                        </div>
+
+                    </div>
+
+                    <h2 class="text-xl font-bold text-center text-[#5B1933]">
+                        Unsaved Changes
+                    </h2>
+
+                    <p class="mt-2 text-center text-sm text-gray-600">
+                        You have unsaved changes.
+                        If you leave this page, your edits will be lost.
+                    </p>
+
+                    <div class="mt-6 flex gap-3">
+
+                        <button
+                            type="button"
+                            @click="$store.navigation.showLeaveModal = false"
+                            class="flex-1 rounded-lg border border-gray-300 py-2.5 font-medium text-gray-700 hover:bg-gray-50">
+
+                            Stay
+
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="window.location = $store.navigation.nextUrl"
+                            class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 font-medium text-white">
+
+                            Leave
+
+                        </button>
+
+                    </div>
+
+                </div>
+
             </div>
 </body>
 
