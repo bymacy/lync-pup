@@ -12,16 +12,26 @@
             editing: false,
             isLocked: {{ $sheet?->approval_status === 'Approved' ? 'true' : 'false' }},
             saving: false,
+            showToast: false,
             async saveAll() {
-                this.saving = true;
-                try {
-                    await window.submitInfoSheetForms(this.$root);
-                    window.location.reload();
-                } catch (e) {
-                    this.saving = false;
-                    alert('Something went wrong while saving. Please try again.');
-                }
-            }
+    this.saving = true;
+    try {
+       await window.submitInfoSheetForms(this.$root);
+
+        this.showToast = true;
+        this.editing = false;
+        this.saving = false;
+
+        setTimeout(() => {
+            this.showToast = false;
+        }, 3000);
+
+        this.saving = false;
+    } catch (e) {
+        this.saving = false;
+        alert('Something went wrong while saving. Please try again.');
+    }
+}
         }">
 
         {{-- Startup Header Bar --}}
@@ -549,8 +559,45 @@
                     <span x-text="saving ? 'Saving…' : 'Save'"></span>
                 </button>
             </div>
+            <div
+                x-show="showToast"
+                x-cloak
+                x-transition:enter="transform ease-out duration-300"
+                x-transition:enter-start="translate-x-full opacity-0"
+                x-transition:enter-end="translate-x-0 opacity-100"
+                x-transition:leave="transform ease-in duration-200"
+                x-transition:leave-start="translate-x-0 opacity-100"
+                x-transition:leave-end="translate-x-full opacity-0"
+                class="fixed top-6 right-6 z-50">
+
+                <div class="flex items-center gap-3 rounded-xl border border-[#6D0D23]/20 bg-white shadow-xl px-5 py-4 min-w-[340px]">
+
+                    <div class="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white shadow-lg ring-2 ring-white">
+                        ✓
+                    </div>
+
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-gray-900">
+                            Information Sheet Saved
+                        </p>
+
+                        <p class="text-sm text-gray-600">
+                            Your changes have been saved successfully.
+                        </p>
+                    </div>
+
+                    <button
+                        @click="showToast = false"
+                        class="text-gray-400 hover:text-gray-600">
+                        ✕
+                    </button>
+
+                </div>
+            </div>
+
         </div>
     </div>
+
 
     {{-- One Save button now submits every section (Founder's Info, Educational Background,
          Startup Info, Declaration, Core Team, Incubation, L&D, References) together.
@@ -594,4 +641,5 @@
             }
         };
     </script>
+
 </x-layouts.founder>

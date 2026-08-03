@@ -8,12 +8,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body
-    x-data="{
-        showLeaveModal: false,
-        nextUrl: null
-    }"
-    class="antialiased bg-gray-50">
+<body class="antialiased bg-gray-50">
     @php
     $icon = function (string $name, string $class = 'w-5 h-5') {
     $path = public_path('images/icons/' . $name);
@@ -204,12 +199,13 @@
             </div>
 
             <div
-                x-show="$store.navigation.showLeaveModal"
+                x-data
+                x-show="Alpine.store('navigation').showLeaveModal"
                 x-cloak
                 class="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
 
                 <div
-                    @click.outside="showLeaveModal = false"
+                    @click.outside="$store.navigation.showLeaveModal = false"
                     class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
 
                     <!-- Close -->
