@@ -1,7 +1,7 @@
 <x-layouts.founder title="Startup Profile">
 
     <div
-        x-data="{
+    x-data="{
         editing: false,
         dirty: false,
 
@@ -11,17 +11,17 @@
         newMembers: [''],
         deletedMembers: []
     }"
-        x-init="
-    $watch('dirty', value => {
-        $store.navigation.hasUnsavedChanges = value;
-    });
+    x-init="
+        $watch('dirty', value => {
+            $store.navigation.hasUnsavedChanges = value;
+        });
 
-    window.addEventListener('beforeunload', (e) => {
-        if ($store.navigation.hasUnsavedChanges) {
-            e.preventDefault();
-            e.returnValue = '';
-        }
-    });
+        window.addEventListener('beforeunload', (e) => {
+            if ($store.navigation.hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
 ">
 
         <div class="flex items-center justify-between mb-6">

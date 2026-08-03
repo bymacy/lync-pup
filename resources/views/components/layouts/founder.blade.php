@@ -8,7 +8,9 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="antialiased bg-gray-50">
+<body
+    x-data
+    class="antialiased bg-gray-50">
     @php
     $icon = function (string $name, string $class = 'w-5 h-5') {
     $path = public_path('images/icons/' . $name);
@@ -90,13 +92,15 @@
                             <a
                                 href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
                                 @click="
-                                if ($store.navigation.hasUnsavedChanges) {
-                                    $event.preventDefault();
+    console.log('SIDEBAR CLICK', $store.navigation.hasUnsavedChanges);
 
-                                    $store.navigation.nextUrl = $el.href;
-                                    $store.navigation.showLeaveModal = true;
-                                }
-                            "
+    if ($store.navigation.hasUnsavedChanges) {
+        $event.preventDefault();
+
+        $store.navigation.nextUrl = $el.href;
+        $store.navigation.showLeaveModal = true;
+    }
+"
                                 class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
         {{ $isActive
             ? 'bg-white text-[#6D0D23] shadow-sm'
@@ -160,18 +164,29 @@
                         <div class="flex items-center gap-3 rounded-xl border border-[#6D0D23]/20 bg-white shadow-xl px-5 py-4 min-w-[340px]">
 
                             <!-- Check Icon -->
-                            <div class="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white shadow-lg ring-2 ring-white">
-                                <svg xmlns="http://www.w3.org/2000/svg"
-                                    class="h-5 w-5"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2.8">
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M5 13l4 4L19 7" />
-                                </svg>
+                            <div
+                                class="flex h-11 w-11 items-center justify-center rounded-full text-white shadow-lg ring-2 ring-white"
+                                :class="{
+                                    'bg-gradient-to-r from-[#6D0D23] to-[#11386A]': $store.toast.type === 'success',
+                                    'bg-gradient-to-r from-red-600 to-red-700': $store.toast.type === 'error',
+                                    'bg-gradient-to-r from-amber-500 to-orange-500': $store.toast.type === 'warning',
+                                    'bg-gradient-to-r from-sky-500 to-blue-600': $store.toast.type === 'info'
+                                }">
+                                <template x-if="$store.toast.type === 'success'">
+                                    <span class="text-xl font-bold">✓</span>
+                                </template>
+
+                                <template x-if="$store.toast.type === 'error'">
+                                    <span class="text-xl font-bold">✕</span>
+                                </template>
+
+                                <template x-if="$store.toast.type === 'warning'">
+                                    <span class="text-xl font-bold">!</span>
+                                </template>
+
+                                <template x-if="$store.toast.type === 'info'">
+                                    <span class="text-xl font-bold">i</span>
+                                </template>
                             </div>
 
                             <div class="flex-1">
@@ -193,6 +208,42 @@
                         </div>
                     </div>
                     @endif
+
+                    <div
+                        x-show="$store.toast.show"
+                        x-cloak
+                        x-transition:enter="transform ease-out duration-300"
+                        x-transition:enter-start="translate-x-full opacity-0"
+                        x-transition:enter-end="translate-x-0 opacity-100"
+                        x-transition:leave="transform ease-in duration-200"
+                        x-transition:leave-start="translate-x-0 opacity-100"
+                        x-transition:leave-end="translate-x-full opacity-0"
+                        class="fixed top-6 right-6 z-50">
+
+                        <div class="flex items-center gap-3 rounded-xl border border-[#6D0D23]/20 bg-white shadow-xl px-5 py-4 min-w-[340px]">
+
+                            <div class="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white shadow-lg ring-2 ring-white">
+                                ✓
+                            </div>
+
+                            <div class="flex-1">
+                                <p class="text-sm font-semibold text-gray-900">
+                                    <span x-text="$store.toast.title"></span>
+                                </p>
+
+                                <p class="text-sm text-gray-600">
+                                    <span x-text="$store.toast.message"></span>
+                                </p>
+                            </div>
+
+                            <button
+                                @click="$store.toast.hide()"
+                                class="text-gray-400 hover:text-gray-600">
+                                ✕
+                            </button>
+
+                        </div>
+                    </div>
 
                     {{ $slot }}
                 </main>
@@ -249,7 +300,11 @@
 
                         <button
                             type="button"
-                            @click="window.location = $store.navigation.nextUrl"
+                            @click="
+                                $store.navigation.hasUnsavedChanges = false;
+                                $store.navigation.showLeaveModal = false;
+                                window.location = $store.navigation.nextUrl;
+                            "
                             class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 font-medium text-white">
 
                             Leave

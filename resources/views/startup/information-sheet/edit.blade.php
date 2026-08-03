@@ -12,27 +12,43 @@
             editing: false,
             isLocked: {{ $sheet?->approval_status === 'Approved' ? 'true' : 'false' }},
             saving: false,
-            showToast: false,
+            dirty: false,
             async saveAll() {
     this.saving = true;
     try {
        await window.submitInfoSheetForms(this.$root);
 
-        this.showToast = true;
         this.editing = false;
         this.saving = false;
 
-        setTimeout(() => {
-            this.showToast = false;
-        }, 3000);
+        Alpine.store('toast').success(
+            'Information Sheet Saved',
+            'Your changes have been saved successfully.'
+        );
 
-        this.saving = false;
     } catch (e) {
-        this.saving = false;
-        alert('Something went wrong while saving. Please try again.');
+    this.saving = false;
+
+    Alpine.store('toast').error(
+        'Save Failed',
+        'Something went wrong while saving. Please try again.'
+    );
     }
 }
-        }">
+        }"
+        
+        x-init="
+        $watch('dirty', value => {
+            $store.navigation.hasUnsavedChanges = value;
+        });
+
+        window.addEventListener('beforeunload', (e) => {
+            if ($store.navigation.hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    ">
 
         {{-- Startup Header Bar --}}
         <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-6 py-3 flex items-center gap-2">
@@ -82,7 +98,8 @@
                         <label class='w-48 flex-shrink-0 text-gray-800'>{$numHtml}".e($label).":</label>
                         <input type=\"{$type}\" name=\"{$name}\" value=\"".e($value)."\" form=\"info-sheet-form\"
                             :disabled=\"!editing\" placeholder=\"SAMPLE\"
-                            class='flex-1 border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300'>
+                            class='flex-1 border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300'
+                            @input=\"dirty = true\">
                     </div>";
                     };
                     @endphp
@@ -117,13 +134,15 @@
                                         <span class="text-xs text-gray-500 w-32 flex-shrink-0">&bull; By Birth</span>
                                         <input type="text" name="citizenship_by_birth" value="{{ e(old('citizenship_by_birth', $sheet?->citizenship_by_birth)) }}" form="info-sheet-form"
                                             :disabled="!editing" placeholder="SAMPLE"
-                                            class="flex-1 border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300">
+                                            class="flex-1 border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300"
+                                             @input="dirty = true">
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-500 w-32 flex-shrink-0">&bull; If Dual Citizenship</span>
                                         <input type="text" name="citizenship_dual" value="{{ e(old('citizenship_dual', $sheet?->citizenship_dual)) }}" form="info-sheet-form"
                                             :disabled="!editing" placeholder="SAMPLE"
-                                            class="flex-1 border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300">
+                                            class="flex-1 border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300"
+                                             @input="dirty = true">
                                     </div>
                                 </div>
                             </div>
@@ -153,10 +172,10 @@
                             @foreach (['secondary' => 'SECONDARY', 'vocational' => 'VOCATIONAL/TRADE COURSE', 'college' => 'COLLEGE', 'graduate' => 'GRADUATE STUDIES'] as $key => $label)
                             <tr>
                                 <td class="border px-3 py-2 font-medium text-xs align-top">{{ $label }}</td>
-                                <td class="border p-1"><input type="text" name="{{ $key }}_school" value="{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}" form="info-sheet-form" :disabled="!editing" placeholder="SAMPLE" class="w-full border-0 px-2 py-1.5 text-sm disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none"></td>
-                                <td class="border p-1"><input type="text" name="{{ $key }}_degree_course" value="{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}" form="info-sheet-form" :disabled="!editing" placeholder="SAMPLE" class="w-full border-0 px-2 py-1.5 text-sm disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none"></td>
-                                <td class="border p-1"><input type="text" name="{{ $key }}_highest_level_unit" value="{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}" form="info-sheet-form" :disabled="!editing" placeholder="SAMPLE" class="w-full border-0 px-2 py-1.5 text-sm disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none"></td>
-                                <td class="border p-1"><input type="text" name="{{ $key }}_year_graduated" value="{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}" form="info-sheet-form" :disabled="!editing" placeholder="SAMPLE" class="w-full border-0 px-2 py-1.5 text-sm disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none"></td>
+                                <td class="border p-1"><input type="text" name="{{ $key }}_school" value="{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}" form="info-sheet-form" :disabled="!editing" placeholder="SAMPLE" class="w-full border-0 px-2 py-1.5 text-sm disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" @input="dirty = true"></td>
+                                <td class="border p-1"><input type="text" name="{{ $key }}_degree_course" value="{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}" form="info-sheet-form" :disabled="!editing" placeholder="SAMPLE" class="w-full border-0 px-2 py-1.5 text-sm disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" @input="dirty = true"></td>
+                                <td class="border p-1"><input type="text" name="{{ $key }}_highest_level_unit" value="{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}" form="info-sheet-form" :disabled="!editing" placeholder="SAMPLE" class="w-full border-0 px-2 py-1.5 text-sm disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" @input="dirty = true"></td>
+                                <td class="border p-1"><input type="text" name="{{ $key }}_year_graduated" value="{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}" form="info-sheet-form" :disabled="!editing" placeholder="SAMPLE" class="w-full border-0 px-2 py-1.5 text-sm disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none" @input="dirty = true"></td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -216,31 +235,40 @@
                                 class="js-subform flex text-sm border-b last:border-b-0 odd:bg-white even:bg-gray-50/50">
                                 @csrf @method('PATCH')
                                 <div class="flex-shrink-0 border-r {{ $teamCols[0]['w'] }}">
-                                    <input type="text" name="full_name" value="{{ $member->full_name }}" placeholder="Name" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                    <input type="text" name="full_name" value="{{ $member->full_name }}" placeholder="Name" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                     @input="dirty = true">
                                 </div>
                                 <div class="flex-shrink-0 border-r {{ $teamCols[1]['w'] }}">
-                                    <input type="text" name="designation" value="{{ $member->designation }}" placeholder="Designation" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                    <input type="text" name="designation" value="{{ $member->designation }}" placeholder="Designation" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                     @input="dirty = true">
                                 </div>
                                 <div class="flex-shrink-0 border-r {{ $teamCols[2]['w'] }}">
-                                    <input type="text" name="phone" value="{{ $member->phone }}" placeholder="Phone" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                    <input type="text" name="phone" value="{{ $member->phone }}" placeholder="Phone" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                     @input="dirty = true">
                                 </div>
                                 <div class="flex-shrink-0 border-r {{ $teamCols[3]['w'] }}">
-                                    <input type="text" name="address" value="{{ $member->address ?? '' }}" placeholder="Address" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                    <input type="text" name="address" value="{{ $member->address ?? '' }}" placeholder="Address" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                     @input="dirty = true">
                                 </div>
                                 <div class="flex-shrink-0 border-r {{ $teamCols[4]['w'] }}">
-                                    <input type="date" name="date_of_birth" value="{{ $member->date_of_birth ?? '' }}" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                    <input type="date" name="date_of_birth" value="{{ $member->date_of_birth ?? '' }}" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                     @input="dirty = true">
                                 </div>
                                 <div class="flex-shrink-0 border-r {{ $teamCols[5]['w'] }}">
-                                    <input type="email" name="email" value="{{ $member->email }}" placeholder="Email" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                    <input type="email" name="email" value="{{ $member->email }}" placeholder="Email" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                     @input="dirty = true">
                                 </div>
                                 <div class="flex-shrink-0 border-r {{ $teamCols[6]['w'] }}">
-                                    <input type="text" name="citizenship" value="{{ $member->citizenship ?? '' }}" placeholder="Citizenship" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                    <input type="text" name="citizenship" value="{{ $member->citizenship ?? '' }}" placeholder="Citizenship" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                     @input="dirty = true">
                                 </div>
                                 <div class="flex-shrink-0 border-r {{ $teamCols[7]['w'] }}">
-                                    <input type="text" name="sex" value="{{ $member->sex ?? '' }}" placeholder="Sex" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                    <input type="text" name="sex" value="{{ $member->sex ?? '' }}" placeholder="Sex" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                     @input="dirty = true">
                                 </div>
                                 <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
-                                    <input type="text" name="civil_status" value="{{ $member->civil_status ?? '' }}" placeholder="Civil Status" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                    <input type="text" name="civil_status" value="{{ $member->civil_status ?? '' }}" placeholder="Civil Status" :disabled="!editing" class="w-full h-full px-3 py-2 focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                     @input="dirty = true">
                                 </div>
                             </form>
                             @empty
@@ -281,23 +309,28 @@
                                     @method('PATCH')
                                     <div class="flex-1 min-w-[220px] border-r">
                                         <input type="text" name="organization_name_address" value="{{ $item->organization_name_address }}"
-                                            placeholder="Organization Name & Address" :disabled="!editing" class="w-full h-full px-3 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                            placeholder="Organization Name & Address" :disabled="!editing" class="w-full h-full px-3 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                             @input="dirty = true">
                                     </div>
                                     <div class="w-28 flex-shrink-0 border-r">
                                         <input type="date" name="date_from" value="{{ $item->date_from?->format('Y-m-d') }}"
-                                            :disabled="!editing" class="w-full h-full px-2 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                            :disabled="!editing" class="w-full h-full px-2 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                             @input="dirty = true">
                                     </div>
                                     <div class="w-28 flex-shrink-0 border-r">
                                         <input type="date" name="date_to" value="{{ $item->date_to?->format('Y-m-d') }}"
-                                            :disabled="!editing" class="w-full h-full px-2 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                            :disabled="!editing" class="w-full h-full px-2 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                             @input="dirty = true">
                                     </div>
                                     <div class="w-24 flex-shrink-0 border-r">
                                         <input type="text" name="number_of_hours" value="{{ $item->number_of_hours }}"
-                                            placeholder="Hours" :disabled="!editing" class="w-full h-full px-2 py-2 text-sm text-center focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                            placeholder="Hours" :disabled="!editing" class="w-full h-full px-2 py-2 text-sm text-center focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                             @input="dirty = true">
                                     </div>
                                     <div class="flex-1 min-w-[200px] border-r">
                                         <input type="text" name="incubation_program_focus" value="{{ $item->incubation_program_focus }}"
-                                            placeholder="Program/Focus" :disabled="!editing" class="w-full h-full px-3 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                            placeholder="Program/Focus" :disabled="!editing" class="w-full h-full px-3 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                             @input="dirty = true">
                                     </div>
                                 </form>
                                 <form method="POST" action="{{ route('startup.incubation.destroy', $item) }}"
@@ -315,19 +348,24 @@
                             <form method="POST" action="{{ route('startup.incubation.store') }}" class="js-subform js-addform flex border-t bg-blue-50/40" x-show="editing" x-cloak>
                                 <div class="flex-1 min-w-[220px] border-r">
                                     <input type="text" name="organization_name_address" placeholder="Organization Name & Address"
-                                        class="w-full h-full px-3 py-2 text-sm bg-transparent focus:outline-none focus:bg-white">
+                                        class="w-full h-full px-3 py-2 text-sm bg-transparent focus:outline-none focus:bg-white"
+                                         @input="dirty = true">
                                 </div>
                                 <div class="w-28 flex-shrink-0 border-r">
-                                    <input type="date" name="date_from" class="w-full h-full px-2 py-2 text-sm bg-transparent focus:outline-none focus:bg-white">
+                                    <input type="date" name="date_from" class="w-full h-full px-2 py-2 text-sm bg-transparent focus:outline-none focus:bg-white"
+                                        @input="dirty = true">
                                 </div>
                                 <div class="w-28 flex-shrink-0 border-r">
-                                    <input type="date" name="date_to" class="w-full h-full px-2 py-2 text-sm bg-transparent focus:outline-none focus:bg-white">
+                                    <input type="date" name="date_to" class="w-full h-full px-2 py-2 text-sm bg-transparent focus:outline-none focus:bg-white"
+                                        @input="dirty = true">
                                 </div>
                                 <div class="w-24 flex-shrink-0 border-r">
-                                    <input type="text" name="number_of_hours" placeholder="Hours" class="w-full h-full px-2 py-2 text-sm text-center bg-transparent focus:outline-none focus:bg-white">
+                                    <input type="text" name="number_of_hours" placeholder="Hours" class="w-full h-full px-2 py-2 text-sm text-center bg-transparent focus:outline-none focus:bg-white"
+                                        @input="dirty = true">
                                 </div>
                                 <div class="flex-1 min-w-[200px] border-r">
-                                    <input type="text" name="incubation_program_focus" placeholder="Program/Focus" class="w-full h-full px-3 py-2 text-sm bg-transparent focus:outline-none focus:bg-white">
+                                    <input type="text" name="incubation_program_focus" placeholder="Program/Focus" class="w-full h-full px-3 py-2 text-sm bg-transparent focus:outline-none focus:bg-white"
+                                        @input="dirty = true">
                                 </div>
                                 <div class="w-10 flex-shrink-0 flex items-center justify-center text-rose-900" title="Add entry">
                                     <button type="submit" class="text-lg leading-none">+</button>
@@ -369,23 +407,28 @@
                                     @method('PATCH')
                                     <div class="flex-1 min-w-[220px] border-r">
                                         <input type="text" name="title" value="{{ $item->title }}"
-                                            placeholder="Title" :disabled="!editing" class="w-full h-full px-3 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                            placeholder="Title" :disabled="!editing" class="w-full h-full px-3 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                             @input="dirty = true">
                                     </div>
                                     <div class="w-28 flex-shrink-0 border-r">
                                         <input type="date" name="date_from" value="{{ $item->date_from?->format('Y-m-d') }}"
-                                            :disabled="!editing" class="w-full h-full px-2 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                            :disabled="!editing" class="w-full h-full px-2 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                             @input="dirty = true">
                                     </div>
                                     <div class="w-28 flex-shrink-0 border-r">
                                         <input type="date" name="date_to" value="{{ $item->date_to?->format('Y-m-d') }}"
-                                            :disabled="!editing" class="w-full h-full px-2 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                            :disabled="!editing" class="w-full h-full px-2 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                             @input="dirty = true">
                                     </div>
                                     <div class="w-24 flex-shrink-0 border-r">
                                         <input type="text" name="number_of_hours" value="{{ $item->number_of_hours }}"
-                                            placeholder="Hours" :disabled="!editing" class="w-full h-full px-2 py-2 text-sm text-center focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                            placeholder="Hours" :disabled="!editing" class="w-full h-full px-2 py-2 text-sm text-center focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                             @input="dirty = true">
                                     </div>
                                     <div class="flex-1 min-w-[200px] border-r">
                                         <input type="text" name="conducted_sponsored_by" value="{{ $item->conducted_sponsored_by }}"
-                                            placeholder="Conducted/Sponsored By" :disabled="!editing" class="w-full h-full px-3 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500">
+                                            placeholder="Conducted/Sponsored By" :disabled="!editing" class="w-full h-full px-3 py-2 text-sm focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
+                                             @input="dirty = true">
                                     </div>
                                 </form>
                                 <form method="POST" action="{{ route('startup.ld.destroy', $item) }}"
@@ -402,19 +445,24 @@
 
                             <form method="POST" action="{{ route('startup.ld.store') }}" class="js-subform js-addform flex border-t bg-blue-50/40" x-show="editing" x-cloak>
                                 <div class="flex-1 min-w-[220px] border-r">
-                                    <input type="text" name="title" placeholder="Title" class="w-full h-full px-3 py-2 text-sm bg-transparent focus:outline-none focus:bg-white">
+                                    <input type="text" name="title" placeholder="Title" class="w-full h-full px-3 py-2 text-sm bg-transparent focus:outline-none focus:bg-white"
+                                     @input="dirty = true">
                                 </div>
                                 <div class="w-28 flex-shrink-0 border-r">
-                                    <input type="date" name="date_from" class="w-full h-full px-2 py-2 text-sm bg-transparent focus:outline-none focus:bg-white">
+                                    <input type="date" name="date_from" class="w-full h-full px-2 py-2 text-sm bg-transparent focus:outline-none focus:bg-white"
+                                        @input="dirty = true">
                                 </div>
                                 <div class="w-28 flex-shrink-0 border-r">
-                                    <input type="date" name="date_to" class="w-full h-full px-2 py-2 text-sm bg-transparent focus:outline-none focus:bg-white">
+                                    <input type="date" name="date_to" class="w-full h-full px-2 py-2 text-sm bg-transparent focus:outline-none focus:bg-white"
+                                        @input="dirty = true">
                                 </div>
                                 <div class="w-24 flex-shrink-0 border-r">
-                                    <input type="text" name="number_of_hours" placeholder="Hours" class="w-full h-full px-2 py-2 text-sm text-center bg-transparent focus:outline-none focus:bg-white">
+                                    <input type="text" name="number_of_hours" placeholder="Hours" class="w-full h-full px-2 py-2 text-sm text-center bg-transparent focus:outline-none focus:bg-white"
+                                        @input="dirty = true">
                                 </div>
                                 <div class="flex-1 min-w-[200px] border-r">
-                                    <input type="text" name="conducted_sponsored_by" placeholder="Conducted/Sponsored By" class="w-full h-full px-3 py-2 text-sm bg-transparent focus:outline-none focus:bg-white">
+                                    <input type="text" name="conducted_sponsored_by" placeholder="Conducted/Sponsored By" class="w-full h-full px-3 py-2 text-sm bg-transparent focus:outline-none focus:bg-white"
+                                        @input="dirty = true">
                                 </div>
                                 <div class="w-10 flex-shrink-0 flex items-center justify-center text-rose-900" title="Add entry">
                                     <button type="submit" class="text-lg leading-none">+</button>
@@ -476,13 +524,17 @@
                                 @csrf
                                 @method('PATCH')
                                 <input type="text" name="name" value="{{ $reference->name }}"
-                                    placeholder="Name" :disabled="!editing" class="border rounded px-2 py-1.5 disabled:bg-gray-50 disabled:text-gray-500">
+                                    placeholder="Name" :disabled="!editing" class="border rounded px-2 py-1.5 disabled:bg-gray-50 disabled:text-gray-500"
+                                     @input="dirty = true">
                                 <input type="text" name="contact" value="{{ $reference->contact }}"
-                                    placeholder="Contact" :disabled="!editing" class="border rounded px-2 py-1.5 disabled:bg-gray-50 disabled:text-gray-500">
+                                    placeholder="Contact" :disabled="!editing" class="border rounded px-2 py-1.5 disabled:bg-gray-50 disabled:text-gray-500"
+                                     @input="dirty = true">
                                 <input type="email" name="email" value="{{ $reference->email }}"
-                                    placeholder="Email" :disabled="!editing" class="border rounded px-2 py-1.5 disabled:bg-gray-50 disabled:text-gray-500">
+                                    placeholder="Email" :disabled="!editing" class="border rounded px-2 py-1.5 disabled:bg-gray-50 disabled:text-gray-500"
+                                     @input="dirty = true">
                                 <input type="text" name="address" value="{{ $reference->address }}"
-                                    placeholder="Address" :disabled="!editing" class="border rounded px-2 py-1.5 disabled:bg-gray-50 disabled:text-gray-500">
+                                    placeholder="Address" :disabled="!editing" class="border rounded px-2 py-1.5 disabled:bg-gray-50 disabled:text-gray-500"
+                                     @input="dirty = true">
                             </form>
                             <form method="POST" action="{{ route('startup.references.destroy', $reference) }}"
                                 onsubmit="return confirm('Remove this reference?')" x-show="editing" x-cloak>
@@ -498,10 +550,10 @@
 
                     <form method="POST" action="{{ route('startup.references.store') }}" class="js-subform js-addform grid grid-cols-4 gap-2 text-sm pt-3" x-show="editing" x-cloak>
                         @csrf
-                        <input type="text" name="name" placeholder="Name" class="border rounded px-2 py-1.5">
-                        <input type="text" name="contact" placeholder="Contact" class="border rounded px-2 py-1.5">
-                        <input type="email" name="email" placeholder="Email" class="border rounded px-2 py-1.5">
-                        <input type="text" name="address" placeholder="Address" class="border rounded px-2 py-1.5">
+                        <input type="text" name="name" placeholder="Name" class="border rounded px-2 py-1.5" @input="dirty = true">
+                        <input type="text" name="contact" placeholder="Contact" class="border rounded px-2 py-1.5" @input="dirty = true">
+                        <input type="email" name="email" placeholder="Email" class="border rounded px-2 py-1.5" @input="dirty = true">
+                        <input type="text" name="address" placeholder="Address" class="border rounded px-2 py-1.5" @input="dirty = true">
                     </form>
                     @error('name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
@@ -519,7 +571,8 @@
                     <img src="{{ Storage::url($sheet->founder_signature_path) }}" class="h-16 mb-2 border rounded">
                     @endif
                     <div class="border-2 rounded w-full max-w-md h-16 mb-1 flex items-center justify-center">
-                        <input type="file" name="founder_signature" accept="image/*" x-show="editing && !isLocked" x-cloak class="text-xs" form="info-sheet-form">
+                        <input type="file" name="founder_signature" accept="image/*" x-show="editing && !isLocked" x-cloak class="text-xs" form="info-sheet-form"
+                         @input="dirty = true">
                     </div>
                     @error('founder_signature') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
                     <p class="text-xs text-gray-500">Founder's Signature (Sign Inside the box)</p>
@@ -527,7 +580,7 @@
 
                 <div class="flex flex-col items-center mt-6">
                     <input type="date" name="date_accomplished" value="{{ old('date_accomplished', $sheet?->date_accomplished?->format('Y-m-d')) }}"
-                        :disabled="!editing" form="info-sheet-form" class="border-0 border-b text-sm text-center disabled:bg-transparent disabled:text-gray-500 w-64">
+                        :disabled="!editing" form="info-sheet-form" class="border-0 border-b text-sm text-center disabled:bg-transparent disabled:text-gray-500 w-64" @input="dirty = true">
                     <p class="text-xs text-gray-500 mt-1">Date Accomplished</p>
                 </div>
             </div>
@@ -559,41 +612,7 @@
                     <span x-text="saving ? 'Saving…' : 'Save'"></span>
                 </button>
             </div>
-            <div
-                x-show="showToast"
-                x-cloak
-                x-transition:enter="transform ease-out duration-300"
-                x-transition:enter-start="translate-x-full opacity-0"
-                x-transition:enter-end="translate-x-0 opacity-100"
-                x-transition:leave="transform ease-in duration-200"
-                x-transition:leave-start="translate-x-0 opacity-100"
-                x-transition:leave-end="translate-x-full opacity-0"
-                class="fixed top-6 right-6 z-50">
-
-                <div class="flex items-center gap-3 rounded-xl border border-[#6D0D23]/20 bg-white shadow-xl px-5 py-4 min-w-[340px]">
-
-                    <div class="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white shadow-lg ring-2 ring-white">
-                        ✓
-                    </div>
-
-                    <div class="flex-1">
-                        <p class="text-sm font-semibold text-gray-900">
-                            Information Sheet Saved
-                        </p>
-
-                        <p class="text-sm text-gray-600">
-                            Your changes have been saved successfully.
-                        </p>
-                    </div>
-
-                    <button
-                        @click="showToast = false"
-                        class="text-gray-400 hover:text-gray-600">
-                        ✕
-                    </button>
-
-                </div>
-            </div>
+            
 
         </div>
     </div>
