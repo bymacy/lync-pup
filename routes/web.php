@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\InformationSheetController;
 use App\Http\Controllers\Admin\MentorController;
 use App\Http\Controllers\Admin\CoordinatorProfileController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Startup\RoadblockController;
 
 use App\Http\Controllers\Startup\DashboardController as StartupDashboardController;
 use App\Http\Controllers\Startup\StartupProfileController as FounderProfileController;
@@ -81,4 +82,7 @@ Route::middleware(['auth', 'role:Startup'])->prefix('startup')->name('startup.')
     Route::post('information-sheet/references', [FounderInfoSheetController::class, 'storeReference'])->name('references.store');
     Route::patch('information-sheet/references/{reference}', [FounderInfoSheetController::class, 'updateReference'])->name('references.update');
     Route::delete('information-sheet/references/{reference}', [FounderInfoSheetController::class, 'destroyReference'])->name('references.destroy');
+
+    Route::get('/roadblocks', [RoadblockController::class, 'index'])->name('submissions.index');
+    Route::post('/roadblocks', [RoadblockController::class, 'store'])->name('submissions.store');
 });

@@ -61,6 +61,11 @@ class Startup extends Model
     {
         return $this->hasOne(CoordinatorAssignment::class, 'startup_id')->where('assignment_status', 'Active');
     }
+    
+    public function roadblocks()
+    {   
+    return $this->hasMany(Roadblock::class, 'startup_id', 'startup_id');
+    }
 
     // Computed status, not stored
     public function getStatusAttribute(): string
