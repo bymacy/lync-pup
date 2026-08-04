@@ -126,7 +126,7 @@
 
             <div class="mb-6">
                 <label class="text-sm font-medium mr-2">Stage:</label>
-                <select x-model="archiveStage" class="border rounded-lg px-3 py-2 text-sm">
+                <select x-model="archiveStage" class="border rounded-lg pl-3 pr-8 py-2 text-sm min-w-[140px]">
                     <option value="assessment">Assessment</option>
                     <option value="resolved">Resolved</option>
                     <option value="failed">Failed</option>
