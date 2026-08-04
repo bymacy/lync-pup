@@ -1,0 +1,117 @@
+@props(['mode', 'action', 'roadblock', 'mentors'])
+@php $formId = 'roadblock-assign-form-'.$roadblock->roadblock_id; @endphp
+
+<div class="relative bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between">
+    <h3 class="font-bold">
+        @if ($mode === 'edit') Edit Assigned Mentor
+        @elseif ($mode === 'reschedule') Reschedule
+        @else Assign Mentor
+        @endif
+    </h3>
+
+    <button type="button"
+        @click="{{ $mode === 'edit' ? 'editOpen = false' : ($mode === 'reschedule' ? 'rescheduleOpen = false' : 'assignOpen = false') }}"
+        class="flex h-8 w-8 items-center justify-center rounded-full text-3xl text-white/70 transition hover:bg-white/10 hover:text-white"
+        aria-label="Close">
+        <span class="-mt-2">&times;</span>
+    </button>
+</div>
+
+<div class="p-6">
+    <form method="POST" action="{{ $action }}" id="{{ $formId }}">
+        @csrf
+        @method('PUT')
+
+        <div class="grid grid-cols-2 gap-6">
+            <div class="border rounded-xl p-4">
+                <p class="font-medium mb-3">1. Assign Mentor</p>
+                <select name="mentor_id" class="w-full border rounded-lg px-3 py-2 text-sm mb-4">
+                    <option value="">Select Mentor</option>
+                    @foreach ($mentors as $m)
+                        <option value="{{ $m->mentor_id }}" @selected(old('mentor_id', $roadblock->mentor_id) == $m->mentor_id)>
+                            {{ $m->display_name }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('mentor_id') <p class="text-xs text-red-600 mb-3">{{ $message }}</p> @enderror
+
+                <p class="text-sm font-medium text-gray-700 mb-2">Mentor Profile Preview</p>
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach ($mentors as $m)
+                        <div class="border rounded-lg px-3 py-2 text-sm flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-full bg-gray-200 overflow-hidden shrink-0">
+                                @if ($m->mentor_photo_path)
+                                    <img src="{{ Storage::url($m->mentor_photo_path) }}" class="w-full h-full object-cover">
+                                @endif
+                            </div>
+                            {{ $m->display_name }}
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="border rounded-xl p-4">
+                <p class="font-medium mb-3">2. Set a Meeting</p>
+
+                <label class="block text-xs text-gray-500 mb-1">Date</label>
+                <input type="date" name="meeting_date" value="{{ old('meeting_date', $roadblock->meeting_date?->format('Y-m-d')) }}"
+                    class="w-full border rounded-lg px-3 py-2 text-sm mb-3">
+                @error('meeting_date') <p class="text-xs text-red-600 mb-3">{{ $message }}</p> @enderror
+
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Start Time</label>
+                        <input type="time" name="meeting_start_time" value="{{ old('meeting_start_time', $roadblock->meeting_start_time) }}"
+                            class="w-full border rounded-lg px-3 py-2 text-sm">
+                        @error('meeting_start_time') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">End Time</label>
+                        <input type="time" name="meeting_end_time" value="{{ old('meeting_end_time', $roadblock->meeting_end_time) }}"
+                            class="w-full border rounded-lg px-3 py-2 text-sm">
+                        @error('meeting_end_time') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <label class="block text-xs text-gray-500 mb-1">Select Platform</label>
+                <select name="meeting_platform" class="w-full border rounded-lg px-3 py-2 text-sm mb-3">
+                    <option value="">Select Platform</option>
+                    @foreach (['Google Meet', 'Zoom', 'Microsoft Teams', 'Other'] as $platform)
+                        <option value="{{ $platform }}" @selected(old('meeting_platform', $roadblock->meeting_platform) === $platform)>{{ $platform }}</option>
+                    @endforeach
+                </select>
+                @error('meeting_platform') <p class="text-xs text-red-600 mb-3">{{ $message }}</p> @enderror
+
+                <label class="block text-xs text-gray-500 mb-1">Meeting Link / Location</label>
+                <textarea name="meeting_link" rows="3" placeholder="Input Meeting Link / Address"
+                    class="w-full border rounded-lg px-3 py-2 text-sm">{{ old('meeting_link', $roadblock->meeting_link) }}</textarea>
+                @error('meeting_link') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+            </div>
+        </div>
+    </form>
+
+    <div class="flex gap-3 pt-6">
+        @if ($mode === 'reschedule')
+            <button type="button" @click="rescheduleOpen = false" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Cancel</button>
+        @else
+            <button type="reset" form="{{ $formId }}" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Clear Form</button>
+        @endif
+
+        @if ($mode === 'edit')
+            <form method="POST" action="{{ route('admin.roadblocks.unassign', $roadblock) }}" class="flex-1">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="w-full bg-gradient-to-r from-rose-900 to-rose-950 text-white rounded-lg py-2.5 text-sm font-medium">
+                    Delete Assignment
+                </button>
+            </form>
+        @endif
+
+        <button type="submit" form="{{ $formId }}" class="flex-1 bg-gradient-to-r from-rose-900 to-blue-950 text-white rounded-lg py-2.5 text-sm font-medium">
+            @if ($mode === 'edit') Save Changes
+            @elseif ($mode === 'reschedule') Save
+            @else Assign Mentor
+            @endif
+        </button>
+    </div>
+</div>

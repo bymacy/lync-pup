@@ -12,6 +12,8 @@ use App\Http\Controllers\Startup\RoadblockController;
 use App\Http\Controllers\Startup\DashboardController as StartupDashboardController;
 use App\Http\Controllers\Startup\StartupProfileController as FounderProfileController;
 use App\Http\Controllers\Startup\InformationSheetController as FounderInfoSheetController;
+use App\Http\Controllers\Admin\RoadblockController as AdminRoadblockController;
+
 
 require __DIR__.'/auth.php';
 
@@ -51,6 +53,14 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
 
     Route::post('startups/{startup}/request-pitch-deck', [StartupProfileController::class, 'requestPitchDeck'])
         ->name('startups.request-pitch-deck');
+
+    Route::get('/roadblocks', [AdminRoadblockController::class, 'index'])->name('roadblocks.index');
+    Route::put('/roadblocks/{roadblock}/assign', [AdminRoadblockController::class, 'assign'])->name('roadblocks.assign');
+    Route::delete('/roadblocks/{roadblock}/assign', [AdminRoadblockController::class, 'unassign'])->name('roadblocks.unassign');
+    Route::post('/roadblocks/{roadblock}/resolve', [AdminRoadblockController::class, 'resolve'])->name('roadblocks.resolve');
+    Route::post('/roadblocks/{roadblock}/fail', [AdminRoadblockController::class, 'fail'])->name('roadblocks.fail');
+    Route::post('/roadblocks/{roadblock}/recover', [AdminRoadblockController::class, 'recover'])->name('roadblocks.recover');
+    Route::delete('/roadblocks/{roadblock}', [AdminRoadblockController::class, 'destroy'])->name('roadblocks.destroy');
 
     // Future modules (Coordinator Profile, Assessment Hub, Roadblock Management, Risk Monitoring) nest here
 });
