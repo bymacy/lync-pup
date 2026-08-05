@@ -6,65 +6,113 @@
 
     @php $sheet = $startup->informationSheet; @endphp
 
+
     <div
         class="bg-white rounded-xl border border-gray-200 max-w-6xl overflow-hidden"
         x-data="{
-            editing: false,
-            isLocked: {{ $sheet?->approval_status === 'Approved' ? 'true' : 'false' }},
-            saving: false,
-            dirty: false,
-            showReferenceForm: false,
-            lastClickedInput: null,
-
-            async saveAll() {
-    this.saving = true;
-    try {
-       await window.submitInfoSheetForms(this.$root);
-
-        this.editing = false;
-        this.saving = false;
-
-        Alpine.store('toast').success(
-            'Information Sheet Saved',
-            'Your changes have been saved successfully.'
-        );
-
-    } catch (e) {
-    this.saving = false;
-
-    Alpine.store('toast').error(
-        'Save Failed',
-        'Something went wrong while saving. Please try again.'
-    );
+    editing: false,
+    isLocked: {{ $sheet?->approval_status === 'Approved' ? 'true' : 'false' }},
+    saving: false,
+    dirty: false,
+    showReferenceForm: false,
+    showIncubationForm: false,
+    showLdForm: false,
+    lastClickedInput: null,
+ 
+    // Rows the user has X'd out. Keys are namespaced ('inc-4', 'ld-4') because
+    // ids collide across tables. Nothing here touches the database until Save.
+    pendingRemoval: [],
+ 
+    isRemoving(key) {
+        return this.pendingRemoval.includes(key);
+    },
+ 
+    toggleRemoval(key) {
+        this.pendingRemoval = this.isRemoving(key)
+            ? this.pendingRemoval.filter(k => k !== key)
+            : [...this.pendingRemoval, key];
+ 
+        this.dirty = true;
+    },
+ 
+    removalCount(prefix) {
+        return this.pendingRemoval.filter(k => k.startsWith(prefix)).length;
+    },
+ 
+    restoreRemovals(prefix) {
+        this.pendingRemoval = this.pendingRemoval.filter(k => !k.startsWith(prefix));
+    },
+ 
+    async saveAll() {
+        this.saving = true;
+ 
+        try {
+            const result = await window.submitInfoSheetForms(this.$root);
+ 
+            // Clear the guard before anything navigates, or beforeunload prompts
+            // on a save the user just confirmed.
+            this.dirty = false;
+            this.$store.navigation.hasUnsavedChanges = false;
+ 
+            // New rows exist only in the database; removed rows still exist in
+            // this DOM. Either way the page is out of date, so reload.
+            if (result?.created > 0 || result?.removed > 0) {
+                sessionStorage.setItem('infoSheetSaved', '1');
+                window.location.reload();
+                return;
+            }
+ 
+            // Edits only: no reload, keeps scroll position.
+            this.editing = false;
+            this.saving = false;
+            this.showTeamForm = false;
+            this.showIncubationForm = false;
+            this.showLdForm = false;
+            this.showReferenceForm = false;
+            this.pendingRemoval = [];
+ 
+            Alpine.store('toast').success(
+                'Information Sheet Saved',
+                'Your changes have been saved successfully.'
+            );
+ 
+        } catch (e) {
+            this.saving = false;
+ 
+            console.error('Info sheet save failed:', e);
+ 
+            Alpine.store('toast').error(
+                'Save Failed',
+                e?.message || 'Something went wrong while saving. Please try again.'
+            );
+        }
     }
-}
-        }"
+}"
         @click.capture="
-    if (!editing && $event.target.matches('input, textarea, select')) {
-        lastClickedField = $event.target.name;
-
-        $nextTick(() => {
-            $refs.editButton.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center'
+        if (!editing && $event.target.matches('input, textarea, select')) {
+            lastClickedInput = $event.target.name;
+ 
+            $nextTick(() => {
+                $refs.editButton?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
             });
-        });
-    }
-"
+        }
+    "
 
         x-init="
         $watch('dirty', value => {
             $store.navigation.hasUnsavedChanges = value;
         });
-
+ 
         window.addEventListener('beforeunload', (e) => {
             if ($store.navigation.hasUnsavedChanges) {
                 e.preventDefault();
                 e.returnValue = '';
             }
         });
-        
-    ">
+">
 
         {{-- Startup Header Bar --}}
         <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-6 py-3 flex items-center gap-2">
@@ -115,7 +163,7 @@
                         <input type=\"{$type}\" name=\"{$name}\" value=\"".e($value)."\" form=\"info-sheet-form\"
                             :readonly=\"!editing\" placeholder=\"SAMPLE\"
                             class='flex-1 border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300'
-                            @input=\"dirty=true\">
+                            @click=\"if(!editing){ lastClickedInput=\$el.name }\" @input=\"dirty=true\">
                     </div>";
                     };
                     @endphp
@@ -151,7 +199,7 @@
                                         <input type="text" name="citizenship_by_birth" value="{{ e(old('citizenship_by_birth', $sheet?->citizenship_by_birth)) }}" form="info-sheet-form"
                                             :readonly="!editing" placeholder="SAMPLE"
                                             class="flex-1 border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300"
-                                            @click="if(!editing){ lastClickedField = $el.name }"
+                                            @click="if(!editing){ lastClickedInput = $el.name }"
                                             @input="dirty = true">
                                     </div>
                                     <div class="flex items-center gap-2">
@@ -159,7 +207,7 @@
                                         <input type="text" name="citizenship_dual" value="{{ e(old('citizenship_dual', $sheet?->citizenship_dual)) }}" form="info-sheet-form"
                                             :readonly="!editing" placeholder="SAMPLE"
                                             class="flex-1 border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300"
-                                            @click="if(!editing){ lastClickedField = $el.name }"
+                                            @click="if(!editing){ lastClickedInput = $el.name }"
                                             @input="dirty = true">
                                     </div>
                                 </div>
@@ -213,19 +261,16 @@
                 <div class="border border-t-0 rounded-b-lg p-4">
                     <p class="text-xs font-semibold text-gray-700 mb-2">24.</p>
                     {{--
-                        NOTE ON NEW COLUMNS: the screenshot's team table has more columns (Address, Date of
-                        Birth, Citizenship, Sex, Civil Status) than the team_members table currently has.
-                        The inputs below are wired up and ready to submit (address, date_of_birth,
-                        citizenship, sex, civil_status) — the update-details route/controller and the
-                        team_members table will need matching columns added so these values persist.
-                        full_name / designation / phone / email already persist today.
-                    --}}
+            NOTE ON NEW COLUMNS: address, date_of_birth, citizenship, sex and civil_status
+            are wired up and submitting, but the team_members table doesn't have them yet.
+            The migration is at the bottom of 5-team-member-backend.php.
+ 
+            NOTE ON ADD / DELETE: this section has no store or destroy route yet, only
+            update-details, so both are wrapped in Route::has() guards.
+        --}}
                     @php
                     // Single source of truth for column widths, so the header row and every
                     // data row line up exactly no matter how many team members there are.
-                    // Widths are literal Tailwind classes (not runtime CSS) so there's nothing
-                    // for an editor's CSS linter to misread, and Tailwind can still see them
-                    // because the class strings appear verbatim in this file.
                     $teamCols = [
                     ['w' => 'w-[220px]', 'label' => 'NAME (SURNAME, FIRSTNAME, MIDDLE NAME, EXT)'],
                     ['w' => 'w-[140px]', 'label' => 'DESIGNATION'],
@@ -237,163 +282,309 @@
                     ['w' => 'w-[70px]', 'label' => 'SEX'],
                     ['w' => 'w-[130px]', 'label' => 'CIVIL STATUS'],
                     ];
+
+                    $canAddTeam = Route::has('startup.team-members.store');
+                    $canDeleteTeam = Route::has('startup.team-members.destroy');
+
+                    $teamCell = 'w-full h-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500';
                     @endphp
                     <div class="overflow-x-auto">
-                        <div class="inline-flex flex-col">
+                        <div class="w-max min-w-full border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
+
                             {{-- Header --}}
-                            <div class="flex bg-gray-50 text-[11px] font-semibold text-gray-600 border uppercase tracking-wide">
+                            <div class="flex bg-gray-50/70 text-[11px] font-semibold text-gray-800 uppercase tracking-wide">
                                 @foreach ($teamCols as $col)
-                                <div class="px-3 py-2 flex-shrink-0 border leading-tight {{ $col['w'] }}">{{ $col['label'] }}</div>
+                                <div class="px-3 py-3 flex-shrink-0 leading-tight {{ $loop->last ? '' : 'border-r border-gray-200' }} {{ $col['w'] }}">{{ $col['label'] }}</div>
                                 @endforeach
+                                {{-- gutter, always present so columns don't shift between view and edit mode --}}
+                                <div class="w-10 flex-shrink-0"></div>
                             </div>
 
                             {{-- Rows --}}
                             @forelse ($startup->teamMembers as $member)
-                            <form method="POST" action="{{ route('startup.team-members.update-details', $member) }}"
-                                class="js-subform flex text-sm">
-                                @csrf @method('PATCH')
-                                <div class="flex-shrink-0 border {{ $teamCols[0]['w'] }}">
-                                    <input type="text" name="full_name" value="{{ $member->full_name }}" placeholder="Name" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
+                            @php $rowKey = 'team-' . $member->getKey(); @endphp
+                            <div class="flex items-stretch" x-show="!isRemoving('{{ $rowKey }}')">
+                                <form method="POST" action="{{ route('startup.team-members.update-details', $member) }}"
+                                    class="js-subform flex items-stretch text-sm"
+                                    :class="isRemoving('{{ $rowKey }}') && 'js-skip'">
+                                    @csrf @method('PATCH')
+                                    <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[0]['w'] }}">
+                                        <input type="text" name="full_name" value="{{ $member->full_name }}" placeholder="Name" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                    </div>
+                                    <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[1]['w'] }}">
+                                        <input type="text" name="designation" value="{{ $member->designation }}" placeholder="Designation" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                    </div>
+                                    <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[2]['w'] }}">
+                                        <input type="text" name="phone" value="{{ $member->phone }}" placeholder="Phone" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                    </div>
+                                    <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[3]['w'] }}">
+                                        <input type="text" name="address" value="{{ $member->address ?? '' }}" placeholder="Address" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                    </div>
+                                    <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
+                                        <input type="date" name="date_of_birth" value="{{ $member->date_of_birth ?? '' }}" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                    </div>
+                                    <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
+                                        <input type="email" name="email" value="{{ $member->email }}" placeholder="Email" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                    </div>
+                                    <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[6]['w'] }}">
+                                        <input type="text" name="citizenship" value="{{ $member->citizenship ?? '' }}" placeholder="Citizenship" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                    </div>
+                                    <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
+                                        <input type="text" name="sex" value="{{ $member->sex ?? '' }}" placeholder="Sex" :readonly="!editing" class="{{ $teamCell }} text-center" @input="dirty = true">
+                                    </div>
+                                    <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
+                                        <input type="text" name="civil_status" value="{{ $member->civil_status ?? '' }}" placeholder="Civil Status" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                    </div>
+                                </form>
+
+                                @if ($canDeleteTeam)
+                                {{-- Deferred DELETE: hidden, no submit button, and only joins the save
+                         queue once :class adds js-subform. --}}
+                                <form method="POST" action="{{ route('startup.team-members.destroy', $member) }}"
+                                    class="js-deleteform hidden"
+                                    :class="isRemoving('{{ $rowKey }}') ? 'js-subform' : ''">
+                                    @csrf
+                                    @method('DELETE')
+                                </form>
+                                @endif
+
+                                <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                    @if ($canDeleteTeam)
+                                    <button type="button" x-show="editing" x-cloak
+                                        @click="toggleRemoval('{{ $rowKey }}')"
+                                        title="Remove entry"
+                                        aria-label="Remove entry"
+                                        class="text-red-600 hover:text-red-800 text-base leading-none">
+                                        &times;
+                                    </button>
+                                    @endif
                                 </div>
-                                <div class="flex-shrink-0 border {{ $teamCols[1]['w'] }}">
-                                    <input type="text" name="designation" value="{{ $member->designation }}" placeholder="Designation" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border {{ $teamCols[2]['w'] }}">
-                                        <input type="text" name="phone" value="{{ $member->phone }}" placeholder="Phone" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border {{ $teamCols[3]['w'] }}">
-                                    <input type="text" name="address" value="{{ $member->address ?? '' }}" placeholder="Address" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border {{ $teamCols[4]['w'] }}">
-                                    <input type="date" name="date_of_birth" value="{{ $member->date_of_birth ?? '' }}" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border {{ $teamCols[5]['w'] }}">
-                                    <input type="email" name="email" value="{{ $member->email }}" placeholder="Email" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border {{ $teamCols[6]['w'] }}">
-                                    <input type="text" name="citizenship" value="{{ $member->citizenship ?? '' }}" placeholder="Citizenship" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border {{ $teamCols[7]['w'] }}">
-                                    <input type="text" name="sex" value="{{ $member->sex ?? '' }}" placeholder="Sex" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border {{ $teamCols[8]['w'] }}">
-                                    <input type="text" name="civil_status" value="{{ $member->civil_status ?? '' }}" placeholder="Civil Status" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
-                                </div>
-                            </form>
+                            </div>
                             @empty
-                            <p class="text-sm text-gray-400 p-3">None listed yet.</p>
+                            <p class="text-sm text-gray-400 px-3 py-3">None listed yet.</p>
                             @endforelse
+
+                            {{-- Add new --}}
+                            @if ($canAddTeam)
+                            <form method="POST" action="{{ route('startup.team-members.store') }}"
+                                class="js-subform js-addform flex items-stretch text-sm"
+                                x-ref="teamAddForm" x-show="editing && showTeamForm" x-cloak>
+                                @csrf
+                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[0]['w'] }}">
+                                    <input type="text" name="full_name" placeholder="Name" class="{{ $teamCell }}" @input="dirty = true">
+                                </div>
+                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[1]['w'] }}">
+                                    <input type="text" name="designation" placeholder="Designation" class="{{ $teamCell }}" @input="dirty = true">
+                                </div>
+                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[2]['w'] }}">
+                                    <input type="text" name="phone" placeholder="Phone" class="{{ $teamCell }}" @input="dirty = true">
+                                </div>
+                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[3]['w'] }}">
+                                    <input type="text" name="address" placeholder="Address" class="{{ $teamCell }}" @input="dirty = true">
+                                </div>
+                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
+                                    <input type="date" name="date_of_birth" class="{{ $teamCell }}" @input="dirty = true">
+                                </div>
+                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
+                                    <input type="email" name="email" placeholder="Email" class="{{ $teamCell }}" @input="dirty = true">
+                                </div>
+                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[6]['w'] }}">
+                                    <input type="text" name="citizenship" placeholder="Citizenship" class="{{ $teamCell }}" @input="dirty = true">
+                                </div>
+                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
+                                    <input type="text" name="sex" placeholder="Sex" class="{{ $teamCell }} text-center" @input="dirty = true">
+                                </div>
+                                <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
+                                    <input type="text" name="civil_status" placeholder="Civil Status" class="{{ $teamCell }}" @input="dirty = true">
+                                </div>
+                                <div class="w-10 flex-shrink-0"></div>
+                            </form>
+                            @endif
                         </div>
+                    </div>
+
+                    {{-- Footer actions, outside the scroll box so they stay visible --}}
+                    <div class="mt-2 flex items-center gap-4" x-show="editing" x-cloak>
+                        @if ($canAddTeam)
+                        <button
+                            type="button"
+                            x-show="!showTeamForm"
+                            @click="showTeamForm = true"
+                            class="text-sm font-medium text-[#11386A] hover:text-[#6D0D23] hover:underline transition">
+                            + Add Entry
+                        </button>
+                        <button
+                            type="button"
+                            x-show="showTeamForm"
+                            @click="showTeamForm = false; $refs.teamAddForm?.reset()"
+                            class="text-sm text-gray-500 hover:text-gray-700 transition">
+                            Cancel
+                        </button>
+                        @endif
+
+                        @if ($canDeleteTeam)
+                        <span x-show="removalCount('team-') > 0" x-cloak class="text-xs text-gray-500">
+                            <span x-text="removalCount('team-')"></span> marked for removal on save.
+                            <button type="button" @click="restoreRemovals('team-')" class="underline hover:text-gray-700">Restore</button>
+                        </span>
+                        @endif
                     </div>
                 </div>
             </div>
 
-            {{-- III. Incubation Involvement --}}
             <div class="mt-8 rounded-lg overflow-hidden">
                 <h3 class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-sm font-semibold px-4 py-2">
                     III. INCUBATION INVOLVEMENT IN GOVERNMENT / NON-GOVERNMENT / PRIVATE / TECH ORGANIZATIONS
                 </h3>
                 <div class="border border-t-0 rounded-b-lg p-4">
                     <p class="text-xs font-semibold text-gray-700 mb-2">25.</p>
-                    {{--
-                        Fixed column widths shared by the header, every saved row, and the "add new"
-                        row, so the boxes line up instead of drifting between rows.
-                        Layout: [Org name & address] [From] [To] [Hours] [Program/Focus] [delete]
-                    --}}
+                    @php
+                    $incubationCols = [
+                    'w-[340px]',
+                    'w-[120px]',
+                    'w-[120px]',
+                    'w-[90px]',
+                    'w-[300px]',
+                    ];
+
+                    $incCell = 'w-full h-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500';
+                    @endphp
                     <div class="overflow-x-auto">
-                        <div class="min-w-[820px]">
-                            <div class="flex bg-gray-50 text-left text-xs border-b">
-                                <div class="flex-1 min-w-[220px] px-3 py-2 border-r font-medium">Name &amp; Address of Organization <span class="normal-case font-normal text-gray-400">(write in full)</span></div>
-                                <div class="w-28 flex-shrink-0 px-3 py-2 border-r font-medium">From</div>
-                                <div class="w-28 flex-shrink-0 px-3 py-2.5 border-r font-medium">To</div>
-                                <div class="w-24 flex-shrink-0 px-3 py-2.5 border-r font-medium">Hours</div>
-                                <div class="flex-1 min-w-[200px] px-3 py-2.5 border-r font-medium">Incubation Program / Focus</div>
+                        <div class="w-max min-w-full border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
+
+                            {{-- Header --}}
+                            <div class="flex bg-gray-50/70 text-left text-[11px] uppercase tracking-wide font-semibold text-gray-800">
+                                <div class="px-3 py-3 border-r border-gray-200 flex-shrink-0 {{ $incubationCols[0] }}">
+                                    Name &amp; Address of Organization
+                                    <span class="normal-case font-normal text-gray-400">(write in full)</span>
+                                </div>
+                                <div class="px-3 py-3 border-r border-gray-200 flex-shrink-0 {{ $incubationCols[1] }}">From</div>
+                                <div class="px-3 py-3 border-r border-gray-200 flex-shrink-0 {{ $incubationCols[2] }}">To</div>
+                                <div class="px-3 py-3 border-r border-gray-200 flex-shrink-0 {{ $incubationCols[3] }}">Hours</div>
+                                <div class="px-3 py-3 flex-shrink-0 {{ $incubationCols[4] }}">Incubation Program / Focus</div>
                                 <div class="w-10 flex-shrink-0"></div>
                             </div>
 
+                            {{-- Saved rows --}}
                             @forelse ($sheet?->incubationInvolvements ?? [] as $item)
-                            <div class="flex items-stretch border-b last:border-b-0 odd:bg-white even:bg-gray-50/50">
-                                <form method="POST" action="{{ route('startup.incubation.update', $item) }}" class="js-subform flex flex-1">
+                            @php $rowKey = 'inc-' . $item->id; @endphp {{-- ← NEW (1 of 4): the row's queue key --}}
+
+                            {{-- ← NEW (2 of 4): x-show makes the row vanish the moment × is clicked --}}
+                            <div class="flex items-stretch" x-show="!isRemoving('{{ $rowKey }}')">
+
+                                {{-- ← NEW (3 of 4): js-skip keeps Save from PATCHing a row it's about to delete --}}
+                                <form method="POST" action="{{ route('startup.incubation.update', $item) }}"
+                                    class="js-subform flex"
+                                    :class="isRemoving('{{ $rowKey }}') && 'js-skip'">
                                     @csrf
                                     @method('PATCH')
-                                    <div class="flex-1 min-w-[220px] border-r">
+                                    <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[0] }}">
                                         <input type="text" name="organization_name_address" value="{{ $item->organization_name_address }}"
-                                            placeholder="Organization Name & Address" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                            @input="dirty = true">
+                                            placeholder="Organization Name & Address" :readonly="!editing" class="{{ $incCell }}" @input="dirty = true">
                                     </div>
-                                    <div class="w-28 flex-shrink-0 border-r">
+                                    <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[1] }}">
                                         <input type="date" name="date_from" value="{{ $item->date_from?->format('Y-m-d') }}"
-                                            :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                            @input="dirty = true">
+                                            :readonly="!editing" class="{{ $incCell }}" @input="dirty = true">
                                     </div>
-                                    <div class="w-28 flex-shrink-0 border-r">
+                                    <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[2] }}">
                                         <input type="date" name="date_to" value="{{ $item->date_to?->format('Y-m-d') }}"
-                                            :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                            @input="dirty = true">
+                                            :readonly="!editing" class="{{ $incCell }}" @input="dirty = true">
                                     </div>
-                                    <div class="w-24 flex-shrink-0 border-r">
+                                    <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[3] }}">
                                         <input type="text" name="number_of_hours" value="{{ $item->number_of_hours }}"
-                                            placeholder="Hours" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm text-center focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                            @input="dirty = true">
+                                            placeholder="Hours" :readonly="!editing" class="{{ $incCell }} text-center" @input="dirty = true">
                                     </div>
-                                    <div class="flex-1 min-w-[200px] border-r">
+                                    <div class="flex-shrink-0 {{ $incubationCols[4] }}">
                                         <input type="text" name="incubation_program_focus" value="{{ $item->incubation_program_focus }}"
-                                            placeholder="Program/Focus" :readonly="!editing" class="w-full border-0 px-3 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                            @input="dirty = true">
+                                            placeholder="Program/Focus" :readonly="!editing" class="{{ $incCell }}" @input="dirty = true">
                                     </div>
                                 </form>
+
+                                {{--
+                        ← NEW (4 of 4): the deferred DELETE.
+ 
+                        It has no submit button and stays hidden. It only gains js-subform
+                        when the row is marked, and js-subform is the only thing
+                        submitInfoSheetForms looks for — so this fires on Save and never
+                        before. It sits inside the vanished row on purpose: display:none
+                        doesn't hide it from querySelectorAll or FormData.
+                    --}}
                                 <form method="POST" action="{{ route('startup.incubation.destroy', $item) }}"
-                                    onsubmit="return confirm('Remove this entry?')" x-show="editing" x-cloak
-                                    class="w-10 flex-shrink-0 flex items-center justify-center">
+                                    class="js-deleteform hidden"
+                                    :class="isRemoving('{{ $rowKey }}') ? 'js-subform' : ''">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:text-red-800 text-base leading-none">&times;</button>
                                 </form>
+
+                                <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                    <button type="button" x-show="editing" x-cloak
+                                        @click="toggleRemoval('{{ $rowKey }}')"
+                                        title="Remove entry"
+                                        aria-label="Remove entry"
+                                        class="text-red-600 hover:text-red-800 text-base leading-none">
+                                        &times;
+                                    </button>
+                                </div>
                             </div>
                             @empty
-                            <p class="text-sm text-gray-400 p-3">None listed yet.</p>
+                            <p class="text-sm text-gray-400 px-3 py-3">None listed yet.</p>
                             @endforelse
 
-                            <form method="POST" action="{{ route('startup.incubation.store') }}" class="js-subform js-addform flex border-t" x-show="editing" x-cloak>
-                                <div class="flex-1 min-w-[220px] border-r">
-                                    <input type="text" name="organization_name_address" placeholder="Organization Name & Address"
-                                        :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
+                            {{-- Add new. No submit button: js-addform means Save picks it up, and the
+                     existing isBlank() guard skips it when nothing was typed. --}}
+                            <form method="POST" action="{{ route('startup.incubation.store') }}"
+                                class="js-subform js-addform flex"
+                                x-ref="incubationAddForm" x-show="editing && showIncubationForm" x-cloak>
+                                @csrf
+                                <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[0] }}">
+                                    <input type="text" name="organization_name_address" placeholder="Organization Name & Address" class="{{ $incCell }}" @input="dirty = true">
                                 </div>
-                                <div class="w-28 flex-shrink-0 border-r">
-                                    <input type="date" name="date_from" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
+                                <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[1] }}">
+                                    <input type="date" name="date_from" class="{{ $incCell }}" @input="dirty = true">
                                 </div>
-                                <div class="w-28 flex-shrink-0 border-r">
-                                    <input type="date" name="date_to" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
+                                <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[2] }}">
+                                    <input type="date" name="date_to" class="{{ $incCell }}" @input="dirty = true">
                                 </div>
-                                <div class="w-24 flex-shrink-0 border-r">
-                                    <input type="text" name="number_of_hours" placeholder="Hours" :readonly="!editing" class="w-full border-0 px-2 py-1.5 text-sm text-center focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
+                                <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[3] }}">
+                                    <input type="text" name="number_of_hours" placeholder="Hours" class="{{ $incCell }} text-center" @input="dirty = true">
                                 </div>
-                                <div class="flex-1 min-w-[200px] border-r">
-                                    <input type="text" name="incubation_program_focus" placeholder="Program/Focus" :readonly="!editing" class="w-full h-full px-3 py-2 text-sm bg-transparent focus:outline-none focus:bg-white readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
+                                <div class="flex-shrink-0 {{ $incubationCols[4] }}">
+                                    <input type="text" name="incubation_program_focus" placeholder="Program/Focus" class="{{ $incCell }}" @input="dirty = true">
                                 </div>
-                                <div class="w-10 flex-shrink-0 flex items-center justify-center text-rose-900" title="Add entry">
-                                    <button type="submit" class="text-lg leading-none">+</button>
-                                </div>
+                                <div class="w-10 flex-shrink-0"></div>
                             </form>
                         </div>
                     </div>
+
+                    {{-- Footer actions, outside the scroll box so they stay visible --}}
+                    <div class="mt-2 flex items-center gap-4" x-show="editing" x-cloak>
+                        <button
+                            type="button"
+                            x-show="!showIncubationForm"
+                            @click="showIncubationForm = true"
+                            class="text-sm font-medium text-[#11386A] hover:text-[#6D0D23] hover:underline transition">
+                            + Add Entry
+                        </button>
+                        <button
+                            type="button"
+                            x-show="showIncubationForm"
+                            @click="showIncubationForm = false; $refs.incubationAddForm?.reset()"
+                            class="text-sm text-gray-500 hover:text-gray-700 transition">
+                            Cancel
+                        </button>
+
+                        {{-- Safety net: the row is gone from the table, so this is the only way
+                 back from a misclick short of cancelling the whole page. --}}
+                        <span x-show="removalCount('inc-') > 0" x-cloak class="text-xs text-gray-500">
+                            <span x-text="removalCount('inc-')"></span> marked for removal on save.
+                            <button type="button" @click="restoreRemovals('inc-')" class="underline hover:text-gray-700">Restore</button>
+                        </span>
+                    </div>
+
                     @error('organization_name_address') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
             </div>
+
 
             {{-- IV. Learning and Development Interventions --}}
             <div class="mt-8 rounded-lg overflow-hidden">
@@ -402,92 +593,136 @@
                 </h3>
                 <div class="border border-t-0 rounded-b-lg p-4">
                     <p class="text-xs font-semibold text-gray-700 mb-2">26.</p>
-                    {{--
-                        Fixed column widths shared by the header, every saved row, and the "add new"
-                        row, so the boxes line up instead of drifting between rows.
-                        Layout: [Title] [From] [To] [Hours] [Conducted/Sponsored By] [delete]
-                    --}}
-                    <div class="border rounded-lg overflow-x-auto">
-                        <div class="min-w-[820px]">
-                            <div class="flex bg-gray-50 text-xs font-semibold text-gray-600 border-b uppercase tracking-wide">
-                                <div class="flex-1 min-w-[220px] px-3 py-2.5 border-r">Title of L&amp;D Intervention <span class="normal-case font-normal text-gray-400">(write in full)</span></div>
-                                <div class="w-28 flex-shrink-0 px-3 py-2.5 border-r">From</div>
-                                <div class="w-28 flex-shrink-0 px-3 py-2.5 border-r">To</div>
-                                <div class="w-24 flex-shrink-0 px-3 py-2.5 border-r">Hours</div>
-                                <div class="flex-1 min-w-[200px] px-3 py-2.5 border-r">Conducted / Sponsored By</div>
+                    {{-- Widths deliberately match Section III, so the two tables read as one grid. --}}
+                    @php
+                    $ldCols = [
+                    'w-[340px]',
+                    'w-[120px]',
+                    'w-[120px]',
+                    'w-[90px]',
+                    'w-[300px]',
+                    ];
+
+                    $ldCell = 'w-full h-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500';
+                    @endphp
+                    <div class="overflow-x-auto">
+                        <div class="w-max min-w-full border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
+
+                            {{-- Header --}}
+                            <div class="flex bg-gray-50/70 text-[11px] font-semibold text-gray-800 uppercase tracking-wide">
+                                <div class="px-3 py-3 border-r border-gray-200 flex-shrink-0 leading-tight {{ $ldCols[0] }}">
+                                    Title of L&amp;D Intervention
+                                    <span class="normal-case font-normal text-gray-400">(write in full)</span>
+                                </div>
+                                <div class="px-3 py-3 border-r border-gray-200 flex-shrink-0 {{ $ldCols[1] }}">From</div>
+                                <div class="px-3 py-3 border-r border-gray-200 flex-shrink-0 {{ $ldCols[2] }}">To</div>
+                                <div class="px-3 py-3 border-r border-gray-200 flex-shrink-0 {{ $ldCols[3] }}">Hours</div>
+                                <div class="px-3 py-3 flex-shrink-0 {{ $ldCols[4] }}">Conducted / Sponsored By</div>
                                 <div class="w-10 flex-shrink-0"></div>
                             </div>
 
+                            {{-- Saved rows --}}
                             @forelse ($sheet?->ldInterventions ?? [] as $item)
-                            <div class="flex items-stretch border-b last:border-b-0 odd:bg-white even:bg-gray-50/50">
-                                <form method="POST" action="{{ route('startup.ld.update', $item) }}" class="js-subform flex flex-1">
+                            @php $rowKey = 'ld-' . $item->id; @endphp
+                            <div class="flex items-stretch" x-show="!isRemoving('{{ $rowKey }}')">
+                                <form method="POST" action="{{ route('startup.ld.update', $item) }}"
+                                    class="js-subform flex"
+                                    :class="isRemoving('{{ $rowKey }}') && 'js-skip'">
                                     @csrf
                                     @method('PATCH')
-                                    <div class="flex-1 min-w-[220px] border-r">
+                                    <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[0] }}">
                                         <input type="text" name="title" value="{{ $item->title }}"
-                                            placeholder="Title" :readonly="!editing" class="w-full h-full px-3 py-2 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                            @input="dirty = true">
+                                            placeholder="Title" :readonly="!editing" class="{{ $ldCell }}" @input="dirty = true">
                                     </div>
-                                    <div class="w-28 flex-shrink-0 border-r">
+                                    <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[1] }}">
                                         <input type="date" name="date_from" value="{{ $item->date_from?->format('Y-m-d') }}"
-                                            :readonly="!editing" class="w-full h-full px-2 py-2 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                            @input="dirty = true">
+                                            :readonly="!editing" class="{{ $ldCell }}" @input="dirty = true">
                                     </div>
-                                    <div class="w-28 flex-shrink-0 border-r">
+                                    <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[2] }}">
                                         <input type="date" name="date_to" value="{{ $item->date_to?->format('Y-m-d') }}"
-                                            :readonly="!editing" class="w-full h-full px-2 py-2 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                            @input="dirty = true">
+                                            :readonly="!editing" class="{{ $ldCell }}" @input="dirty = true">
                                     </div>
-                                    <div class="w-24 flex-shrink-0 border-r">
+                                    <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[3] }}">
                                         <input type="text" name="number_of_hours" value="{{ $item->number_of_hours }}"
-                                            placeholder="Hours" :readonly="!editing" class="w-full h-full px-2 py-2 text-sm text-center focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                            @input="dirty = true">
+                                            placeholder="Hours" :readonly="!editing" class="{{ $ldCell }} text-center" @input="dirty = true">
                                     </div>
-                                    <div class="flex-1 min-w-[200px] border-r">
+                                    <div class="flex-shrink-0 {{ $ldCols[4] }}">
                                         <input type="text" name="conducted_sponsored_by" value="{{ $item->conducted_sponsored_by }}"
-                                            placeholder="Conducted/Sponsored By" :readonly="!editing" class="w-full h-full px-3 py-2 text-sm focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                            @input="dirty = true">
+                                            placeholder="Conducted/Sponsored By" :readonly="!editing" class="{{ $ldCell }}" @input="dirty = true">
                                     </div>
                                 </form>
+
+                                {{-- Deferred DELETE: hidden, no submit button, only joins the save
+                         queue once :class adds js-subform. --}}
                                 <form method="POST" action="{{ route('startup.ld.destroy', $item) }}"
-                                    onsubmit="return confirm('Remove this entry?')" x-show="editing" x-cloak
-                                    class="w-10 flex-shrink-0 flex items-center justify-center">
+                                    class="js-deleteform hidden"
+                                    :class="isRemoving('{{ $rowKey }}') ? 'js-subform' : ''">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:text-red-800 text-base leading-none">&times;</button>
                                 </form>
+
+                                <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                    <button type="button" x-show="editing" x-cloak
+                                        @click="toggleRemoval('{{ $rowKey }}')"
+                                        title="Remove entry"
+                                        aria-label="Remove entry"
+                                        class="text-red-600 hover:text-red-800 text-base leading-none">
+                                        &times;
+                                    </button>
+                                </div>
                             </div>
                             @empty
-                            <p class="text-sm text-gray-400 p-3">None listed yet.</p>
+                            <p class="text-sm text-gray-400 px-3 py-3">None listed yet.</p>
                             @endforelse
 
-                            <form method="POST" action="{{ route('startup.ld.store') }}" class="js-subform js-addform flex border-t bg-blue-50/40" x-show="editing" x-cloak>
-                                <div class="flex-1 min-w-[220px] border-r">
-                                    <input type="text" name="title" placeholder="Title" :readonly="!editing" class="w-full h-full px-3 py-2 text-sm bg-transparent focus:outline-none focus:bg-white readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
+                            {{-- Add new --}}
+                            <form method="POST" action="{{ route('startup.ld.store') }}"
+                                class="js-subform js-addform flex"
+                                x-ref="ldAddForm" x-show="editing && showLdForm" x-cloak>
+                                @csrf
+                                <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[0] }}">
+                                    <input type="text" name="title" placeholder="Title" class="{{ $ldCell }}" @input="dirty = true">
                                 </div>
-                                <div class="w-28 flex-shrink-0 border-r">
-                                    <input type="date" name="date_from" :readonly="!editing" class="w-full h-full px-2 py-2 text-sm bg-transparent focus:outline-none focus:bg-white readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
+                                <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[1] }}">
+                                    <input type="date" name="date_from" class="{{ $ldCell }}" @input="dirty = true">
                                 </div>
-                                <div class="w-28 flex-shrink-0 border-r">
-                                    <input type="date" name="date_to" :readonly="!editing" class="w-full h-full px-2 py-2 text-sm bg-transparent focus:outline-none focus:bg-white readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
+                                <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[2] }}">
+                                    <input type="date" name="date_to" class="{{ $ldCell }}" @input="dirty = true">
                                 </div>
-                                <div class="w-24 flex-shrink-0 border-r">
-                                    <input type="text" name="number_of_hours" placeholder="Hours" :readonly="!editing" class="w-full h-full px-2 py-2 text-sm text-center bg-transparent focus:outline-none focus:bg-white readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
+                                <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[3] }}">
+                                    <input type="text" name="number_of_hours" placeholder="Hours" class="{{ $ldCell }} text-center" @input="dirty = true">
                                 </div>
-                                <div class="flex-1 min-w-[200px] border-r">
-                                    <input type="text" name="conducted_sponsored_by" placeholder="Conducted/Sponsored By" :readonly="!editing" class="w-full h-full px-3 py-2 text-sm bg-transparent focus:outline-none focus:bg-white readonly:bg-transparent readonly:text-gray-500"
-                                        @input="dirty = true">
+                                <div class="flex-shrink-0 {{ $ldCols[4] }}">
+                                    <input type="text" name="conducted_sponsored_by" placeholder="Conducted/Sponsored By" class="{{ $ldCell }}" @input="dirty = true">
                                 </div>
-                                <div class="w-10 flex-shrink-0 flex items-center justify-center text-rose-900" title="Add entry">
-                                    <button type="submit" class="text-lg leading-none">+</button>
-                                </div>
+                                <div class="w-10 flex-shrink-0"></div>
                             </form>
                         </div>
                     </div>
+
+                    {{-- Footer actions, outside the scroll box so they stay visible --}}
+                    <div class="mt-2 flex items-center gap-4" x-show="editing" x-cloak>
+                        <button
+                            type="button"
+                            x-show="!showLdForm"
+                            @click="showLdForm = true"
+                            class="text-sm font-medium text-[#11386A] hover:text-[#6D0D23] hover:underline transition">
+                            + Add Entry
+                        </button>
+                        <button
+                            type="button"
+                            x-show="showLdForm"
+                            @click="showLdForm = false; $refs.ldAddForm?.reset()"
+                            class="text-sm text-gray-500 hover:text-gray-700 transition">
+                            Cancel
+                        </button>
+
+                        <span x-show="removalCount('ld-') > 0" x-cloak class="text-xs text-gray-500">
+                            <span x-text="removalCount('ld-')"></span> marked for removal on save.
+                            <button type="button" @click="restoreRemovals('ld-')" class="underline hover:text-gray-700">Restore</button>
+                        </span>
+                    </div>
+
                     @error('title') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
             </div>
@@ -531,178 +766,304 @@
                     </div>
                 </div>
 
+
                 {{-- 35. References --}}
                 <div class="mt-6">
                     <p class="text-xs font-semibold text-gray-700 mb-2">35. REFERENCES</p>
-                    <div class="w-full border-0 bg-transparent px-3 py-2 focus:bg-blue-50 focus:outline-none">
-                        <div class="grid grid-cols-4 gap-0 bg-gray-50 text-[11px] font-semibold uppercase tracking-wide border-b text-gray-600">
-                            <div class="px-3 py-2 border-r">NAME</div>
-                            <div class="px-3 py-2 border-r">CONTACT</div>
-                            <div class="px-3 py-2 border-r">EMAIL ADDRESS</div>
-                            <div class="px-3 py-2">ADDRESS</div>
+                    {{--
+        The four columns stay fluid (grid-cols-4) since this table fits without
+        scrolling. What makes them line up is that the header and every row share
+        the same shape: a flex-1 grid next to a fixed w-10 gutter. The gutter is
+        always in the DOM — only the button inside it toggles — so nothing shifts
+        between view and edit mode.
+    --}}
+                    <div class="border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
+
+                        {{-- Header --}}
+                        <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
+                            <div class="grid grid-cols-4 flex-1">
+                                <div class="px-3 py-3 border-r border-gray-200">NAME</div>
+                                <div class="px-3 py-3 border-r border-gray-200">CONTACT</div>
+                                <div class="px-3 py-3 border-r border-gray-200">EMAIL ADDRESS</div>
+                                <div class="px-3 py-3">ADDRESS</div>
+                            </div>
+                            <div class="w-10 flex-shrink-0"></div>
                         </div>
+
+                        {{-- Saved rows --}}
                         @forelse ($sheet?->references ?? [] as $reference)
-                        <div class="flex items-start gap-2 border-b last:border-b-0 px-2 py-1.5">
-                            <form method="POST" action="{{ route('startup.references.update', $reference) }}" class="js-subform grid grid-cols-4 gap-0 text-sm flex-1">
+                        @php $rowKey = 'ref-' . $reference->id; @endphp
+                        <div class="flex items-stretch" x-show="!isRemoving('{{ $rowKey }}')">
+                            <form method="POST" action="{{ route('startup.references.update', $reference) }}"
+                                class="js-subform grid grid-cols-4 flex-1 text-sm"
+                                :class="isRemoving('{{ $rowKey }}') && 'js-skip'">
                                 @csrf
                                 @method('PATCH')
-                                <input type="text" name="name" value="{{ $reference->name }}"
-                                    placeholder="Name" :readonly="!editing" class="w-full border-0 px-3 py-2 bg-transparent focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                    @input="dirty = true">
-                                <input type="text" name="contact" value="{{ $reference->contact }}"
-                                    placeholder="Contact" :readonly="!editing" class="w-full border-0 px-3 py-2 bg-transparent focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                    @input="dirty = true">
-                                <input type="email" name="email" value="{{ $reference->email }}"
-                                    placeholder="Email" :readonly="!editing" class="w-full border-0 px-3 py-2 bg-transparent focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                    @input="dirty = true">
-                                <input type="text" name="address" value="{{ $reference->address }}"
-                                    placeholder="Address" :readonly="!editing" class="w-full border-0 px-3 py-2 bg-transparent focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
-                                    @input="dirty = true">
+                                <div class="border-r border-gray-200">
+                                    <input type="text" name="name" value="{{ $reference->name }}"
+                                        placeholder="Name" :readonly="!editing"
+                                        class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
+                                        @input="dirty = true">
+                                </div>
+                                <div class="border-r border-gray-200">
+                                    <input type="text" name="contact" value="{{ $reference->contact }}"
+                                        placeholder="Contact" :readonly="!editing"
+                                        class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
+                                        @input="dirty = true">
+                                </div>
+                                <div class="border-r border-gray-200">
+                                    <input type="email" name="email" value="{{ $reference->email }}"
+                                        placeholder="Email" :readonly="!editing"
+                                        class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
+                                        @input="dirty = true">
+                                </div>
+                                <div>
+                                    <input type="text" name="address" value="{{ $reference->address }}"
+                                        placeholder="Address" :readonly="!editing"
+                                        class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50 readonly:bg-transparent readonly:text-gray-500"
+                                        @input="dirty = true">
+                                </div>
                             </form>
+
+                            {{-- Deferred DELETE: hidden, no submit button, only joins the save
+                 queue once :class adds js-subform. --}}
                             <form method="POST" action="{{ route('startup.references.destroy', $reference) }}"
-                                onsubmit="return confirm('Remove this reference?')" x-show="editing" x-cloak>
+                                class="js-deleteform hidden"
+                                :class="isRemoving('{{ $rowKey }}') ? 'js-subform' : ''">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-800 text-sm px-2">&times;</button>
                             </form>
+
+                            <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                <button type="button" x-show="editing" x-cloak
+                                    @click="toggleRemoval('{{ $rowKey }}')"
+                                    title="Remove entry"
+                                    aria-label="Remove entry"
+                                    class="text-red-600 hover:text-red-800 text-base leading-none">
+                                    &times;
+                                </button>
+                            </div>
                         </div>
                         @empty
-                        <p class="text-sm text-gray-400 p-3">None listed yet.</p>
+                        <p class="text-sm text-gray-400 px-3 py-3">None listed yet.</p>
                         @endforelse
-                        <div x-show="editing && !showReferenceForm" x-cloak class="p-3">
+
+                        {{-- Add new. js-subform is on the FORM now, not the inner div, so Save
+             actually picks it up. No + button — same flow as the other sections. --}}
+                        <form method="POST" action="{{ route('startup.references.store') }}"
+                            class="js-subform js-addform flex items-stretch"
+                            x-ref="referenceAddForm" x-show="editing && showReferenceForm" x-cloak>
+                            @csrf
+                            <div class="grid grid-cols-4 flex-1 text-sm">
+                                <div class="border-r border-gray-200">
+                                    <input type="text" name="name" placeholder="Name"
+                                        class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50"
+                                        @input="dirty = true">
+                                </div>
+                                <div class="border-r border-gray-200">
+                                    <input type="text" name="contact" placeholder="Contact"
+                                        class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50"
+                                        @input="dirty = true">
+                                </div>
+                                <div class="border-r border-gray-200">
+                                    <input type="email" name="email" placeholder="Email"
+                                        class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50"
+                                        @input="dirty = true">
+                                </div>
+                                <div>
+                                    <input type="text" name="address" placeholder="Address"
+                                        class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50"
+                                        @input="dirty = true">
+                                </div>
+                            </div>
+                            {{-- gutter matching the × column on saved rows --}}
+                            <div class="w-10 flex-shrink-0"></div>
+                        </form>
+
+                        {{-- Footer actions. Unlike II/III/IV these live inside the frame, since
+             this table doesn't scroll horizontally. --}}
+                        <div class="px-3 py-2 flex items-center gap-4" x-show="editing" x-cloak>
                             <button
                                 type="button"
+                                x-show="!showReferenceForm"
                                 @click="showReferenceForm = true"
                                 class="text-sm font-medium text-[#11386A] hover:text-[#6D0D23] hover:underline transition">
-                                + Add Reference
+                                + Add Entry
                             </button>
-                        </div>
-                        <form method="POST" action="{{ route('startup.references.store') }}"
-                            class="flex items-start gap-2 border-b last:border-b-0 px-2 py-1.5"
-                            x-show="editing && showReferenceForm" x-cloak>
-                            @csrf
-                            <div class="js-subform grid grid-cols-4 gap-0 text-sm flex-1">
-                                <input type="text" name="name" placeholder="Name"
-                                    class="w-full border-0 px-3 py-2 bg-transparent focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
-                                    @input="dirty = true">
-                                <input type="text" name="contact" placeholder="Contact"
-                                    class="w-full border-0 px-3 py-2 bg-transparent focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
-                                    @input="dirty = true">
-                                <input type="email" name="email" placeholder="Email"
-                                    class="w-full border-0 px-3 py-2 bg-transparent focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
-                                    @input="dirty = true">
-                                <input type="text" name="address" placeholder="Address"
-                                    class="w-full border-0 px-3 py-2 bg-transparent focus:outline-none focus:bg-blue-50 disabled:bg-transparent disabled:text-gray-500"
-                                    @input="dirty = true">
-                            </div>
-                            {{-- spacer to match the width of the × delete button in existing rows --}}
-                            <span class="invisible px-2 text-sm">&times;</span>
-                        </form>
-                        <div x-show="editing && showReferenceForm" x-cloak class="px-2 pb-2">
                             <button
                                 type="button"
-                                @click="showReferenceForm = false"
+                                x-show="showReferenceForm"
+                                @click="showReferenceForm = false; $refs.referenceAddForm?.reset()"
                                 class="text-sm text-gray-500 hover:text-gray-700 transition">
                                 Cancel
                             </button>
+
+                            <span x-show="removalCount('ref-') > 0" x-cloak class="text-xs text-gray-500">
+                                <span x-text="removalCount('ref-')"></span> marked for removal on save.
+                                <button type="button" @click="restoreRemovals('ref-')" class="underline hover:text-gray-700">Restore</button>
+                            </span>
                         </div>
-                        @error('name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                     </div>
+                    @error('name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
-            </div>
 
 
-            <div class="flex gap-3">
 
-                <template x-if="isLocked">
-                    <div class="flex-1 text-center bg-gray-100 text-gray-500 rounded-lg py-2.5 text-sm font-medium">
-                        Approved &amp; Locked — contact your Coordinator for changes
-                    </div>
-                </template>
+                <div class="flex gap-3">
 
-                <template x-if="!isLocked && !editing">
-                    <div class="flex-1 rounded-lg p-[1.5px] bg-gradient-to-r from-[#6D0D23] to-[#11386A]">
+                    <template x-if="isLocked">
+                        <div class="flex-1 text-center bg-gray-100 text-gray-500 rounded-lg py-2.5 text-sm font-medium">
+                            Approved &amp; Locked — contact your Coordinator for changes
+                        </div>
+                    </template>
+
+                    <template x-if="!isLocked && !editing">
+                        <div class="flex-1 rounded-lg p-[1.5px] bg-gradient-to-r from-[#6D0D23] to-[#11386A] mt-10">
+                            <button
+                                type="button"
+                                x-ref="editButton"
+                                @click="
+                    editing = true;
+                    $nextTick(() => {
+                        if (lastClickedInput) {
+                            const el = document.querySelector(`[name='${lastClickedInput}']`);
+                            if (el) {
+                                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                el.focus();
+                            }
+                        }
+                    });
+                "
+                                class="w-full rounded-[7px] bg-white py-2.5 text-sm font-semibold text-[#11386A]
+                       transition-all duration-200 hover:bg-slate-50 hover:shadow-sm">
+                                Edit
+                            </button>
+                        </div>
+                    </template>
+
+                    <template x-if="editing && !isLocked">
                         <button
                             type="button"
-                            @click="editing = true"
-                            x-ref="editButton"
-                            class="w-full rounded-[7px] bg-white py-2.5 text-sm font-semibold text-[#11386A]
-                       transition-all duration-200 hover:bg-slate-50 hover:shadow-sm">
-                            Edit
+                            @click="editing = false; dirty = false; pendingRemoval = []"
+                            class="flex-1 border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold
+                   hover:bg-gray-50 transition">
+                            Cancel
                         </button>
-                    </div>
-                </template>
+                    </template>
 
-                <template x-if="editing && !isLocked">
                     <button
                         type="button"
-                        @click="editing = false; dirty = false"
-                        class="flex-1 border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold
-                   hover:bg-gray-50 transition">
-                        Cancel
-                    </button>
-                </template>
-
-                <button
-                    type="button"
-                    x-show="editing && !isLocked"
-                    x-cloak
-                    @click="saveAll()"
-                    :disabled="saving"
-                    class="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white
+                        x-show="editing && !isLocked"
+                        x-cloak
+                        @click="saveAll()"
+                        :disabled="saving"
+                        class="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white
                bg-gradient-to-r from-[#6D0D23] to-[#11386A]
                hover:opacity-95 transition disabled:opacity-60">
-                    <span x-text="saving ? 'Saving…' : 'Save'"></span>
-                </button>
+                        <span x-text="saving ? 'Saving…' : 'Save'"></span>
+                    </button>
 
+                </div>
             </div>
-
-
         </div>
-    </div>
 
 
-    {{-- One Save button now submits every section (Founder's Info, Educational Background,
-         Startup Info, Declaration, Core Team, Incubation, L&D, References) together.
-         Each section still POSTs to its own existing Laravel route/controller — nothing on
-         the backend changes — this just chains those existing requests behind a single click
-         instead of showing a Save button per row. --}}
-    <script>
-        window.submitInfoSheetForms = async function(root) {
-            root = root || document;
+        <script>
+            window.submitInfoSheetForms = async function(root) {
+                root = root || document;
 
-            const isBlank = (form) => {
-                const data = new FormData(form);
-                for (const [key, val] of data.entries()) {
-                    if (['_token', '_method'].includes(key)) continue;
-                    if (typeof val === 'string' && val.trim() !== '') return false;
-                    if (val instanceof File && val.size > 0) return false;
+                const isBlank = (form) => {
+                    const data = new FormData(form);
+                    for (const [key, val] of data.entries()) {
+                        if (['_token', '_method'].includes(key)) continue;
+                        if (typeof val === 'string' && val.trim() !== '') return false;
+                        if (val instanceof File && val.size > 0) return false;
+                    }
+                    return true;
+                };
+
+                const mainForm = root.querySelector('#info-sheet-form') || document.getElementById('info-sheet-form');
+                const subForms = Array.from(root.querySelectorAll('form.js-subform'));
+
+                const forms = [mainForm, ...subForms].filter(Boolean).filter((form) => {
+                    // Row marked for removal: don't PATCH what's about to be deleted.
+                    if (form.classList.contains('js-skip')) return false;
+                    // Skip empty "add new entry" rows so we don't create blank records.
+                    if (form.classList.contains('js-addform') && isBlank(form)) return false;
+                    return true;
+                });
+
+                // Deletes go last, so a failed update can't leave a row already destroyed.
+                forms.sort((a, b) => {
+                    const aDel = a.classList.contains('js-deleteform') ? 1 : 0;
+                    const bDel = b.classList.contains('js-deleteform') ? 1 : 0;
+                    return aDel - bDel;
+                });
+
+                let created = 0;
+                let removed = 0;
+
+                for (const form of forms) {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                    });
+
+                    if (!response.ok) {
+                        const error = new Error('Request to ' + form.action + ' failed with status ' + response.status);
+                        error.status = response.status;
+                        error.action = form.action;
+
+                        // Laravel returns validation errors as JSON on an XHR request.
+                        if (response.status === 422) {
+                            try {
+                                const body = await response.json();
+                                error.validation = body.errors || null;
+                                error.message = Object.values(body.errors || {}).flat().join(' ') || error.message;
+                            } catch (ignored) {}
+                        }
+
+                        throw error;
+                    }
+
+                    if (form.classList.contains('js-addform')) created++;
+                    if (form.classList.contains('js-deleteform')) removed++;
                 }
-                return true;
+
+                return {
+                    created,
+                    removed
+                };
             };
 
-            const mainForm = root.querySelector('#info-sheet-form') || document.getElementById('info-sheet-form');
-            const subForms = Array.from(root.querySelectorAll('form.js-subform'));
 
-            const forms = [mainForm, ...subForms].filter(Boolean).filter((form) => {
-                // Skip empty "add new entry" rows so we don't create blank records.
-                if (form.classList.contains('js-addform') && isBlank(form)) return false;
-                return true;
-            });
+            // Post-reload success toast.
+            (function() {
+                let shown = false;
 
-            for (const form of forms) {
-                const response = await fetch(form.action, {
-                    method: 'POST',
-                    body: new FormData(form),
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                });
-                if (!response.ok) {
-                    throw new Error('Request to ' + form.action + ' failed with status ' + response.status);
-                }
-            }
-        };
-    </script>
+                const flushSavedToast = () => {
+                    if (shown) return;
+                    if (!sessionStorage.getItem('infoSheetSaved')) return;
 
+                    const toast = window.Alpine && window.Alpine.store('toast');
+                    if (!toast) return; // not ready yet — a later hook will retry
+
+                    sessionStorage.removeItem('infoSheetSaved');
+                    shown = true;
+
+                    toast.success(
+                        'Information Sheet Saved',
+                        'Your changes have been saved successfully.'
+                    );
+                };
+
+                // Whichever of these lands first wins; the rest no-op.
+                document.addEventListener('alpine:initialized', flushSavedToast);
+                window.addEventListener('load', flushSavedToast);
+                setTimeout(flushSavedToast, 300);
+            })();
+        </script>
 </x-layouts.founder>
