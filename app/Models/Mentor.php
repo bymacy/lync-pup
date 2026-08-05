@@ -21,9 +21,13 @@ class Mentor extends Model
         return trim("{$this->honorific}{$this->last_name}");
     }
 
-    // Placeholder until the Roadblock & Mentorship module exists
+    public function roadblocks()
+    {
+        return $this->hasMany(\App\Models\Roadblock::class, 'mentor_id', 'mentor_id');
+    }
+
     public function getCasesCountAttribute(): int
     {
-        return 0;
+        return $this->roadblocks()->whereIn('status', ['Scheduled', 'Resolved', 'Failed'])->count();
     }
 }
