@@ -15,6 +15,7 @@
     saving: false,
     dirty: false,
     showReferenceForm: false,
+    showTeamForm: false,
     showIncubationForm: false,
     showLdForm: false,
     lastClickedInput: null,
