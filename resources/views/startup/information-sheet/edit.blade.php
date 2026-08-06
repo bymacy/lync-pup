@@ -14,15 +14,21 @@
     isLocked: {{ $sheet?->approval_status === 'Approved' ? 'true' : 'false' }},
     saving: false,
     dirty: false,
-    showReferenceForm: false,
-    showTeamForm: false,
-    showIncubationForm: false,
-    showLdForm: false,
     lastClickedInput: null,
  
-    // Rows the user has X'd out. Keys are namespaced ('inc-4', 'ld-4') because
-    // ids collide across tables. Nothing here touches the database until Save.
-    pendingRemoval: [],
+    newRows: { team: [], inc: [], ld: [], ref: [] },
+    nextRowId: 1,
+
+    addRow(section) {
+        this.newRows[section].push({ id: this.nextRowId++ });
+    },
+
+    // Iba ito sa toggleRemoval(): walang ipapadalang DELETE, burado agad.
+    discardRow(section, id) {
+        this.newRows[section] = this.newRows[section].filter(r => r.id !== id);
+    },
+
+pendingRemoval: [],
  
     isRemoving(key) {
         return this.pendingRemoval.includes(key);
@@ -66,10 +72,7 @@
             // Edits only: no reload, keeps scroll position.
             this.editing = false;
             this.saving = false;
-            this.showTeamForm = false;
-            this.showIncubationForm = false;
-            this.showLdForm = false;
-            this.showReferenceForm = false;
+            this.newRows = { team: [], inc: [], ld: [], ref: [] };
             this.pendingRemoval = [];
  
             Alpine.store('toast').success(
@@ -106,7 +109,11 @@
         $watch('dirty', value => {
             $store.navigation.hasUnsavedChanges = value;
         });
- 
+
+        $watch('editing', value => {
+            if (!value) newRows = { team: [], inc: [], ld: [], ref: [] };
+        });
+
         window.addEventListener('beforeunload', (e) => {
             if ($store.navigation.hasUnsavedChanges) {
                 e.preventDefault();
@@ -367,39 +374,52 @@
 
                             {{-- Add new --}}
                             @if ($canAddTeam)
-                            <form method="POST" action="{{ route('startup.team-members.store') }}"
-                                class="js-subform js-addform flex items-stretch text-sm"
-                                x-ref="teamAddForm" x-show="editing && showTeamForm" x-cloak>
-                                @csrf
-                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[0]['w'] }}">
-                                    <input type="text" name="full_name" placeholder="Name" class="{{ $teamCell }}" @input="dirty = true">
+                            <template x-for="row in newRows.team" :key="row.id">
+                                <div class="flex items-stretch" x-show="editing">
+                                    <form method="POST" action="{{ route('startup.team-members.store') }}"
+                                        class="js-subform js-addform flex items-stretch text-sm">
+                                        @csrf
+                                        <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[0]['w'] }}">
+                                            <input type="text" name="full_name" placeholder="Name" class="{{ $teamCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[1]['w'] }}">
+                                            <input type="text" name="designation" placeholder="Designation" class="{{ $teamCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[2]['w'] }}">
+                                            <input type="text" name="phone" placeholder="Phone" class="{{ $teamCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[3]['w'] }}">
+                                            <input type="text" name="address" placeholder="Address" class="{{ $teamCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
+                                            <input type="date" name="date_of_birth" class="{{ $teamCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
+                                            <input type="email" name="email" placeholder="Email" class="{{ $teamCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[6]['w'] }}">
+                                            <input type="text" name="citizenship" placeholder="Citizenship" class="{{ $teamCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
+                                            <input type="text" name="sex" placeholder="Sex" class="{{ $teamCell }} text-center" @input="dirty = true">
+                                        </div>
+                                        <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
+                                            <input type="text" name="civil_status" placeholder="Civil Status" class="{{ $teamCell }}" @input="dirty = true">
+                                        </div>
+                                    </form>
+
+                                    {{-- Pareho ng gutter ng saved rows para hindi mag-shift ang columns --}}
+                                    <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                        <button type="button"
+                                            @click="discardRow('team', row.id)"
+                                            title="Discard entry"
+                                            aria-label="Discard entry"
+                                            class="text-red-600 hover:text-red-800 text-base leading-none">
+                                            &times;
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[1]['w'] }}">
-                                    <input type="text" name="designation" placeholder="Designation" class="{{ $teamCell }}" @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[2]['w'] }}">
-                                    <input type="text" name="phone" placeholder="Phone" class="{{ $teamCell }}" @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[3]['w'] }}">
-                                    <input type="text" name="address" placeholder="Address" class="{{ $teamCell }}" @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
-                                    <input type="date" name="date_of_birth" class="{{ $teamCell }}" @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
-                                    <input type="email" name="email" placeholder="Email" class="{{ $teamCell }}" @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[6]['w'] }}">
-                                    <input type="text" name="citizenship" placeholder="Citizenship" class="{{ $teamCell }}" @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
-                                    <input type="text" name="sex" placeholder="Sex" class="{{ $teamCell }} text-center" @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
-                                    <input type="text" name="civil_status" placeholder="Civil Status" class="{{ $teamCell }}" @input="dirty = true">
-                                </div>
-                                <div class="w-10 flex-shrink-0"></div>
-                            </form>
+                            </template>
                             @endif
                         </div>
                     </div>
@@ -407,19 +427,9 @@
                     {{-- Footer actions, outside the scroll box so they stay visible --}}
                     <div class="mt-2 flex items-center gap-4" x-show="editing" x-cloak>
                         @if ($canAddTeam)
-                        <button
-                            type="button"
-                            x-show="!showTeamForm"
-                            @click="showTeamForm = true"
+                        <button type="button" @click="addRow('team')"
                             class="text-sm font-medium text-[#11386A] hover:text-[#6D0D23] hover:underline transition">
                             + Add Entry
-                        </button>
-                        <button
-                            type="button"
-                            x-show="showTeamForm"
-                            @click="showTeamForm = false; $refs.teamAddForm?.reset()"
-                            class="text-sm text-gray-500 hover:text-gray-700 transition">
-                            Cancel
                         </button>
                         @endif
 
@@ -533,49 +543,44 @@
 
                             {{-- Add new. No submit button: js-addform means Save picks it up, and the
                      existing isBlank() guard skips it when nothing was typed. --}}
-                            <form method="POST" action="{{ route('startup.incubation.store') }}"
-                                class="js-subform js-addform flex"
-                                x-ref="incubationAddForm" x-show="editing && showIncubationForm" x-cloak>
-                                @csrf
-                                <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[0] }}">
-                                    <input type="text" name="organization_name_address" placeholder="Organization Name & Address" class="{{ $incCell }}" @input="dirty = true">
+                            <template x-for="row in newRows.inc" :key="row.id">
+                                <div class="flex items-stretch" x-show="editing">
+                                    <form method="POST" action="{{ route('startup.incubation.store') }}"
+                                        class="js-subform js-addform flex">
+                                        @csrf
+                                        <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[0] }}">
+                                            <input type="text" name="organization_name_address" placeholder="Organization Name & Address" class="{{ $incCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[1] }}">
+                                            <input type="date" name="date_from" class="{{ $incCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[2] }}">
+                                            <input type="date" name="date_to" class="{{ $incCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[3] }}">
+                                            <input type="text" name="number_of_hours" placeholder="Hours" class="{{ $incCell }} text-center" @input="dirty = true">
+                                        </div>
+                                        <div class="flex-shrink-0 {{ $incubationCols[4] }}">
+                                            <input type="text" name="incubation_program_focus" placeholder="Program/Focus" class="{{ $incCell }}" @input="dirty = true">
+                                        </div>
+                                    </form>
+                                    <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                        <button type="button" @click="discardRow('inc', row.id)" title="Discard entry" aria-label="Discard entry"
+                                            class="text-red-600 hover:text-red-800 text-base leading-none">&times;</button>
+                                    </div>
                                 </div>
-                                <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[1] }}">
-                                    <input type="date" name="date_from" class="{{ $incCell }}" @input="dirty = true">
-                                </div>
-                                <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[2] }}">
-                                    <input type="date" name="date_to" class="{{ $incCell }}" @input="dirty = true">
-                                </div>
-                                <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[3] }}">
-                                    <input type="text" name="number_of_hours" placeholder="Hours" class="{{ $incCell }} text-center" @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 {{ $incubationCols[4] }}">
-                                    <input type="text" name="incubation_program_focus" placeholder="Program/Focus" class="{{ $incCell }}" @input="dirty = true">
-                                </div>
-                                <div class="w-10 flex-shrink-0"></div>
-                            </form>
+                            </template>
                         </div>
                     </div>
-
                     {{-- Footer actions, outside the scroll box so they stay visible --}}
                     <div class="mt-2 flex items-center gap-4" x-show="editing" x-cloak>
-                        <button
-                            type="button"
-                            x-show="!showIncubationForm"
-                            @click="showIncubationForm = true"
+                        <button type="button" @click="addRow('inc')"
                             class="text-sm font-medium text-[#11386A] hover:text-[#6D0D23] hover:underline transition">
                             + Add Entry
                         </button>
-                        <button
-                            type="button"
-                            x-show="showIncubationForm"
-                            @click="showIncubationForm = false; $refs.incubationAddForm?.reset()"
-                            class="text-sm text-gray-500 hover:text-gray-700 transition">
-                            Cancel
-                        </button>
 
                         {{-- Safety net: the row is gone from the table, so this is the only way
-                 back from a misclick short of cancelling the whole page. --}}
+                             back from a misclick short of cancelling the whole page. --}}
                         <span x-show="removalCount('inc-') > 0" x-cloak class="text-xs text-gray-500">
                             <span x-text="removalCount('inc-')"></span> marked for removal on save.
                             <button type="button" @click="restoreRemovals('inc-')" class="underline hover:text-gray-700">Restore</button>
@@ -677,45 +682,41 @@
                             @endforelse
 
                             {{-- Add new --}}
-                            <form method="POST" action="{{ route('startup.ld.store') }}"
-                                class="js-subform js-addform flex"
-                                x-ref="ldAddForm" x-show="editing && showLdForm" x-cloak>
-                                @csrf
-                                <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[0] }}">
-                                    <input type="text" name="title" placeholder="Title" class="{{ $ldCell }}" @input="dirty = true">
+                            <template x-for="row in newRows.ld" :key="row.id">
+                                <div class="flex items-stretch">
+                                    <form method="POST" action="{{ route('startup.ld.store') }}"
+                                        class="js-subform js-addform flex">
+                                        @csrf
+                                        <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[0] }}">
+                                            <input type="text" name="title" placeholder="Title" class="{{ $ldCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[1] }}">
+                                            <input type="date" name="date_from" class="{{ $ldCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[2] }}">
+                                            <input type="date" name="date_to" class="{{ $ldCell }}" @input="dirty = true">
+                                        </div>
+                                        <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[3] }}">
+                                            <input type="text" name="number_of_hours" placeholder="Hours" class="{{ $ldCell }} text-center" @input="dirty = true">
+                                        </div>
+                                        <div class="flex-shrink-0 {{ $ldCols[4] }}">
+                                            <input type="text" name="conducted_sponsored_by" placeholder="Conducted/Sponsored By" class="{{ $ldCell }}" @input="dirty = true">
+                                        </div>
+                                    </form>
+                                    <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                        <button type="button" @click="discardRow('ld', row.id)" title="Discard entry" aria-label="Discard entry"
+                                            class="text-red-600 hover:text-red-800 text-base leading-none">&times;</button>
+                                    </div>
                                 </div>
-                                <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[1] }}">
-                                    <input type="date" name="date_from" class="{{ $ldCell }}" @input="dirty = true">
-                                </div>
-                                <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[2] }}">
-                                    <input type="date" name="date_to" class="{{ $ldCell }}" @input="dirty = true">
-                                </div>
-                                <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[3] }}">
-                                    <input type="text" name="number_of_hours" placeholder="Hours" class="{{ $ldCell }} text-center" @input="dirty = true">
-                                </div>
-                                <div class="flex-shrink-0 {{ $ldCols[4] }}">
-                                    <input type="text" name="conducted_sponsored_by" placeholder="Conducted/Sponsored By" class="{{ $ldCell }}" @input="dirty = true">
-                                </div>
-                                <div class="w-10 flex-shrink-0"></div>
-                            </form>
+                            </template>
                         </div>
                     </div>
 
                     {{-- Footer actions, outside the scroll box so they stay visible --}}
                     <div class="mt-2 flex items-center gap-4" x-show="editing" x-cloak>
-                        <button
-                            type="button"
-                            x-show="!showLdForm"
-                            @click="showLdForm = true"
+                        <button type="button" @click="addRow('ld')"
                             class="text-sm font-medium text-[#11386A] hover:text-[#6D0D23] hover:underline transition">
                             + Add Entry
-                        </button>
-                        <button
-                            type="button"
-                            x-show="showLdForm"
-                            @click="showLdForm = false; $refs.ldAddForm?.reset()"
-                            class="text-sm text-gray-500 hover:text-gray-700 transition">
-                            Cancel
                         </button>
 
                         <span x-show="removalCount('ld-') > 0" x-cloak class="text-xs text-gray-500">
@@ -851,52 +852,41 @@
 
                         {{-- Add new. js-subform is on the FORM now, not the inner div, so Save
              actually picks it up. No + button — same flow as the other sections. --}}
-                        <form method="POST" action="{{ route('startup.references.store') }}"
-                            class="js-subform js-addform flex items-stretch"
-                            x-ref="referenceAddForm" x-show="editing && showReferenceForm" x-cloak>
-                            @csrf
-                            <div class="grid grid-cols-4 flex-1 text-sm">
-                                <div class="border-r border-gray-200">
-                                    <input type="text" name="name" placeholder="Name"
-                                        class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50"
-                                        @input="dirty = true">
-                                </div>
-                                <div class="border-r border-gray-200">
-                                    <input type="text" name="contact" placeholder="Contact"
-                                        class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50"
-                                        @input="dirty = true">
-                                </div>
-                                <div class="border-r border-gray-200">
-                                    <input type="email" name="email" placeholder="Email"
-                                        class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50"
-                                        @input="dirty = true">
-                                </div>
-                                <div>
-                                    <input type="text" name="address" placeholder="Address"
-                                        class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50"
-                                        @input="dirty = true">
+                        <template x-for="row in newRows.ref" :key="row.id">
+                            <div class="flex items-stretch">
+                                <form method="POST" action="{{ route('startup.references.store') }}"
+                                    class="js-subform js-addform grid grid-cols-4 flex-1 text-sm">
+                                    @csrf
+                                    <div class="border-r border-gray-200">
+                                        <input type="text" name="name" placeholder="Name"
+                                            class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50" @input="dirty = true">
+                                    </div>
+                                    <div class="border-r border-gray-200">
+                                        <input type="text" name="contact" placeholder="Contact"
+                                            class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50" @input="dirty = true">
+                                    </div>
+                                    <div class="border-r border-gray-200">
+                                        <input type="email" name="email" placeholder="Email"
+                                            class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50" @input="dirty = true">
+                                    </div>
+                                    <div>
+                                        <input type="text" name="address" placeholder="Address"
+                                            class="w-full h-full border-0 bg-transparent px-3 py-2.5 focus:outline-none focus:bg-blue-50" @input="dirty = true">
+                                    </div>
+                                </form>
+                                <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                    <button type="button" @click="discardRow('ref', row.id)" title="Discard entry" aria-label="Discard entry"
+                                        class="text-red-600 hover:text-red-800 text-base leading-none">&times;</button>
                                 </div>
                             </div>
-                            {{-- gutter matching the × column on saved rows --}}
-                            <div class="w-10 flex-shrink-0"></div>
-                        </form>
+                        </template>
 
                         {{-- Footer actions. Unlike II/III/IV these live inside the frame, since
              this table doesn't scroll horizontally. --}}
                         <div class="px-3 py-2 flex items-center gap-4" x-show="editing" x-cloak>
-                            <button
-                                type="button"
-                                x-show="!showReferenceForm"
-                                @click="showReferenceForm = true"
+                            <button type="button" @click="addRow('ref')"
                                 class="text-sm font-medium text-[#11386A] hover:text-[#6D0D23] hover:underline transition">
                                 + Add Entry
-                            </button>
-                            <button
-                                type="button"
-                                x-show="showReferenceForm"
-                                @click="showReferenceForm = false; $refs.referenceAddForm?.reset()"
-                                class="text-sm text-gray-500 hover:text-gray-700 transition">
-                                Cancel
                             </button>
 
                             <span x-show="removalCount('ref-') > 0" x-cloak class="text-xs text-gray-500">
@@ -967,104 +957,105 @@
                 </div>
             </div>
         </div>
+    </div>
 
 
-        <script>
-            window.submitInfoSheetForms = async function(root) {
-                root = root || document;
+    <script>
+        window.submitInfoSheetForms = async function(root) {
+            root = root || document;
 
-                const isBlank = (form) => {
-                    const data = new FormData(form);
-                    for (const [key, val] of data.entries()) {
-                        if (['_token', '_method'].includes(key)) continue;
-                        if (typeof val === 'string' && val.trim() !== '') return false;
-                        if (val instanceof File && val.size > 0) return false;
-                    }
-                    return true;
-                };
-
-                const mainForm = root.querySelector('#info-sheet-form') || document.getElementById('info-sheet-form');
-                const subForms = Array.from(root.querySelectorAll('form.js-subform'));
-
-                const forms = [mainForm, ...subForms].filter(Boolean).filter((form) => {
-                    // Row marked for removal: don't PATCH what's about to be deleted.
-                    if (form.classList.contains('js-skip')) return false;
-                    // Skip empty "add new entry" rows so we don't create blank records.
-                    if (form.classList.contains('js-addform') && isBlank(form)) return false;
-                    return true;
-                });
-
-                // Deletes go last, so a failed update can't leave a row already destroyed.
-                forms.sort((a, b) => {
-                    const aDel = a.classList.contains('js-deleteform') ? 1 : 0;
-                    const bDel = b.classList.contains('js-deleteform') ? 1 : 0;
-                    return aDel - bDel;
-                });
-
-                let created = 0;
-                let removed = 0;
-
-                for (const form of forms) {
-                    const response = await fetch(form.action, {
-                        method: 'POST',
-                        body: new FormData(form),
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                    });
-
-                    if (!response.ok) {
-                        const error = new Error('Request to ' + form.action + ' failed with status ' + response.status);
-                        error.status = response.status;
-                        error.action = form.action;
-
-                        // Laravel returns validation errors as JSON on an XHR request.
-                        if (response.status === 422) {
-                            try {
-                                const body = await response.json();
-                                error.validation = body.errors || null;
-                                error.message = Object.values(body.errors || {}).flat().join(' ') || error.message;
-                            } catch (ignored) {}
-                        }
-
-                        throw error;
-                    }
-
-                    if (form.classList.contains('js-addform')) created++;
-                    if (form.classList.contains('js-deleteform')) removed++;
+            const isBlank = (form) => {
+                const data = new FormData(form);
+                for (const [key, val] of data.entries()) {
+                    if (['_token', '_method'].includes(key)) continue;
+                    if (typeof val === 'string' && val.trim() !== '') return false;
+                    if (val instanceof File && val.size > 0) return false;
                 }
-
-                return {
-                    created,
-                    removed
-                };
+                return true;
             };
 
+            const mainForm = root.querySelector('#info-sheet-form') || document.getElementById('info-sheet-form');
+            const subForms = Array.from(root.querySelectorAll('form.js-subform'));
 
-            // Post-reload success toast.
-            (function() {
-                let shown = false;
+            const forms = [mainForm, ...subForms].filter(Boolean).filter((form) => {
+                // Row marked for removal: don't PATCH what's about to be deleted.
+                if (form.classList.contains('js-skip')) return false;
+                // Skip empty "add new entry" rows so we don't create blank records.
+                if (form.classList.contains('js-addform') && isBlank(form)) return false;
+                return true;
+            });
 
-                const flushSavedToast = () => {
-                    if (shown) return;
-                    if (!sessionStorage.getItem('infoSheetSaved')) return;
+            // Deletes go last, so a failed update can't leave a row already destroyed.
+            forms.sort((a, b) => {
+                const aDel = a.classList.contains('js-deleteform') ? 1 : 0;
+                const bDel = b.classList.contains('js-deleteform') ? 1 : 0;
+                return aDel - bDel;
+            });
 
-                    const toast = window.Alpine && window.Alpine.store('toast');
-                    if (!toast) return; // not ready yet — a later hook will retry
+            let created = 0;
+            let removed = 0;
 
-                    sessionStorage.removeItem('infoSheetSaved');
-                    shown = true;
+            for (const form of forms) {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                });
 
-                    toast.success(
-                        'Information Sheet Saved',
-                        'Your changes have been saved successfully.'
-                    );
-                };
+                if (!response.ok) {
+                    const error = new Error('Request to ' + form.action + ' failed with status ' + response.status);
+                    error.status = response.status;
+                    error.action = form.action;
 
-                // Whichever of these lands first wins; the rest no-op.
-                document.addEventListener('alpine:initialized', flushSavedToast);
-                window.addEventListener('load', flushSavedToast);
-                setTimeout(flushSavedToast, 300);
-            })();
-        </script>
+                    // Laravel returns validation errors as JSON on an XHR request.
+                    if (response.status === 422) {
+                        try {
+                            const body = await response.json();
+                            error.validation = body.errors || null;
+                            error.message = Object.values(body.errors || {}).flat().join(' ') || error.message;
+                        } catch (ignored) {}
+                    }
+
+                    throw error;
+                }
+
+                if (form.classList.contains('js-addform')) created++;
+                if (form.classList.contains('js-deleteform')) removed++;
+            }
+
+            return {
+                created,
+                removed
+            };
+        };
+
+
+        // Post-reload success toast.
+        (function() {
+            let shown = false;
+
+            const flushSavedToast = () => {
+                if (shown) return;
+                if (!sessionStorage.getItem('infoSheetSaved')) return;
+
+                const toast = window.Alpine && window.Alpine.store('toast');
+                if (!toast) return; // not ready yet — a later hook will retry
+
+                sessionStorage.removeItem('infoSheetSaved');
+                shown = true;
+
+                toast.success(
+                    'Information Sheet Saved',
+                    'Your changes have been saved successfully.'
+                );
+            };
+
+            // Whichever of these lands first wins; the rest no-op.
+            document.addEventListener('alpine:initialized', flushSavedToast);
+            window.addEventListener('load', flushSavedToast);
+            setTimeout(flushSavedToast, 300);
+        })();
+    </script>
 </x-layouts.founder>
