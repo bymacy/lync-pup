@@ -172,6 +172,48 @@
                     </div>
                     @endif
 
+                    <div
+                        x-data
+                        x-show="$store.toast.show"
+                        x-cloak
+                        x-transition:enter="transform transition ease-out duration-300"
+                        x-transition:enter-start="translate-x-full opacity-0"
+                        x-transition:enter-end="translate-x-0 opacity-100"
+                        x-transition:leave="transform transition ease-in duration-200"
+                        x-transition:leave-start="translate-x-0 opacity-100"
+                        x-transition:leave-end="translate-x-full opacity-0"
+                        class="fixed top-6 right-6 z-[9999]">
+
+                        <div class="flex items-center gap-4 rounded-xl bg-white shadow-2xl border border-gray-200 px-5 py-4 min-w-[360px]">
+
+                            <div class="flex h-11 w-11 items-center justify-center rounded-full text-white shadow-lg"
+                                :class="{
+                                    'bg-gradient-to-r from-[#6D0D23] to-[#11386A]': $store.toast.type === 'success',
+                                    'bg-gradient-to-r from-red-600 to-red-700': $store.toast.type === 'error',
+                                    'bg-gradient-to-r from-amber-500 to-orange-500': $store.toast.type === 'warning',
+                                    'bg-gradient-to-r from-sky-500 to-blue-600': $store.toast.type === 'info',
+                                }">
+                                <template x-if="$store.toast.type === 'success'"><span class="text-xl font-bold">&#10003;</span></template>
+                                <template x-if="$store.toast.type === 'error'"><span class="text-xl font-bold">&#10005;</span></template>
+                                <template x-if="$store.toast.type === 'warning'"><span class="text-xl font-bold">!</span></template>
+                                <template x-if="$store.toast.type === 'info'"><span class="text-xl font-bold">i</span></template>
+                            </div>
+
+                            <div class="flex-1">
+                                <p class="font-semibold text-gray-900" x-text="$store.toast.title"></p>
+                                <p class="text-sm text-gray-500" x-text="$store.toast.message"></p>
+                            </div>
+
+                            <button
+                                @click="$store.toast.hide()"
+                                class="text-gray-400 hover:text-gray-700 transition text-xl leading-none">
+                                &times;
+                            </button>
+
+                        </div>
+
+                    </div>
+
                     {{ $slot }}
                 </main>
             </div>

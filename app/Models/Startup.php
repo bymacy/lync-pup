@@ -67,6 +67,27 @@ class Startup extends Model
     return $this->hasMany(Roadblock::class, 'startup_id', 'startup_id');
     }
 
+    public function evaluationSchedules()
+    {
+        return $this->hasMany(EvaluationSchedule::class, 'startup_id', 'startup_id');
+    }
+
+    public function latestEvaluationSchedule()
+    {
+        return $this->hasOne(EvaluationSchedule::class, 'startup_id', 'startup_id')->latestOfMany('evaluation_date');
+    }
+
+    public function getEvaluationStatusAttribute(): string
+    {
+        $latest = $this->latestEvaluationSchedule;
+
+        if (! $latest) {
+            return 'Not Started';
+        }
+
+        return $latest->status === 'Completed' ? 'Completed' : 'In Progress';
+    }
+
     // Computed status, not stored
     public function getStatusAttribute(): string
     {

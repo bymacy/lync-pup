@@ -12,7 +12,10 @@ use App\Http\Controllers\Startup\RoadblockController;
 use App\Http\Controllers\Startup\DashboardController as StartupDashboardController;
 use App\Http\Controllers\Startup\StartupProfileController as FounderProfileController;
 use App\Http\Controllers\Startup\InformationSheetController as FounderInfoSheetController;
+use App\Http\Controllers\Startup\MeetingController as FounderMeetingController;
 use App\Http\Controllers\Admin\RoadblockController as AdminRoadblockController;
+use App\Http\Controllers\Admin\AssessmentHubController;
+use App\Http\Controllers\Admin\EvaluationScheduleController;
 
 
 require __DIR__.'/auth.php';
@@ -42,6 +45,36 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
         ->name('information-sheet.show');
     Route::patch('startups/{startup}/information-sheet/approve', [InformationSheetController::class, 'approve'])
         ->name('information-sheet.approve');
+    Route::patch('startups/{startup}/information-sheet', [InformationSheetController::class, 'update'])
+        ->name('information-sheet.update');
+
+    Route::post('startups/{startup}/information-sheet/team-members', [InformationSheetController::class, 'storeTeamMember'])
+        ->name('information-sheet.team-members.store');
+    Route::patch('information-sheet/team-members/{teamMember}', [InformationSheetController::class, 'updateTeamMember'])
+        ->name('information-sheet.team-members.update');
+    Route::delete('information-sheet/team-members/{teamMember}', [InformationSheetController::class, 'destroyTeamMember'])
+        ->name('information-sheet.team-members.destroy');
+
+    Route::post('startups/{startup}/information-sheet/incubation', [InformationSheetController::class, 'storeIncubation'])
+        ->name('information-sheet.incubation.store');
+    Route::patch('information-sheet/incubation/{incubationInvolvement}', [InformationSheetController::class, 'updateIncubation'])
+        ->name('information-sheet.incubation.update');
+    Route::delete('information-sheet/incubation/{incubationInvolvement}', [InformationSheetController::class, 'destroyIncubation'])
+        ->name('information-sheet.incubation.destroy');
+
+    Route::post('startups/{startup}/information-sheet/ld', [InformationSheetController::class, 'storeLd'])
+        ->name('information-sheet.ld.store');
+    Route::patch('information-sheet/ld/{ldIntervention}', [InformationSheetController::class, 'updateLd'])
+        ->name('information-sheet.ld.update');
+    Route::delete('information-sheet/ld/{ldIntervention}', [InformationSheetController::class, 'destroyLd'])
+        ->name('information-sheet.ld.destroy');
+
+    Route::post('startups/{startup}/information-sheet/references', [InformationSheetController::class, 'storeReference'])
+        ->name('information-sheet.references.store');
+    Route::patch('information-sheet/references/{reference}', [InformationSheetController::class, 'updateReference'])
+        ->name('information-sheet.references.update');
+    Route::delete('information-sheet/references/{reference}', [InformationSheetController::class, 'destroyReference'])
+        ->name('information-sheet.references.destroy');
 
     Route::resource('mentors', MentorController::class)
         ->except(['create', 'edit', 'show'])
@@ -62,7 +95,12 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/roadblocks/{roadblock}/recover', [AdminRoadblockController::class, 'recover'])->name('roadblocks.recover');
     Route::delete('/roadblocks/{roadblock}', [AdminRoadblockController::class, 'destroy'])->name('roadblocks.destroy');
 
-    // Future modules (Coordinator Profile, Assessment Hub, Roadblock Management, Risk Monitoring) nest here
+    Route::get('/assessment-hub', [AssessmentHubController::class, 'index'])->name('assessment-hub.index');
+    Route::post('/assessment-hub/evaluations', [EvaluationScheduleController::class, 'store'])->name('assessment-hub.evaluations.store');
+    Route::put('/assessment-hub/evaluations/{evaluationSchedule}', [EvaluationScheduleController::class, 'update'])->name('assessment-hub.evaluations.update');
+    Route::delete('/assessment-hub/evaluations/{evaluationSchedule}', [EvaluationScheduleController::class, 'destroy'])->name('assessment-hub.evaluations.destroy');
+
+    // Future modules (Risk Monitoring) nest here
 });
 
 // Startup-only routes (future modules nest here)
@@ -77,6 +115,8 @@ Route::middleware(['auth', 'role:Startup'])->prefix('startup')->name('startup.')
     Route::delete('profile/team-members/{teamMember}', [FounderProfileController::class, 'destroyTeamMember'])->name('team-members.destroy');
 
     Route::get('information-sheet', [FounderInfoSheetController::class, 'edit'])->name('information-sheet.edit');
+
+    Route::get('meetings', [FounderMeetingController::class, 'index'])->name('meetings.index');
     Route::patch('information-sheet', [FounderInfoSheetController::class, 'update'])->name('information-sheet.update');
 
     Route::patch('team-members/{teamMember}/details', [FounderProfileController::class, 'updateTeamMemberDetails'])->name('team-members.update-details');
