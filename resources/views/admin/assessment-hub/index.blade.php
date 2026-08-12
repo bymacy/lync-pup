@@ -1,5 +1,5 @@
 <x-layouts.admin title="Assessment Hub">
-    <div x-data="{ mainTab: 'information-sheet' }">
+    <div x-data="{ mainTab: 'information-sheet', addDayOpen: false }">
         <div class="mb-6 flex items-start justify-between gap-4">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">Assessment Hub</h1>
@@ -13,6 +13,16 @@
                 </svg>
                 <span>Add Evaluation Day</span>
             </button>
+
+            <div x-show="addDayOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;">
+                <div class="w-full max-w-3xl overflow-hidden rounded-xl bg-white" @click.outside="addDayOpen = false">
+                    <x-evaluation-schedule-modal mode="add"
+                        close="addDayOpen = false"
+                        :action="route('admin.assessment-hub.evaluations.store')"
+                        :time-slots="$timeSlots" :booked-slots="$bookedSlots"
+                        :startups="$pendingStartups->reject(fn ($s) => (bool) $s->latestEvaluationSchedule)->values()" />
+                </div>
+            </div>
         </div>
 
         <div class="flex gap-8 border-b mb-6">

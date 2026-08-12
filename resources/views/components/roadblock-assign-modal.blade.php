@@ -56,18 +56,25 @@
                 </div>
             </div>
 
-            <div class="border rounded-xl p-4">
+            <div class="border rounded-xl p-4"
+                x-data="{
+                    meetingDate: @js(old('meeting_date', $roadblock->meeting_date?->format('Y-m-d'))),
+                    todayStr: @js(now()->format('Y-m-d')),
+                    nowTime: @js(now()->format('H:i')),
+                }">
                 <p class="font-medium mb-3">2. Set a Meeting</p>
 
                 <label class="block text-xs text-gray-500 mb-1">Date</label>
-                <input type="date" name="meeting_date" value="{{ old('meeting_date', $roadblock->meeting_date?->format('Y-m-d')) }}"
+                <input type="date" name="meeting_date" x-model="meetingDate" :min="todayStr"
+                    value="{{ old('meeting_date', $roadblock->meeting_date?->format('Y-m-d')) }}"
                     class="w-full border rounded-lg px-3 py-2 text-sm mb-3">
                 @error('meeting_date') <p class="text-xs text-red-600 mb-3">{{ $message }}</p> @enderror
 
                 <div class="grid grid-cols-2 gap-3 mb-3">
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Start Time</label>
-                        <input type="time" name="meeting_start_time" value="{{ old('meeting_start_time', $roadblock->meeting_start_time) }}"
+                        <input type="time" name="meeting_start_time" :min="meetingDate === todayStr ? nowTime : null"
+                            value="{{ old('meeting_start_time', $roadblock->meeting_start_time) }}"
                             class="w-full border rounded-lg px-3 py-2 text-sm">
                         @error('meeting_start_time') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                     </div>

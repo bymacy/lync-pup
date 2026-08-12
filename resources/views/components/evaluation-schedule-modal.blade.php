@@ -7,6 +7,7 @@
 'timeSlots' => [],
 'bookedSlots' => [],
 'deleteTrigger' => null,
+'startups' => null, // optional list to pick from when no $startup is pre-selected (mode="add")
 ])
 
 @php
@@ -94,6 +95,24 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
             @endif
             <input type="hidden" name="evaluation_date" x-bind:value="date">
             <input type="hidden" name="start_time" x-bind:value="startTime">
+            @endif
+
+            @if (! $isReadOnly && ! $startup && $startups !== null)
+            <div class="mb-6">
+                <p class="font-medium mb-2">Startup</p>
+                <select name="startup_id" required
+                    class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700">
+                    <option value="" disabled selected>Select a startup&hellip;</option>
+                    @forelse ($startups as $option)
+                    <option value="{{ $option->startup_id }}" {{ old('startup_id') == $option->startup_id ? 'selected' : '' }}>
+                        {{ $option->company_name }}
+                    </option>
+                    @empty
+                    <option value="" disabled>No startups awaiting a schedule</option>
+                    @endforelse
+                </select>
+                @error('startup_id') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+            </div>
             @endif
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

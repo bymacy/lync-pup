@@ -16,7 +16,19 @@ class StoreEvaluationScheduleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'startup_id' => ['required', 'exists:startups,startup_id'],
+            'startup_id' => [
+                'required',
+                'exists:startups,startup_id',
+                function ($attribute, $value, $fail) {
+                    $alreadyScheduled = EvaluationSchedule::where('startup_id', $value)
+                        ->where('status', 'Scheduled')
+                        ->exists();
+
+                    if ($alreadyScheduled) {
+                        $fail('This startup already has an evaluation scheduled. Edit that schedule instead of adding a new one.');
+                    }
+                },
+            ],
             'evaluation_date' => ['required', 'date', 'after_or_equal:today'],
             'start_time' => [
                 'required',

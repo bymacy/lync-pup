@@ -1,5 +1,10 @@
 <x-layouts.admin :title="$startup->company_name.' - Information Sheet'">
-    @php $sheet = $startup->informationSheet; @endphp
+    @php
+        $sheet = $startup->informationSheet;
+        $backUrl = request('from') === 'assessment-hub'
+            ? route('admin.assessment-hub.index')
+            : route('admin.startups.show', $startup);
+    @endphp
 
     <div
         class="bg-white rounded-xl border border-gray-200 max-w-5xl mx-auto"
@@ -105,7 +110,7 @@
     >
         <div class="bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between rounded-t-xl">
             <h2 class="font-bold">{{ $startup->company_name }}</h2>
-            <a href="{{ route('admin.startups.show', $startup) }}" class="text-white/70 hover:text-white">&times;</a>
+            <a href="{{ $backUrl }}" class="text-white/70 hover:text-white">&times;</a>
         </div>
 
         <div class="p-6">
@@ -575,7 +580,7 @@
 
             <div class="flex gap-3">
                 <button type="button"
-                    @click="if (dirty) { leaveConfirmTarget = '{{ route('admin.startups.show', $startup) }}'; leaveConfirmOpen = true } else { window.location = '{{ route('admin.startups.show', $startup) }}' }"
+                    @click="if (dirty) { leaveConfirmTarget = '{{ $backUrl }}'; leaveConfirmOpen = true } else { window.location = '{{ $backUrl }}' }"
                     class="flex-1 text-center border rounded-lg py-3 text-sm font-medium text-blue-900 border-blue-900">
                     BACK
                 </button>

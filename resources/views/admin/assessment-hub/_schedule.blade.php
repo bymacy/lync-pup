@@ -167,7 +167,7 @@ return $path
                                     </div>
                                 </td>
                                 <td class="px-3 py-3">
-                                    <a href="{{ $item->startup ? route('admin.information-sheet.show', $item->startup) : '#' }}"
+                                    <a href="{{ $item->startup ? route('admin.information-sheet.show', ['startup' => $item->startup, 'from' => 'assessment-hub']) : '#' }}"
                                         class="inline-flex h-8 items-center whitespace-nowrap rounded-lg bg-[#6D0D23] px-3 text-[11px] font-semibold text-white transition hover:bg-[#58091b]">
                                         Start Evaluation
                                     </a>
