@@ -172,6 +172,14 @@
                     </div>
                     @endif
 
+                    @if ($errors->any())
+                    <div x-data x-init="$store.toast.error('Please check your input', @js($errors->first()))"></div>
+                    @endif
+
+                    @if (session('error'))
+                    <div x-data x-init="$store.toast.error('Error', @js(session('error')))"></div>
+                    @endif
+
                     <div
                         x-data
                         x-show="$store.toast.show"

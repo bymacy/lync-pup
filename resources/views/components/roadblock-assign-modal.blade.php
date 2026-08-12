@@ -27,6 +27,7 @@
     <form method="POST" action="{{ $action }}" id="{{ $formId }}">
         @csrf
         @method('PUT')
+        <input type="hidden" name="roadblock_id" value="{{ $roadblock->roadblock_id }}">
 
         <div class="grid grid-cols-2 gap-6">
             <div class="border rounded-xl p-4">

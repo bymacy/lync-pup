@@ -49,6 +49,10 @@ class RoadblockController extends Controller
 
     public function assign(AssignRoadblockRequest $request, Roadblock $roadblock)
     {
+        if ($roadblock->status === 'Resolved') {
+            return back()->with('error', 'This roadblock is already resolved. Recover it first before reassigning.');
+        }
+
         $roadblock->update([
             ...$request->validated(),
             'status' => 'Scheduled',
@@ -61,6 +65,10 @@ class RoadblockController extends Controller
 
     public function unassign(Roadblock $roadblock)
     {
+        if ($roadblock->status !== 'Scheduled') {
+            return back()->with('error', 'Only a scheduled roadblock can have its assignment removed.');
+        }
+
         $roadblock->update([
             'mentor_id' => null,
             'meeting_date' => null,
@@ -76,6 +84,10 @@ class RoadblockController extends Controller
 
     public function resolve(Roadblock $roadblock)
     {
+        if (! ($roadblock->status === 'Scheduled' && $roadblock->isInAssessment())) {
+            return back()->with('error', 'This roadblock can only be resolved once its meeting has taken place.');
+        }
+
         $roadblock->update(['status' => 'Resolved', 'resolved_at' => now()]);
 
         return back()->with('status', 'Roadblock marked resolved.');
@@ -83,6 +95,10 @@ class RoadblockController extends Controller
 
     public function fail(Roadblock $roadblock)
     {
+        if (! ($roadblock->status === 'Scheduled' && $roadblock->isInAssessment())) {
+            return back()->with('error', 'This roadblock can only be marked failed once its meeting has taken place.');
+        }
+
         $roadblock->update(['status' => 'Failed', 'failed_at' => now()]);
 
         return back()->with('status', 'Roadblock marked failed.');
@@ -90,6 +106,10 @@ class RoadblockController extends Controller
 
     public function recover(Roadblock $roadblock)
     {
+        if ($roadblock->status !== 'Resolved') {
+            return back()->with('error', 'Only a resolved roadblock can be recovered.');
+        }
+
         $roadblock->update(['status' => 'Scheduled', 'resolved_at' => null]);
 
         return back()->with('status', 'Roadblock recovered to assessment.');

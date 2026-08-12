@@ -11,8 +11,9 @@
             </tr>
         </thead>
         <tbody>
+            @php $erroredRoadblockId = $errors->any() ? (int) old('roadblock_id') : null; @endphp
             @forelse ($rows as $roadblock)
-            <tr class="border-b border-gray-100 last:border-0" x-data="{ viewOpen: false, editOpen: false }">
+            <tr class="border-b border-gray-100 last:border-0" x-data="{ viewOpen: false, editOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
                 <td class="px-4 py-3">{{ $roadblock->startup->company_name }}</td>
                 <td class="px-4 py-3">{{ $roadblock->display_category }}</td>
                 <td class="px-4 py-3">{{ $roadblock->meeting_status_label }}</td>

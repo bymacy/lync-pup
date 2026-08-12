@@ -1,5 +1,14 @@
 <x-layouts.admin title="Roadblock Management">
-    <div x-data="{ tab: 'manage', archiveStage: 'assessment' }">
+    @php
+        // If the last submission (Assign/Edit/Reschedule) failed validation, figure out
+        // which roadblock it was for so we can reopen the right modal on the right tab
+        // instead of silently reloading with no visible sign anything went wrong.
+        $erroredRoadblockId = $errors->any() ? (int) old('roadblock_id') : null;
+        $erroredIsFailed = $erroredRoadblockId && $failed->contains('roadblock_id', $erroredRoadblockId);
+        $initialTab = $erroredIsFailed ? 'archive' : 'manage';
+        $initialArchiveStage = $erroredIsFailed ? 'failed' : 'assessment';
+    @endphp
+    <div x-data="{ tab: @js($initialTab), archiveStage: @js($initialArchiveStage) }">
         <div class="mb-6">
             <h1 class="text-3xl font-bold text-gray-900">Roadblock Management</h1>
             <p class="text-gray-500 mt-1">Review startup roadblocks and assign experts.</p>
@@ -20,7 +29,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                 @forelse ($pending as $roadblock)
                 @php $banners = ['from-purple-500 to-purple-700', 'from-blue-500 to-blue-700', 'from-teal-500 to-teal-700']; @endphp
-                <div class="border rounded-xl overflow-hidden" x-data="{ viewOpen: false, assignOpen: false }">
+                <div class="border rounded-xl overflow-hidden" x-data="{ viewOpen: false, assignOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
                     <div class="h-32 bg-gradient-to-r {{ $banners[$roadblock->roadblock_id % count($banners)] }} relative flex items-center justify-center">
                         <span class="absolute top-3 right-3 bg-white text-xs font-medium rounded-full px-3 py-1">{{ $roadblock->display_category }}</span>
                     </div>
@@ -272,7 +281,7 @@
                         </thead>
                         <tbody>
                             @forelse ($failed as $roadblock)
-                            <tr class="border-b border-gray-100 last:border-0" x-data="{ deleteOpen: false, rescheduleOpen: false }">
+                            <tr class="border-b border-gray-100 last:border-0" x-data="{ deleteOpen: false, rescheduleOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
                                 <td class="px-4 py-3">{{ $roadblock->startup->company_name }}</td>
                                 <td class="px-4 py-3">{{ $roadblock->display_category }}</td>
                                 <td class="px-4 py-3">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
