@@ -1,6 +1,6 @@
 <x-layouts.admin :title="$startup->company_name">
     <div class="flex items-center justify-between mb-4">
-        <a href="{{ route('admin.startups.index') }}" class="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Startup Profile</a>
+        <a href="{{ route('admin.startups.index', request()->only('tab')) }}" class="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Startup Profile</a>
     </div>
 
     <div class="rounded-2xl overflow-hidden mb-8 shadow-sm">

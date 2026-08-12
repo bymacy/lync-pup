@@ -106,8 +106,10 @@ class Startup extends Model
 
     public function scopePending(Builder $query): Builder
     {
-        return $query->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Pending'))
-            ->orWhereDoesntHave('informationSheet');
+        return $query->where(function ($q) {
+            $q->whereHas('informationSheet', fn ($q2) => $q2->where('approval_status', 'Pending'))
+                ->orWhereDoesntHave('informationSheet');
+        });
     }
 
     public function scopeActive(Builder $query): Builder

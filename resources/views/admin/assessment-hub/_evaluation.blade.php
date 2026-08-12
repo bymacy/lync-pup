@@ -9,7 +9,10 @@ $table = 'w-full text-sm';
 $btn = 'inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg text-[11px] font-semibold transition';
 @endphp
 
-<div x-data="{ stage: 'today' }">
+@php
+$initialStage = in_array(request('stage'), ['unscheduled', 'today', 'upcoming', 'missed']) ? request('stage') : 'today';
+@endphp
+<div x-data="{ stage: @js($initialStage) }">
     @php $stages = ['unscheduled' => 'Unscheduled', 'today' => 'Today', 'upcoming' => 'Upcoming', 'missed' => 'Missed']; @endphp
 
     <div class="mb-6">
@@ -59,9 +62,6 @@ $btn = 'inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg
                     </thead>
                     <tbody>
                         @forelse ($pendingStartups as $startup)
-                        @php
-                        $hasSchedule = (bool) ($startup->latestEvaluationSchedule ?? false);
-                        @endphp
                         <tr x-data="{ scheduleOpen: false }" class="border-b border-gray-100 last:border-0 hover:bg-gray-50/70">
                             <td class="px-4 py-3 text-center font-medium text-gray-900">{{ $startup->company_name }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-center text-gray-600">
@@ -71,27 +71,19 @@ $btn = 'inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg
                             <td class="px-4 py-3 text-center text-gray-600">{{ $startup->industry_sector }}</td>
                             <td class="px-4 py-3 text-center">
                                 <button type="button" @click="scheduleOpen = true"
-                                    @class([ $btn.' w-[130px] gap-2', $gradient.' text-white hover:opacity-90' => ! $hasSchedule, 'bg-gray-200 text-gray-400 hover:bg-gray-300' => $hasSchedule ])>
+                                    class="{{ $btn }} w-[130px] gap-2 {{ $gradient }} text-white hover:opacity-90">
                                     <img src="{{ asset('images/icons/calendar.svg') }}" alt=""
-                                        @class(['h-4 w-4', 'brightness-0 invert' => ! $hasSchedule, 'opacity-50' => $hasSchedule]) aria-hidden="true">
-                                    <span>{{ $hasSchedule ? 'Already Scheduled' : 'Set Evaluation' }}</span>
+                                        class="h-4 w-4 brightness-0 invert" aria-hidden="true">
+                                    <span>Set Evaluation</span>
                                 </button>
 
                                 <div x-show="scheduleOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;">
                                     <div class="w-full max-w-3xl overflow-hidden rounded-xl bg-white" @click.outside="scheduleOpen = false">
-                                        @if ($hasSchedule)
-                                        <x-evaluation-schedule-modal mode="edit"
-                                            :schedule="$startup->latestEvaluationSchedule"
-                                            close="scheduleOpen = false"
-                                            :action="route('admin.assessment-hub.evaluations.update', $startup->latestEvaluationSchedule)"
-                                            :time-slots="$timeSlots" :booked-slots="$bookedSlots" />
-                                        @else
                                         <x-evaluation-schedule-modal mode="add"
                                             :startup="$startup"
                                             close="scheduleOpen = false"
                                             :action="route('admin.assessment-hub.evaluations.store')"
                                             :time-slots="$timeSlots" :booked-slots="$bookedSlots" />
-                                        @endif
                                     </div>
                                 </div>
                             </td>
@@ -127,15 +119,30 @@ $btn = 'inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg
                     </thead>
                     <tbody>
                         @forelse ($todayEvaluations as $item)
-                        <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50/70">
+                        <tr x-data="{ rescheduleOpen: false }" class="border-b border-gray-100 last:border-0 hover:bg-gray-50/70">
                             <td class="px-4 py-3 whitespace-nowrap text-center text-gray-600">{{ $item->time_range_label }}</td>
                             <td class="px-4 py-3 text-center font-medium text-gray-900">{{ $item->startup->company_name }}</td>
                             <td class="px-4 py-3 text-center text-gray-600">{{ $item->startup->industry_sector }}</td>
                             <td class="px-4 py-3 text-center">
-                                <a href="{{ route('admin.information-sheet.show', ['startup' => $item->startup, 'from' => 'assessment-hub']) }}"
-                                    class="{{ $btn }} w-[130px] text-white hover:opacity-90 bg-rose-900 hover:bg-rose-800">
-                                    Start Evaluation
-                                </a>
+                                <div class="flex justify-center gap-2">
+                                    <a href="{{ route('admin.information-sheet.show', ['startup' => $item->startup, 'from' => 'assessment-hub', 'tab' => 'evaluation', 'stage' => 'today']) }}"
+                                        class="{{ $btn }} w-[130px] text-white hover:opacity-90 bg-rose-900 hover:bg-rose-800">
+                                        Start Evaluation
+                                    </a>
+                                    <button type="button" @click="rescheduleOpen = true"
+                                        class="{{ $btn }} w-[110px] border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">
+                                        Reschedule
+                                    </button>
+                                </div>
+
+                                <div x-show="rescheduleOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;">
+                                    <div class="w-full max-w-3xl overflow-hidden rounded-xl bg-white" @click.outside="rescheduleOpen = false">
+                                        <x-evaluation-schedule-modal mode="reschedule" :schedule="$item"
+                                            close="rescheduleOpen = false"
+                                            :action="route('admin.assessment-hub.evaluations.update', $item)"
+                                            :time-slots="$timeSlots" :booked-slots="$bookedSlots" />
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                         @empty

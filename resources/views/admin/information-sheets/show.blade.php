@@ -1,9 +1,11 @@
 <x-layouts.admin :title="$startup->company_name.' - Information Sheet'">
     @php
         $sheet = $startup->informationSheet;
-        $backUrl = request('from') === 'assessment-hub'
-            ? route('admin.assessment-hub.index')
-            : route('admin.startups.show', $startup);
+        $backUrl = match (request('from')) {
+            'assessment-hub' => route('admin.assessment-hub.index', request()->only(['tab', 'stage'])),
+            'startups-list' => route('admin.startups.index', request()->only('tab')),
+            default => route('admin.startups.show', $startup),
+        };
     @endphp
 
     <div

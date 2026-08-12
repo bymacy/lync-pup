@@ -36,9 +36,6 @@ return $path
                     </thead>
                     <tbody>
                         @forelse ($pendingStartups as $startup)
-                        @php
-                        $hasSchedule = (bool) ($startup->latestEvaluationSchedule ?? false);
-                        @endphp
                         <tr x-data="{ scheduleOpen: false }" class="border-b border-gray-100 last:border-0">
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2.5">
@@ -52,34 +49,21 @@ return $path
                                 {{ optional($startup->informationSheet?->submission_date ?? $startup->created_at)->format('M d, Y') ?? '—' }}
                             </td>
                             <td class="px-4 py-3 text-gray-600">{{ $startup->cohort_number ?? '—' }}</td>
-    
+
                             <td class="px-4 py-3">
                                 <button type="button" @click="scheduleOpen = true"
-                                    @class([ 'inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-lg text-xs font-semibold whitespace-nowrap transition' ,
-                                    $gradient.' text-white hover:opacity-90'=> ! $hasSchedule,
-                                    'bg-gray-200 text-gray-400 hover:bg-gray-300' => $hasSchedule,
-                                    ])>
-                                    <img src="{{ asset('images/icons/calendar.svg') }}" alt=""
-                                        @class(['h-4 w-4', 'brightness-0 invert'=> ! $hasSchedule, 'opacity-50' => $hasSchedule])
-                                    aria-hidden="true">
+                                    class="inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-lg text-xs font-semibold whitespace-nowrap transition {{ $gradient }} text-white hover:opacity-90">
+                                    <img src="{{ asset('images/icons/calendar.svg') }}" alt="" class="h-4 w-4 brightness-0 invert" aria-hidden="true">
                                     <span>Set Evaluation</span>
                                 </button>
 
                                 <div x-show="scheduleOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;">
                                     <div class="w-full max-w-3xl overflow-hidden rounded-xl bg-white text-center" @click.outside="scheduleOpen = false">
-                                        @if ($hasSchedule)
-                                        <x-evaluation-schedule-modal mode="edit"
-                                            :schedule="$startup->latestEvaluationSchedule"
-                                            close="scheduleOpen = false"
-                                            :action="route('admin.assessment-hub.evaluations.update', $startup->latestEvaluationSchedule)"
-                                            :time-slots="$timeSlots" :booked-slots="$bookedSlots" />
-                                        @else
                                         <x-evaluation-schedule-modal mode="add"
                                             :startup="$startup"
                                             close="scheduleOpen = false"
                                             :action="route('admin.assessment-hub.evaluations.store')"
                                             :time-slots="$timeSlots" :booked-slots="$bookedSlots" />
-                                        @endif
                                     </div>
                                 </div>
                             </td>
@@ -167,7 +151,7 @@ return $path
                                     </div>
                                 </td>
                                 <td class="px-3 py-3">
-                                    <a href="{{ $item->startup ? route('admin.information-sheet.show', ['startup' => $item->startup, 'from' => 'assessment-hub']) : '#' }}"
+                                    <a href="{{ $item->startup ? route('admin.information-sheet.show', ['startup' => $item->startup, 'from' => 'assessment-hub', 'tab' => 'schedule']) : '#' }}"
                                         class="inline-flex h-8 items-center whitespace-nowrap rounded-lg bg-[#6D0D23] px-3 text-[11px] font-semibold text-white transition hover:bg-[#58091b]">
                                         Start Evaluation
                                     </a>

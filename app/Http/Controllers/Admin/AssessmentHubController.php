@@ -11,8 +11,12 @@ class AssessmentHubController extends Controller
 {
     public function index(): View
     {
+        // "Awaiting Schedule" / "Unscheduled" — startups pending approval that do NOT
+        // currently have an active (Scheduled) evaluation. Once an evaluation is set,
+        // the startup should disappear from here and show up under the Evaluation tab instead.
         $pendingStartups = Startup::with(['informationSheet', 'latestEvaluationSchedule'])
             ->pending()
+            ->whereDoesntHave('evaluationSchedules', fn ($q) => $q->where('status', 'Scheduled'))
             ->orderBy('created_at')
             ->get();
 

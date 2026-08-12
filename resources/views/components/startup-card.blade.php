@@ -97,19 +97,19 @@ $hasSecondAction = in_array($startup->status, ['Assign Coordinator', 'Pending'])
             single full-width column when there's no second action.
         --}}
         <div class="mt-auto grid {{ $hasSecondAction ? 'grid-cols-2' : 'grid-cols-1' }} gap-2 pt-1">
-            <a href="{{ route('admin.startups.show', $startup) }}"
+            <a href="{{ route('admin.startups.show', array_merge(['startup' => $startup], request()->only('tab'))) }}"
                 class="flex min-h-[2rem] items-center justify-center rounded-lg border border-rose-800 px-2 text-center text-xs font-semibold leading-tight text-rose-900 transition-colors hover:bg-rose-50">
                 View
             </a>
 
             @if ($startup->status === 'Assign Coordinator')
-            <a href="{{ route('admin.startups.show', $startup) }}#assign-coordinator"
+            <a href="{{ route('admin.startups.show', array_merge(['startup' => $startup], request()->only('tab'))) }}#assign-coordinator"
                 class="flex min-h-[2rem] items-center justify-center rounded-lg bg-gradient-to-r from-[#6D0D23] via-[#43306A] to-[#11386A] px-2 text-center text-xs font-semibold leading-tight text-white shadow-sm transition-all duration-300 hover:brightness-110 hover:shadow-md">
                 Assign Coordinator
             </a>
 
             @elseif ($startup->status === 'Pending')
-            <a href="{{ route('admin.information-sheet.show', $startup) }}"
+            <a href="{{ route('admin.information-sheet.show', array_merge(['startup' => $startup, 'from' => 'startups-list'], request()->only('tab'))) }}"
                 class="flex min-h-[2rem] items-center justify-center rounded-lg border border-blue-800 px-2 text-center text-xs font-semibold leading-tight text-blue-900 transition-colors hover:bg-blue-50">
                 View Information Sheet
             </a>

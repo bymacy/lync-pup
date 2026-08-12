@@ -20,7 +20,7 @@
                         close="addDayOpen = false"
                         :action="route('admin.assessment-hub.evaluations.store')"
                         :time-slots="$timeSlots" :booked-slots="$bookedSlots"
-                        :startups="$pendingStartups->reject(fn ($s) => (bool) $s->latestEvaluationSchedule)->values()" />
+                        :startups="$pendingStartups" />
                 </div>
             </div>
         </div>

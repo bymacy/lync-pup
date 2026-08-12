@@ -13,7 +13,7 @@ return [
 ? \Illuminate\Support\Facades\Storage::url($startup->startup_photo_path)
 : null,
 'initial' => strtoupper(substr($startup->company_name, 0, 1)),
-'view_url' => route('admin.information-sheet.show', ['startup' => $startup, 'from' => 'assessment-hub']),
+'view_url' => route('admin.information-sheet.show', ['startup' => $startup, 'from' => 'assessment-hub', 'tab' => 'approved']),
 ];
 })->sortByDesc('month_key')->values();
 @endphp
