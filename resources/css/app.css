@@ -5,3 +5,18 @@
 [x-cloak] {
     display: none !important;
 }
+
+/* Add to resources/css/app.css (or a @push('styles') block).
+   Paints any SVG in the current text color via CSS masking.
+
+   Usage:
+   <span class="icon-mask h-7 w-7 text-white"
+         style="--icon: url('{{ asset('images/icons/upcoming-mentorship.svg') }}')"></span>
+*/
+
+.icon-mask {
+    display: inline-block;
+    background-color: currentColor;
+    -webkit-mask: var(--icon) no-repeat center / contain;
+    mask: var(--icon) no-repeat center / contain;
+}

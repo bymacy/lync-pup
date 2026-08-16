@@ -99,9 +99,9 @@ class Roadblock extends Model
         }
 
         if ($this->meeting_date->isTomorrow()) {
-            return 'Upcoming (Tomorrow)';
+            return 'Soon (Tomorrow)';
         }
 
-        return 'Soon (' . $this->meeting_date->format('M j') . ')';
+        return 'Upcoming (' . $this->meeting_date->format('M j') . ')';
     }
 }
