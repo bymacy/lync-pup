@@ -19,7 +19,7 @@
                 <td class="px-4 py-3">{{ $roadblock->meeting_status_label }}</td>
                 <td class="px-4 py-3">
                     {{ $roadblock->meeting_date?->format('M j, Y') }}<br>
-                    {{ $roadblock->meeting_start_time }} - {{ $roadblock->meeting_end_time }}<br>
+                    {{ $roadblock->meeting_time_range_label }}<br>
                     {{ $roadblock->meeting_platform }}
                     <a href="{{ $roadblock->meeting_link }}" target="_blank" class="text-blue-700 underline">Join meeting</a>
                 </td>
@@ -27,7 +27,7 @@
                 <td class="px-4 py-3">
                     <div class="flex gap-2">
                         <button type="button" @click="viewOpen = true" class="border border-[#6D0D23] text-[#6D0D23] rounded-lg px-3 py-1.5 hover:bg-[#6D0D23]/5">View</button>
-                        @if ($roadblock->meeting_status_label === 'Live (In-Session)')
+                        @if ($roadblock->isLive())
                         <a href="{{ $roadblock->meeting_link }}" target="_blank" class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg px-3 py-1.5">Join</a>
                         @else
                         <button type="button" @click="editOpen = true" class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg px-3 py-1.5">Edit</button>
@@ -50,7 +50,7 @@
                                         <p class="bg-gray-100 rounded px-3 py-2 text-sm">{{ $roadblock->meeting_date?->format('M j, Y') }}</p>
                                     </div>
                                     <div><label class="text-xs text-gray-500">Time Slot</label>
-                                        <p class="bg-gray-100 rounded px-3 py-2 text-sm">{{ $roadblock->meeting_start_time }} - {{ $roadblock->meeting_end_time }}</p>
+                                        <p class="bg-gray-100 rounded px-3 py-2 text-sm">{{ $roadblock->meeting_time_range_label }}</p>
                                     </div>
                                 </div>
 

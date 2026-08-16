@@ -84,13 +84,25 @@ class Roadblock extends Model
         return $this->status === 'Scheduled' && $this->meeting_ends_at && $this->meeting_ends_at->isPast();
     }
 
+    /**
+     * True right now, between the meeting's start and end time (inclusive).
+     * This is the single source of truth for "is this meeting live" — used
+     * to switch the admin Edit button to Join, and to gate the founder-side
+     * Join Meeting button.
+     */
+    public function isLive(): bool
+    {
+        return $this->meeting_starts_at && $this->meeting_ends_at
+            && now()->between($this->meeting_starts_at, $this->meeting_ends_at);
+    }
+
     public function getMeetingStatusLabelAttribute(): string
     {
         if (!$this->meeting_date) {
             return '';
         }
 
-        if ($this->meeting_starts_at && $this->meeting_ends_at && now()->between($this->meeting_starts_at, $this->meeting_ends_at)) {
+        if ($this->isLive()) {
             return 'Live (In-Session)';
         }
 
@@ -103,5 +115,18 @@ class Roadblock extends Model
         }
 
         return 'Upcoming (' . $this->meeting_date->format('M j') . ')';
+    }
+
+    /**
+     * "8:00 AM - 9:00 AM" — 12-hour formatted meeting time range.
+     */
+    public function getMeetingTimeRangeLabelAttribute(): ?string
+    {
+        if (! $this->meeting_start_time || ! $this->meeting_end_time) {
+            return null;
+        }
+
+        return Carbon::parse($this->meeting_start_time)->format('g:i A')
+            .' - '.Carbon::parse($this->meeting_end_time)->format('g:i A');
     }
 }

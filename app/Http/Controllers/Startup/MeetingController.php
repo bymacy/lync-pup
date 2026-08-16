@@ -33,7 +33,7 @@ class MeetingController extends Controller
                     'mentor_name' => trim(($roadblock->mentor->honorific ?? '').' '.($roadblock->mentor->last_name ?? '')) ?: '—',
                     'platform' => $roadblock->meeting_platform,
                     'meeting_link' => $roadblock->meeting_link,
-                    'can_join' => $roadblock->meeting_date->isToday(),
+                    'can_join' => $roadblock->isLive(),
                 ];
             });
 
