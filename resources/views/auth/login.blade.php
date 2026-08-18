@@ -170,6 +170,10 @@
                         Sign in as <span x-text="activeTab === 'Startup' ? 'Founder' : 'Admin'"></span>
                     </button>
                 </form>
+
+                <p x-show="activeTab === 'Startup'" class="text-center text-sm text-gray-600 mt-6">
+                    Don't have an account? <a href="{{ route('register') }}" class="font-semibold text-rose-800 hover:underline">Create one now</a>
+                </p>
             </div>
         </div>
     </div>

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, Notifiable;
 
@@ -54,5 +54,26 @@ class User extends Authenticatable
     public function isStartup(): bool
     {
         return $this->role === 'Startup';
+    }
+
+    /**
+     * Account-level approval gate for self-registered Founders — separate
+     * from the existing Information Sheet content-approval flow. Accounts
+     * created via seeders/admin default to "Active"; self-registered
+     * accounts start "Pending" until an admin approves or rejects them.
+     */
+    public function isApprovedAccount(): bool
+    {
+        return $this->account_status === 'Active';
+    }
+
+    public function isPendingApproval(): bool
+    {
+        return $this->account_status === 'Pending';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->account_status === 'Rejected';
     }
 }

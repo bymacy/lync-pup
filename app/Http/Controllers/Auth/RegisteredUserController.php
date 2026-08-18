@@ -3,14 +3,15 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\RegisterFounderRequest;
+use App\Models\Startup;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
@@ -24,28 +25,66 @@ class RegisteredUserController extends Controller
     }
 
     /**
-     * Handle an incoming registration request.
-     *
-     * @throws ValidationException
+     * Self-service Founder registration. Creates the User + a minimal
+     * Startup record (just the venture name — everything else gets filled
+     * in later via the founder's own profile), then sends them to verify
+     * their email. The account stays "Pending" (can't log in yet) until
+     * an admin approves it after email verification — see
+     * LoginRequest::authenticate() and VerifyEmailController.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(RegisterFounderRequest $request): RedirectResponse
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+        $validated = $request->validated();
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        $user = DB::transaction(function () use ($validated) {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'role' => 'Startup',
+                'account_status' => 'Pending',
+            ]);
+
+            Startup::create([
+                'user_id' => $user->id,
+                'company_name' => $validated['company_name'],
+            ]);
+
+            return $user;
+        });
 
         event(new Registered($user));
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect()->route('verification.notice');
+    }
+
+    /**
+     * "Change email address" on the verify-email screen — for a founder
+     * who mistyped their email during registration. Deletes the
+     * wrongly-emailed account entirely (rather than just abandoning it)
+     * so it doesn't linger as a stray duplicate in the admin's Founder
+     * Application list, then sends them back to the registration form to
+     * start over with the correct address.
+     */
+    public function cancel(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        // Safety guard: only ever delete an unverified account. This route
+        // is only ever reachable from the verify-email screen (which only
+        // an unverified user can be on) anyway, but double-check here
+        // since it's a destructive action.
+        if ($user && ! $user->hasVerifiedEmail()) {
+            $user->startup?->delete();
+            $user->delete();
+        }
+
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('register');
     }
 }

@@ -15,11 +15,15 @@ class Startup extends Model
     protected $fillable = [
         'user_id', 'company_name', 'industry_sector', 'cohort_number',
         'contact_phone', 'location', 'website', 'startup_photo_path', 'pitch_deck_requested_at',
+        'cohort_id', 'admin_remarks', 'rejection_reason', 'application_decided_at',
     ];
 
     protected function casts(): array
     {
-        return ['pitch_deck_requested_at' => 'datetime'];
+        return [
+            'pitch_deck_requested_at' => 'datetime',
+            'application_decided_at' => 'datetime',
+        ];
     }
 
     public function getBatchLabelAttribute(): string
@@ -27,9 +31,26 @@ class Startup extends Model
         return "Cohort {$this->cohort_number}";
     }
 
+    /**
+     * Synthetic reference shown on the Founder Application review/view
+     * screens, e.g. "APP-2026-00031". Not stored — derived from the
+     * registration year and the startup's own primary key.
+     */
+    public function getApplicationIdAttribute(): string
+    {
+        $year = $this->created_at?->format('Y') ?? now()->format('Y');
+
+        return 'APP-'.$year.'-'.str_pad((string) $this->startup_id, 5, '0', STR_PAD_LEFT);
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function cohort()
+    {
+        return $this->belongsTo(Cohort::class, 'cohort_id', 'cohort_id');
     }
 
     public function informationSheet()
@@ -122,5 +143,27 @@ class Startup extends Model
     {
         return $query->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
             ->whereDoesntHave('activeCoordinatorAssignment');
+    }
+
+    /**
+     * Scopes below drive the admin "Founder Application" screen. They key
+     * off the founder's account_status (users.account_status), which is
+     * distinct from the informationSheet approval_status used by the
+     * scopes above — a founder's account can be Pending/Active/Rejected
+     * long before they ever fill out an information sheet.
+     */
+    public function scopeApplicationPending(Builder $query): Builder
+    {
+        return $query->whereHas('user', fn ($q) => $q->where('account_status', 'Pending'));
+    }
+
+    public function scopeApplicationApproved(Builder $query): Builder
+    {
+        return $query->whereHas('user', fn ($q) => $q->where('account_status', 'Active'));
+    }
+
+    public function scopeApplicationRejected(Builder $query): Builder
+    {
+        return $query->whereHas('user', fn ($q) => $q->where('account_status', 'Rejected'));
     }
 }

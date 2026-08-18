@@ -16,11 +16,28 @@ use App\Http\Controllers\Startup\MeetingController as FounderMeetingController;
 use App\Http\Controllers\Admin\RoadblockController as AdminRoadblockController;
 use App\Http\Controllers\Admin\AssessmentHubController;
 use App\Http\Controllers\Admin\EvaluationScheduleController;
+use App\Http\Controllers\Admin\FounderApplicationController;
+use App\Http\Controllers\Admin\CohortController;
 
 
 require __DIR__.'/auth.php';
 
-Route::middleware(['auth', 'verified'])->group(function () {
+// Placeholder legal pages linked from the Founder registration form.
+Route::get('/terms-of-service', function () {
+    return view('legal.terms');
+})->name('legal.terms');
+
+Route::get('/privacy-policy', function () {
+    return view('legal.privacy');
+})->name('legal.privacy');
+
+// No 'verified' middleware here — email verification is a step in the
+// self-registered Founder flow only. This /dashboard route is what Admin
+// accounts land on (Startups get their own 'startup.dashboard' instead),
+// and Admins are created directly (e.g. via seeder) without ever going
+// through that verification step, so gating this route on it would lock
+// admins out whenever their email_verified_at happens to be null.
+Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->name('dashboard');
@@ -100,11 +117,24 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
     Route::put('/assessment-hub/evaluations/{evaluationSchedule}', [EvaluationScheduleController::class, 'update'])->name('assessment-hub.evaluations.update');
     Route::delete('/assessment-hub/evaluations/{evaluationSchedule}', [EvaluationScheduleController::class, 'destroy'])->name('assessment-hub.evaluations.destroy');
 
+    Route::get('/founder-applications', [FounderApplicationController::class, 'index'])->name('founder-applications.index');
+    Route::post('/founder-applications/{startup}/approve', [FounderApplicationController::class, 'approve'])->name('founder-applications.approve');
+    Route::post('/founder-applications/{startup}/reject', [FounderApplicationController::class, 'reject'])->name('founder-applications.reject');
+
+    Route::resource('cohorts', CohortController::class)
+        ->except(['create', 'edit', 'show'])
+        ->names('cohorts');
+
     // Future modules (Risk Monitoring) nest here
 });
 
 // Startup-only routes (future modules nest here)
-Route::middleware(['auth', 'role:Startup'])->prefix('startup')->name('startup.')->group(function () {
+// "approved" blocks a self-registered Founder whose account is still
+// Pending/Rejected from reaching any of these routes directly — closes the
+// gap where LoginRequest's approval check could otherwise be bypassed by
+// navigating straight here while the post-registration session is still
+// active. Safe for existing accounts: account_status defaults to "Active".
+Route::middleware(['auth', 'role:Startup', 'approved'])->prefix('startup')->name('startup.')->group(function () {
     Route::get('dashboard', [StartupDashboardController::class, 'index'])->name('dashboard');
 
     Route::get('profile', [FounderProfileController::class, 'edit'])->name('profile.edit');

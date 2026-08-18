@@ -58,6 +58,38 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Self-registered Founder accounts start "Pending" and can't sign in
+        // until an admin approves them. Block anything that isn't "Active" —
+        // but only once their email is actually verified. Otherwise, someone
+        // whose post-registration session dropped before they clicked the
+        // verification link would have no way back in at all: logging in
+        // normally would just get blocked here, with no path to a verified,
+        // approved account. Skipping the check while unverified lets them
+        // back in specifically to (re)verify — AuthenticatedSessionController
+        // routes unverified users to the verify-email prompt regardless of
+        // approval status, and the "approved" middleware still blocks a
+        // Pending account from reaching any real Startup route either way.
+        //
+        // Scoped to role === 'Startup' only — this approval flow only ever
+        // applies to self-registered Founder accounts. Admins are created
+        // directly (e.g. via seeder), never go through this pending/approved
+        // lifecycle, and must never be blocked by it regardless of whatever
+        // value their account_status column happens to hold.
+        if (Auth::user()->role === 'Startup' && Auth::user()->hasVerifiedEmail() && ! Auth::user()->isApprovedAccount()) {
+            $message = match (Auth::user()->account_status) {
+                'Pending' => 'Your account is still awaiting admin approval. We\'ll notify you once it\'s approved.',
+                'Rejected' => 'Your registration was not approved. Please contact PUP TBIDO for more information.',
+                default => 'Your account is currently inactive. Please contact PUP TBIDO for assistance.',
+            };
+
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => $message,
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

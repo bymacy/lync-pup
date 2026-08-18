@@ -54,6 +54,7 @@
                             $navItems = [
                             ['route' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard.svg'],
                             ['route' => 'admin.startups.index', 'label' => 'Startup Profile', 'icon' => 'startupProfile.svg'],
+                            ['route' => 'admin.founder-applications.index', 'label' => 'Founder Application', 'icon' => 'founderApplication.svg'],
                             ['route' => 'admin.mentors.index', 'label' => 'Mentor Profile', 'icon' => 'mentorProfile.svg'],
                             ['route' => 'admin.coordinators.index', 'label' => 'Coordinator Profile', 'icon' => 'coordProfile.svg'],
                             ['route' => 'admin.assessment-hub.index', 'label' => 'Assessment Hub', 'icon' => 'assessmentHub.svg'],
