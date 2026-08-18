@@ -54,7 +54,7 @@ trait CompressesImages
 
         imagedestroy($image);
 
-        $filename = $directory.'/'.uniqid($directory.'_').'.jpg';
+        $filename = $directory.'/'.uniqid('img_').'.jpg';
         Storage::disk('public')->put($filename, $data);
 
         return $filename;
