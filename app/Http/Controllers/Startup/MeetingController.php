@@ -17,7 +17,7 @@ class MeetingController extends Controller
 
         $startup = Auth::user()->startup;
 
-        $mentorships = Roadblock::with('mentor')
+        $mentorships = Roadblock::with(['mentor', 'coordinator'])
             ->where('startup_id', $startup->startup_id)
             ->where('status', 'Scheduled')
             ->whereNotNull('meeting_date')
@@ -32,7 +32,9 @@ class MeetingController extends Controller
                         .' - '.Carbon::parse($roadblock->meeting_end_time)->format('g:i A'),
                     'status_label' => $this->dayLabel($roadblock->meeting_date),
                     'roadblock_category' => $roadblock->display_category,
-                    'mentor_name' => trim(($roadblock->mentor->honorific ?? '').' '.($roadblock->mentor->last_name ?? '')) ?: '—',
+                    // Mentor and Coordinator are the same shape here (both expose
+                    // honorific/last_name/display_name), so this works for either.
+                    'mentor_name' => $roadblock->assignee?->display_name ?: '—',
                     'platform' => $roadblock->meeting_platform,
                     'meeting_link' => $roadblock->meeting_link,
                     'can_join' => $roadblock->isLive(),

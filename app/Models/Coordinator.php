@@ -21,8 +21,23 @@ class Coordinator extends Model
         return $this->hasMany(CoordinatorAssignment::class, 'coordinator_id');
     }
 
+    public function roadblocks()
+    {
+        return $this->hasMany(\App\Models\Roadblock::class, 'coordinator_id', 'coordinator_id');
+    }
+
     public function getDisplayNameAttribute(): string
     {
         return trim("{$this->honorific} {$this->last_name}");
+    }
+
+    /**
+     * Mirrors Mentor::getCasesCountAttribute() so a coordinator's mentorship
+     * preview card shows the same "X Cases" stat when they're the one
+     * assigned to a roadblock instead of a mentor.
+     */
+    public function getCasesCountAttribute(): int
+    {
+        return $this->roadblocks()->whereIn('status', ['Scheduled', 'Pending Review', 'Resolved', 'Failed'])->count();
     }
 }

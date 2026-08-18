@@ -6,7 +6,7 @@
                 <th class="px-4 py-3 font-semibold">Roadblock</th>
                 <th class="px-4 py-3 font-semibold">Status</th>
                 <th class="px-4 py-3 font-semibold">Meeting Schedule</th>
-                <th class="px-4 py-3 font-semibold">Mentor</th>
+                <th class="px-4 py-3 font-semibold">Mentor / Coordinator</th>
                 <th class="px-4 py-3 font-semibold">Action</th>
             </tr>
         </thead>
@@ -23,7 +23,7 @@
                     {{ $roadblock->meeting_platform }}
                     <a href="{{ $roadblock->meeting_link }}" target="_blank" class="text-blue-700 underline">Join meeting</a>
                 </td>
-                <td class="px-4 py-3">{{ $roadblock->mentor?->display_name }}</td>
+                <td class="px-4 py-3">{{ $roadblock->assignee?->display_name }}</td>
                 <td class="px-4 py-3">
                     <div class="flex gap-2">
                         <button type="button" @click="viewOpen = true" class="border border-[#6D0D23] text-[#6D0D23] rounded-lg px-3 py-1.5 hover:bg-[#6D0D23]/5">View</button>
@@ -54,19 +54,23 @@
                                     </div>
                                 </div>
 
-                                <p class="font-semibold mb-2">Assigned Mentor</p>
+                                @php
+                                    $assignee = $roadblock->assignee;
+                                    $isCoordinatorAssignee = $roadblock->coordinator_id !== null;
+                                @endphp
+                                <p class="font-semibold mb-2">Assigned {{ $isCoordinatorAssignee ? 'Coordinator' : 'Mentor' }}</p>
                                 <div class="border rounded-lg p-4 mb-4 grid grid-cols-2 gap-3">
-                                    <div><label class="text-xs text-gray-500">Mentor</label>
-                                        <p class="bg-gray-100 rounded px-3 py-2 text-sm">{{ $roadblock->mentor?->display_name }}</p>
+                                    <div><label class="text-xs text-gray-500">{{ $isCoordinatorAssignee ? 'Coordinator' : 'Mentor' }}</label>
+                                        <p class="bg-gray-100 rounded px-3 py-2 text-sm">{{ $assignee?->display_name }}</p>
                                     </div>
-                                    <div><label class="text-xs text-gray-500">Expertise</label>
-                                        <p class="bg-gray-100 rounded px-3 py-2 text-sm">{{ $roadblock->mentor?->specialization }}</p>
+                                    <div><label class="text-xs text-gray-500">{{ $isCoordinatorAssignee ? 'Role' : 'Expertise' }}</label>
+                                        <p class="bg-gray-100 rounded px-3 py-2 text-sm">{{ $isCoordinatorAssignee ? $assignee?->role_title : $assignee?->specialization }}</p>
                                     </div>
                                     <div><label class="text-xs text-gray-500">Email</label>
-                                        <p class="bg-gray-100 rounded px-3 py-2 text-sm">{{ $roadblock->mentor?->contact_email }}</p>
+                                        <p class="bg-gray-100 rounded px-3 py-2 text-sm">{{ $isCoordinatorAssignee ? $assignee?->email : $assignee?->contact_email }}</p>
                                     </div>
                                     <div><label class="text-xs text-gray-500">Contact Number</label>
-                                        <p class="bg-gray-100 rounded px-3 py-2 text-sm">{{ $roadblock->mentor?->contact_number }}</p>
+                                        <p class="bg-gray-100 rounded px-3 py-2 text-sm">{{ $isCoordinatorAssignee ? $assignee?->phone : $assignee?->contact_number }}</p>
                                     </div>
                                 </div>
 
@@ -89,7 +93,7 @@
 
                     <div x-show="editOpen" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display:none;">
                         <div class="bg-white rounded-xl w-full max-w-3xl overflow-hidden" @click.outside="editOpen = false">
-                            <x-roadblock-assign-modal mode="edit" :roadblock="$roadblock" :mentors="$mentors" :action="route('admin.roadblocks.assign', $roadblock)" />
+                            <x-roadblock-assign-modal mode="edit" :roadblock="$roadblock" :mentors="$mentors" :coordinators="$coordinators" :action="route('admin.roadblocks.assign', $roadblock)" />
                         </div>
                     </div>
                 </td>

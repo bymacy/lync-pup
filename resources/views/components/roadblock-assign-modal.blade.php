@@ -1,5 +1,11 @@
-@props(['mode', 'action', 'roadblock', 'mentors'])
-@php $formId = 'roadblock-assign-form-'.$roadblock->roadblock_id; @endphp
+@props(['mode', 'action', 'roadblock', 'mentors', 'coordinators' => null])
+@php $coordinators = $coordinators ?? collect(); @endphp
+@php
+    $formId = 'roadblock-assign-form-'.$roadblock->roadblock_id;
+    $selectedAssignee = old('assignee', $roadblock->coordinator_id
+        ? 'coordinator-'.$roadblock->coordinator_id
+        : ($roadblock->mentor_id ? 'mentor-'.$roadblock->mentor_id : ''));
+@endphp
 
 <div class="relative bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
@@ -31,21 +37,30 @@
 
         <div class="grid grid-cols-2 gap-6">
             <div class="border rounded-xl p-4 relative" x-data="{ previewId: null }">
-                <p class="font-medium mb-3">1. Assign Mentor</p>
-                <select name="mentor_id" class="w-full border rounded-lg px-3 py-2 text-sm mb-4">
+                <p class="font-medium mb-3">1. Assign Mentor or Coordinator</p>
+                <select name="assignee" class="w-full border rounded-lg px-3 py-2 text-sm mb-4">
                     <option value="">Select Mentor</option>
                     @foreach ($mentors as $m)
-                    <option value="{{ $m->mentor_id }}" @selected(old('mentor_id', $roadblock->mentor_id) == $m->mentor_id)>
+                    <option value="mentor-{{ $m->mentor_id }}" @selected($selectedAssignee === 'mentor-'.$m->mentor_id)>
                         {{ $m->display_name }}
                     </option>
                     @endforeach
+                    @if ($coordinators->isNotEmpty())
+                    <option disabled>── Coordinators ──</option>
+                    @foreach ($coordinators as $c)
+                    <option value="coordinator-{{ $c->coordinator_id }}" @selected($selectedAssignee === 'coordinator-'.$c->coordinator_id)>
+                        {{ $c->display_name }}
+                    </option>
+                    @endforeach
+                    @endif
                 </select>
                 @error('mentor_id') <p class="text-xs text-red-600 mb-3">{{ $message }}</p> @enderror
+                @error('coordinator_id') <p class="text-xs text-red-600 mb-3">{{ $message }}</p> @enderror
 
-                <p class="text-sm font-medium text-gray-700 mb-2">Mentor Profile Preview</p>
+                <p class="text-sm font-medium text-gray-700 mb-2">Profile Preview</p>
                 <div class="grid grid-cols-2 gap-2">
                     @foreach ($mentors as $m)
-                    <button type="button" @click="previewId = {{ $m->mentor_id }}"
+                    <button type="button" @click="previewId = 'mentor-{{ $m->mentor_id }}'"
                         class="border rounded-lg px-3 py-2 text-sm flex items-center gap-2 text-left transition hover:border-rose-900 hover:bg-gray-50">
                         <div class="w-6 h-6 rounded-full bg-gray-200 overflow-hidden shrink-0">
                             @if ($m->mentor_photo_path)
@@ -53,6 +68,17 @@
                             @endif
                         </div>
                         <span class="truncate">{{ $m->display_name }}</span>
+                    </button>
+                    @endforeach
+                    @foreach ($coordinators as $c)
+                    <button type="button" @click="previewId = 'coordinator-{{ $c->coordinator_id }}'"
+                        class="border rounded-lg px-3 py-2 text-sm flex items-center gap-2 text-left transition hover:border-rose-900 hover:bg-gray-50">
+                        <div class="w-6 h-6 rounded-full bg-gray-200 overflow-hidden shrink-0">
+                            @if ($c->coordinator_photo_path)
+                            <img src="{{ Storage::url($c->coordinator_photo_path) }}" class="w-full h-full object-cover">
+                            @endif
+                        </div>
+                        <span class="truncate">{{ $c->display_name }}</span>
                     </button>
                     @endforeach
                 </div>
@@ -63,7 +89,7 @@
                     @click.self="previewId = null" style="display: none;">
 
                     @foreach ($mentors as $m)
-                    <div x-show="previewId === {{ $m->mentor_id }}" x-cloak
+                    <div x-show="previewId === 'mentor-{{ $m->mentor_id }}'" x-cloak
                         class="relative w-full max-w-[15rem] aspect-[3/4] rounded-xl overflow-hidden shadow-2xl"
                         style="display: none;">
 
@@ -84,6 +110,37 @@
                                 <p>{{ $m->contact_number ?? '—' }}</p>
                                 <p>{{ $m->contact_email ?? '—' }}</p>
                                 <p>{{ $m->cases_count }} Cases</p>
+                            </div>
+                        </div>
+
+                        <button type="button" @click="previewId = null"
+                            class="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-xl text-white/80 transition hover:bg-black/70 hover:text-white"
+                            aria-label="Close preview">
+                            <span class="-mt-1">&times;</span>
+                        </button>
+                    </div>
+                    @endforeach
+
+                    @foreach ($coordinators as $c)
+                    <div x-show="previewId === 'coordinator-{{ $c->coordinator_id }}'" x-cloak
+                        class="relative w-full max-w-[15rem] aspect-[3/4] rounded-xl overflow-hidden shadow-2xl"
+                        style="display: none;">
+
+                        <div class="absolute inset-0 bg-gray-200">
+                            @if ($c->coordinator_photo_path)
+                            <img src="{{ Storage::url($c->coordinator_photo_path) }}" class="w-full h-full object-cover">
+                            @else
+                            <div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">No Photo</div>
+                            @endif
+                        </div>
+
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent text-white p-4 pt-16">
+                            <p class="font-bold">{{ $c->display_name }}</p>
+                            <p class="text-xs text-white/70 mb-2">{{ $c->role_title }} &bull; Coordinator</p>
+                            <div class="border-t border-white/20 pt-2 space-y-1 text-xs text-white/80">
+                                <p>{{ $c->phone ?? '—' }}</p>
+                                <p>{{ $c->email ?? '—' }}</p>
+                                <p>{{ $c->cases_count }} Cases</p>
                             </div>
                         </div>
 

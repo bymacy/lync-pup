@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AssignRoadblockRequest;
+use App\Models\Coordinator;
 use App\Models\Mentor;
 use App\Models\Roadblock;
 
@@ -22,7 +23,7 @@ class RoadblockController extends Controller
         // (upcoming) plus anything already promoted to Pending Review. The
         // isInAssessment() split below still catches the rare in-between row
         // whose meeting just ended but hasn't been swept yet.
-        $scheduled = Roadblock::with(['startup', 'mentor'])
+        $scheduled = Roadblock::with(['startup', 'mentor', 'coordinator'])
             ->whereIn('status', ['Scheduled', 'Pending Review'])
             ->get();
 
@@ -30,17 +31,18 @@ class RoadblockController extends Controller
         $scheduledToday = $upcoming->filter(fn ($r) => $r->meeting_date?->isToday())->values();
         $assessment = $scheduled->filter->isInAssessment()->sortByDesc('meeting_date')->values();
 
-        $resolved = Roadblock::with(['startup', 'mentor'])
+        $resolved = Roadblock::with(['startup', 'mentor', 'coordinator'])
             ->where('status', 'Resolved')
             ->orderByDesc('resolved_at')
             ->get();
 
-        $failed = Roadblock::with(['startup', 'mentor'])
+        $failed = Roadblock::with(['startup', 'mentor', 'coordinator'])
             ->where('status', 'Failed')
             ->orderByDesc('failed_at')
             ->get();
 
         $mentors = Mentor::orderBy('mentor_id')->get();
+        $coordinators = Coordinator::orderBy('coordinator_id')->get();
 
         return view('admin.roadblocks.index', [
             'pending' => $pending,
@@ -50,6 +52,7 @@ class RoadblockController extends Controller
             'resolved' => $resolved,
             'failed' => $failed,
             'mentors' => $mentors,
+            'coordinators' => $coordinators,
         ]);
     }
 
@@ -59,8 +62,16 @@ class RoadblockController extends Controller
             return back()->with('error', 'This roadblock is already resolved. Recover it first before reassigning.');
         }
 
+        $validated = $request->validated();
+
         $roadblock->update([
-            ...$request->validated(),
+            ...$validated,
+            // Explicitly set both every time (defaulting to null if absent from
+            // $validated) so switching a roadblock from a mentor to a coordinator
+            // (or back) always clears out whichever one is no longer assigned,
+            // instead of leaving a stale id behind on the other column.
+            'mentor_id' => $validated['mentor_id'] ?? null,
+            'coordinator_id' => $validated['coordinator_id'] ?? null,
             'status' => 'Scheduled',
             'resolved_at' => null,
             'failed_at' => null,
@@ -77,6 +88,7 @@ class RoadblockController extends Controller
 
         $roadblock->update([
             'mentor_id' => null,
+            'coordinator_id' => null,
             'meeting_date' => null,
             'meeting_start_time' => null,
             'meeting_end_time' => null,

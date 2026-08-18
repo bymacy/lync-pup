@@ -41,7 +41,14 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            // Root-relative on purpose (not built from APP_URL): this app is tested
+            // from multiple devices on the same network (dev machine, tester phones/
+            // laptops), each hitting the server through a different host/IP. A URL
+            // baked from APP_URL (e.g. http://127.0.0.1:8000) only resolves on the
+            // machine running the server — every other device gets a broken image.
+            // A path starting with "/" always resolves against whatever host the
+            // browser is actually using, so it works the same for everyone.
+            'url' => env('ASSET_URL') ? rtrim(env('ASSET_URL'), '/').'/storage' : '/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

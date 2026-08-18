@@ -19,6 +19,7 @@ class Roadblock extends Model
         'description',
         'status',
         'mentor_id',
+        'coordinator_id',
         'meeting_date',
         'meeting_start_time',
         'meeting_end_time',
@@ -47,6 +48,22 @@ class Roadblock extends Model
     public function mentor()
     {
         return $this->belongsTo(Mentor::class, 'mentor_id', 'mentor_id');
+    }
+
+    public function coordinator()
+    {
+        return $this->belongsTo(Coordinator::class, 'coordinator_id', 'coordinator_id');
+    }
+
+    /**
+     * Whoever is actually handling this roadblock's meeting — normally a
+     * Mentor, but sometimes a Coordinator directly, when they already know
+     * the specific problem. Exactly one of mentor_id/coordinator_id is set
+     * at a time, so this is always well-defined.
+     */
+    public function getAssigneeAttribute()
+    {
+        return $this->coordinator_id ? $this->coordinator : $this->mentor;
     }
 
     public function isResolved(): bool

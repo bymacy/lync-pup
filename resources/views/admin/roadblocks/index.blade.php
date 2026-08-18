@@ -134,7 +134,7 @@
                     {{-- Assign & Schedule modal --}}
                     <div x-show="assignOpen" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display:none;">
                         <div class="bg-white rounded-xl w-full max-w-3xl overflow-hidden" @click.outside="assignOpen = false">
-                            <x-roadblock-assign-modal mode="assign" :roadblock="$roadblock" :mentors="$mentors" :action="route('admin.roadblocks.assign', $roadblock)" />
+                            <x-roadblock-assign-modal mode="assign" :roadblock="$roadblock" :mentors="$mentors" :coordinators="$coordinators" :action="route('admin.roadblocks.assign', $roadblock)" />
                         </div>
                     </div>
 
@@ -227,7 +227,7 @@
                                 <td class="px-4 py-3">{{ $roadblock->display_category }}</td>
                                 <td class="px-4 py-3">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
                                 <td class="px-4 py-3">{{ $roadblock->startup->industry_sector }}</td>
-                                <td class="px-4 py-3">{{ $roadblock->mentor?->display_name }}</td>
+                                <td class="px-4 py-3">{{ $roadblock->assignee?->display_name }}</td>
                                 <td class="px-4 py-3">
                                     <div class="flex gap-2">
                                         <form method="POST" action="{{ route('admin.roadblocks.fail', $roadblock) }}">
@@ -275,7 +275,7 @@
                                 <td class="px-4 py-3">{{ $roadblock->display_category }}</td>
                                 <td class="px-4 py-3">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
                                 <td class="px-4 py-3">{{ $roadblock->startup->industry_sector }}</td>
-                                <td class="px-4 py-3">{{ $roadblock->mentor?->display_name }}</td>
+                                <td class="px-4 py-3">{{ $roadblock->assignee?->display_name }}</td>
                                 <td class="px-4 py-3">
                                     <form method="POST" action="{{ route('admin.roadblocks.recover', $roadblock) }}">
                                         @csrf
@@ -317,7 +317,7 @@
                                 <td class="px-4 py-3">{{ $roadblock->display_category }}</td>
                                 <td class="px-4 py-3">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
                                 <td class="px-4 py-3">{{ $roadblock->startup->industry_sector }}</td>
-                                <td class="px-4 py-3">{{ $roadblock->mentor?->display_name }}</td>
+                                <td class="px-4 py-3">{{ $roadblock->assignee?->display_name }}</td>
                                 <td class="px-4 py-3">
                                     <div class="flex gap-2">
                                         <button type="button" @click="deleteOpen = true" class="border border-[#6D0D23] text-[#6D0D23] rounded-lg px-3 py-1.5 hover:bg-[#6D0D23]/5">Delete</button>
@@ -341,7 +341,7 @@
 
                                     <div x-show="rescheduleOpen" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display:none;">
                                         <div class="bg-white rounded-xl w-full max-w-3xl overflow-hidden" @click.outside="rescheduleOpen = false">
-                                            <x-roadblock-assign-modal mode="reschedule" :roadblock="$roadblock" :mentors="$mentors" :action="route('admin.roadblocks.assign', $roadblock)" />
+                                            <x-roadblock-assign-modal mode="reschedule" :roadblock="$roadblock" :mentors="$mentors" :coordinators="$coordinators" :action="route('admin.roadblocks.assign', $roadblock)" />
                                         </div>
                                     </div>
                                 </td>
