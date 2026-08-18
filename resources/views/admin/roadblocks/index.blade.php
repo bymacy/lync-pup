@@ -357,4 +357,30 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // This page has no live/reactive data — "Edit" only becomes "Join" once
+        // the meeting's start time has passed and the page is re-rendered by the
+        // server (Roadblock::isLive() is computed at load time). Without this,
+        // an admin sitting on the page past a meeting's start time would keep
+        // seeing "Edit" until they manually refresh. Auto-reload every 60s to
+        // keep that in sync, but skip the reload while any modal is open (any
+        // x-cloak element currently visible) so it doesn't interrupt someone
+        // mid-Assign/Edit/Reschedule, and skip it while the tab isn't visible
+        // to avoid pointless background reloads.
+        (function () {
+            const REFRESH_MS = 60000;
+
+            setInterval(function () {
+                if (document.hidden) return;
+
+                const aModalIsOpen = Array.from(document.querySelectorAll('[x-cloak]'))
+                    .some((el) => el.style.display !== 'none');
+
+                if (aModalIsOpen) return;
+
+                window.location.reload();
+            }, REFRESH_MS);
+        })();
+    </script>
 </x-layouts.admin>
