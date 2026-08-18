@@ -29,7 +29,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                 @forelse ($pending as $roadblock)
                 @php $banners = ['from-purple-500 to-purple-700', 'from-blue-500 to-blue-700', 'from-teal-500 to-teal-700']; @endphp
-                <div class="border rounded-xl overflow-hidden" x-data="{ viewOpen: false, assignOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
+                <div class="border rounded-xl overflow-hidden" x-data="{ viewOpen: false, assignOpen: @js($erroredRoadblockId === $roadblock->roadblock_id), previewImage: null }">
                     <div class="h-32 bg-gradient-to-r {{ $banners[$roadblock->roadblock_id % count($banners)] }} relative flex items-center justify-center">
                         <span class="absolute top-3 right-3 bg-white text-xs font-medium rounded-full px-3 py-1">{{ $roadblock->display_category }}</span>
                     </div>
@@ -96,9 +96,32 @@
                                     <label class="text-xs text-gray-500">Supporting Files</label>
                                     <div class="space-y-2 mt-1">
                                         @foreach ($roadblock->files as $file)
-                                        <div class="flex items-center justify-between border rounded-md px-3 py-2 text-sm">
-                                            <span class="text-rose-900">{{ $file->original_filename }}</span>
-                                            <a href="{{ $file->url }}" download class="text-rose-900">&darr;</a>
+                                        <div class="flex items-center justify-between gap-3 border rounded-md px-3 py-2 text-sm">
+                                            <span class="text-rose-900 truncate">{{ $file->original_filename }}</span>
+                                            <div class="flex items-center gap-3 shrink-0">
+                                                @if ($file->is_image)
+                                                <button type="button" @click="previewImage = '{{ $file->url }}'"
+                                                    aria-label="Preview {{ $file->original_filename }}"
+                                                    class="text-rose-900 hover:opacity-70 transition">
+                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    </svg>
+                                                </button>
+                                                @else
+                                                <a href="{{ $file->url }}" target="_blank" rel="noopener"
+                                                    aria-label="Preview {{ $file->original_filename }}"
+                                                    class="text-rose-900 hover:opacity-70 transition">
+                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    </svg>
+                                                </a>
+                                                @endif
+                                                <a href="{{ $file->url }}" download="{{ $file->original_filename }}"
+                                                    aria-label="Download {{ $file->original_filename }}"
+                                                    class="text-rose-900 hover:opacity-70 transition">&darr;</a>
+                                            </div>
                                         </div>
                                         @endforeach
                                     </div>
@@ -113,6 +136,14 @@
                         <div class="bg-white rounded-xl w-full max-w-3xl overflow-hidden" @click.outside="assignOpen = false">
                             <x-roadblock-assign-modal mode="assign" :roadblock="$roadblock" :mentors="$mentors" :action="route('admin.roadblocks.assign', $roadblock)" />
                         </div>
+                    </div>
+
+                    {{-- Image preview lightbox --}}
+                    <div x-show="previewImage" x-cloak class="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-6" style="display:none;"
+                        @click.self="previewImage = null" @keydown.escape.window="previewImage = null">
+                        <button type="button" @click="previewImage = null" aria-label="Close preview"
+                            class="absolute top-5 right-5 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white text-2xl hover:bg-white/20">&times;</button>
+                        <img :src="previewImage" class="max-h-full max-w-full rounded-lg object-contain">
                     </div>
                 </div>
                 @empty

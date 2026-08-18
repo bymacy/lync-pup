@@ -3,6 +3,8 @@
         tab: '{{ request('tab', 'roadblock') }}',
         category: '',
         categoryOther: '',
+        otherSuggestions: @js($otherCategorySuggestions),
+        showOtherSuggestions: false,
         description: '',
         files: [],
         dt: new DataTransfer(),
@@ -10,6 +12,7 @@
         showConfirm: false,
         showSuccess: {{ session('roadblock_submitted') ? 'true' : 'false' }},
         activeRoadblock: null,
+        previewImageUrl: null,
 
         /* ---------- validation state ---------- */
         errors: {},
@@ -24,6 +27,25 @@
 
         get descriptionLeft() {
             return 5000 - this.description.trim().length;
+        },
+
+        /* ---------- 'Others' predictive suggestions ----------
+           Pulled from every startup's past 'Others' submissions (server-side),
+           filtered here as the user types so they can reuse an existing
+           category label instead of creating near-duplicate free text. */
+        get filteredOtherSuggestions() {
+            const val = this.categoryOther.trim().toLowerCase();
+            const pool = val
+                ? this.otherSuggestions.filter(s => s.toLowerCase().includes(val) && s.toLowerCase() !== val)
+                : this.otherSuggestions;
+            return pool.slice(0, 6);
+        },
+
+        pickOtherSuggestion(value) {
+            this.categoryOther = value;
+            this.showOtherSuggestions = false;
+            this.touched.categoryOther = true;
+            this.validateField('categoryOther');
         },
 
         validateField(field) {
@@ -62,15 +84,18 @@
                 this.validateField(field);
             });
 
-            return Object.keys(this.errors).length === 0 && !this.fileError;
+            return Object.keys(this.errors).length === 0;
         },
 
         get isValid() {
+            // Note: fileError only ever describes a *rejected* add attempt (over the
+            // cap, wrong type, too large, duplicate) — the file is never actually
+            // attached in those cases, so the current file list is always valid on
+            // its own. It must not block submitting the files that did get attached.
             return this.category
                 && (this.category !== 'Others' || this.categoryOther.trim().length >= 3)
                 && this.description.trim().length >= 20
-                && this.description.trim().length <= 5000
-                && !this.fileError;
+                && this.description.trim().length <= 5000;
         },
 
         /* ---------- files ---------- */
@@ -103,6 +128,13 @@
             });
 
             this.syncInput();
+
+            // This is feedback about a rejected attempt, not a lasting problem with
+            // the attached files — fade it out on its own instead of leaving it
+            // stuck on screen until the next add/remove action.
+            if (this.fileError) {
+                setTimeout(() => { this.fileError = ''; }, 4000);
+            }
         },
 
         removeFile(index) {
@@ -127,6 +159,7 @@
         resetForm() {
             this.category = '';
             this.categoryOther = '';
+            this.showOtherSuggestions = false;
             this.description = '';
             this.dt = new DataTransfer();
             this.files = [];
@@ -269,15 +302,36 @@
                     <div x-show="category === 'Others'" x-cloak class="mt-4 max-w-md">
                         <label class="block text-xs text-gray-500 mb-1.5">Type specific roadblock (e.g., Legal Counseling)</label>
 
-                        <input type="text" name="problem_category_other" x-model="categoryOther"
-                            maxlength="100"
-                            @blur="touched.categoryOther = true; validateField('categoryOther')"
-                            @input="touched.categoryOther && validateField('categoryOther')"
-                            placeholder="Enter here..."
-                            class="w-full rounded-lg border px-3 py-2.5 text-sm focus:ring-2 focus:outline-none"
-                            :class="errors.categoryOther && touched.categoryOther
-                                ? 'border-red-400 focus:border-red-400 focus:ring-red-100'
-                                : 'border-rose-200 focus:border-rose-400 focus:ring-rose-100'">
+                        <div class="relative">
+                            <input type="text" name="problem_category_other" x-model="categoryOther"
+                                maxlength="100"
+                                autocomplete="off"
+                                @focus="showOtherSuggestions = true"
+                                @blur="touched.categoryOther = true; validateField('categoryOther'); setTimeout(() => showOtherSuggestions = false, 150)"
+                                @input="showOtherSuggestions = true; touched.categoryOther && validateField('categoryOther')"
+                                placeholder="Enter here..."
+                                class="w-full rounded-lg border px-3 py-2.5 text-sm focus:ring-2 focus:outline-none"
+                                :class="errors.categoryOther && touched.categoryOther
+                                    ? 'border-red-400 focus:border-red-400 focus:ring-red-100'
+                                    : 'border-rose-200 focus:border-rose-400 focus:ring-rose-100'">
+
+                            {{-- Predictive suggestions from other startups' past "Others" entries --}}
+                            <div x-show="showOtherSuggestions && filteredOtherSuggestions.length" x-cloak
+                                x-transition:enter="transition ease-out duration-100"
+                                x-transition:enter-start="opacity-0 -translate-y-1"
+                                x-transition:enter-end="opacity-100 translate-y-0"
+                                role="listbox"
+                                class="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+
+                                <template x-for="suggestion in filteredOtherSuggestions" :key="suggestion">
+                                    <button type="button"
+                                        role="option"
+                                        @mousedown.prevent="pickOtherSuggestion(suggestion)"
+                                        class="w-full px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-rose-50 hover:text-rose-900"
+                                        x-text="suggestion"></button>
+                                </template>
+                            </div>
+                        </div>
 
                         <p x-show="errors.categoryOther && touched.categoryOther" x-cloak
                             class="mt-1.5 text-xs text-red-600" x-text="errors.categoryOther"></p>
@@ -667,14 +721,25 @@
                                         <li class="flex items-center gap-8 rounded-md border border-gray-200 px-3 py-2">
                                             <span class="text-sm font-medium text-[#6D0D23]" x-text="file.name"></span>
 
-                                            <span class="flex items-center gap-2 text-[#6D0D23]">
-                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                                    <path d="M14 2v6h6" />
-                                                </svg>
+                                            <span class="flex items-center gap-3 text-[#6D0D23]">
+                                                {{-- Preview: images open in an on-page lightbox, everything else opens in a new tab --}}
+                                                <button type="button" x-show="file.is_image" x-cloak
+                                                    @click="previewImageUrl = file.url" aria-label="Preview image"
+                                                    class="transition hover:opacity-70 focus:outline-none">
+                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    </svg>
+                                                </button>
+                                                <a :href="file.url" target="_blank" rel="noopener" x-show="!file.is_image" x-cloak
+                                                    aria-label="Preview file" class="transition hover:opacity-70 focus:outline-none">
+                                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    </svg>
+                                                </a>
 
-                                                <a :href="file.url" download aria-label="Download file"
+                                                <a :href="file.url" :download="file.name" aria-label="Download file"
                                                     class="transition hover:opacity-70 focus:outline-none">
                                                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -697,6 +762,16 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        {{-- ============================================================
+             Image preview lightbox
+             ============================================================ --}}
+        <div x-show="previewImageUrl" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-6"
+            @click.self="previewImageUrl = null" @keydown.escape.window="previewImageUrl = null">
+            <button type="button" @click="previewImageUrl = null" aria-label="Close preview"
+                class="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-2xl text-white hover:bg-white/20">&times;</button>
+            <img :src="previewImageUrl" class="max-h-full max-w-full rounded-lg object-contain">
         </div>
     </div>
 </x-layouts.founder>

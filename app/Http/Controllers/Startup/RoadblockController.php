@@ -21,8 +21,20 @@ class RoadblockController extends Controller
             ->latest()
             ->get();
 
+        // "Others" category suggestions — pulled from every startup's past submissions
+        // (not just this one) so the free-text field can predict what other startups
+        // have already typed for the same kind of roadblock.
+        $otherCategorySuggestions = Roadblock::where('problem_category', 'Others')
+            ->whereNotNull('problem_category_other')
+            ->where('problem_category_other', '!=', '')
+            ->distinct()
+            ->orderBy('problem_category_other')
+            ->pluck('problem_category_other')
+            ->values();
+
         return view('startup.roadblocks.index', [
             'roadblocks' => $roadblocks,
+            'otherCategorySuggestions' => $otherCategorySuggestions,
         ]);
     }
 
