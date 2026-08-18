@@ -79,9 +79,37 @@ class Roadblock extends Model
         return Carbon::parse($this->meeting_date->format('Y-m-d') . ' ' . $this->meeting_end_time);
     }
 
+    /**
+     * True once the roadblock is awaiting the admin's Resolved/Failed call —
+     * either because it's already been promoted to the real "Pending Review"
+     * status, or (transitionally, before the next sweep catches it) it's
+     * still "Scheduled" but its meeting time has already passed.
+     */
     public function isInAssessment(): bool
     {
-        return $this->status === 'Scheduled' && $this->meeting_ends_at && $this->meeting_ends_at->isPast();
+        return $this->status === 'Pending Review'
+            || ($this->status === 'Scheduled' && $this->meeting_ends_at && $this->meeting_ends_at->isPast());
+    }
+
+    /**
+     * Sweep every Scheduled roadblock whose meeting has concluded and move it
+     * to "Pending Review" so the status column always reflects reality by the
+     * time anyone loads a page that lists roadblocks. The app has no cron/job
+     * scheduler, so this runs lazily at the top of the relevant controllers
+     * instead of on a timer.
+     */
+    public static function promoteEndedMeetingsToPendingReview(): void
+    {
+        $idsToPromote = static::where('status', 'Scheduled')
+            ->whereNotNull('meeting_date')
+            ->whereNotNull('meeting_end_time')
+            ->get(['roadblock_id', 'meeting_date', 'meeting_end_time'])
+            ->filter(fn (self $r) => $r->meeting_ends_at && $r->meeting_ends_at->isPast())
+            ->pluck('roadblock_id');
+
+        if ($idsToPromote->isNotEmpty()) {
+            static::whereIn('roadblock_id', $idsToPromote)->update(['status' => 'Pending Review']);
+        }
     }
 
     /**

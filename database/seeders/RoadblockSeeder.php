@@ -76,6 +76,7 @@ class RoadblockSeeder extends Seeder
                 'meeting_date' => now()->toDateString(),
             ],
             [
+                'description' => 'We need help refining our go-to-market pricing strategy before we approach retail partners.',
                 'mentor_id' => $jennie?->mentor_id,
                 'meeting_start_time' => $todaySlot[0],
                 'meeting_end_time' => $todaySlot[1],
@@ -93,6 +94,7 @@ class RoadblockSeeder extends Seeder
                 'meeting_date' => now()->subDay()->toDateString(),
             ],
             [
+                'description' => 'We need to validate whether there is real demand for our product in the Visayas region before expanding operations there.',
                 'mentor_id' => $argee?->mentor_id,
                 'meeting_start_time' => '10:00',
                 'meeting_end_time' => '11:00',
@@ -109,6 +111,7 @@ class RoadblockSeeder extends Seeder
                 'status' => 'Resolved',
             ],
             [
+                'description' => 'Our accounting process is a mess and we need guidance setting up a proper bookkeeping system before our next investor update.',
                 'mentor_id' => $jennie?->mentor_id,
                 'meeting_date' => now()->subDays(3)->toDateString(),
                 'meeting_start_time' => '13:00',
@@ -128,6 +131,7 @@ class RoadblockSeeder extends Seeder
                 'status' => 'Failed',
             ],
             [
+                'description' => 'We need help drafting an IP licensing agreement with a supplier and are unsure of the legal terms involved.',
                 'mentor_id' => $argee?->mentor_id,
                 'meeting_date' => now()->subDays(5)->toDateString(),
                 'meeting_start_time' => '09:00',
@@ -149,6 +153,7 @@ class RoadblockSeeder extends Seeder
                 'meeting_date' => now()->addDays(3)->toDateString(),
             ],
             [
+                'description' => 'Our IoT sensor firmware needs a code review before we scale up to our next batch of pilot customers.',
                 'mentor_id' => $jennie?->mentor_id,
                 'meeting_start_time' => '09:00',
                 'meeting_end_time' => '10:00',

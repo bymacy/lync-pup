@@ -13,6 +13,8 @@ class MeetingController extends Controller
 {
     public function index(): View
     {
+        Roadblock::promoteEndedMeetingsToPendingReview();
+
         $startup = Auth::user()->startup;
 
         $mentorships = Roadblock::with('mentor')

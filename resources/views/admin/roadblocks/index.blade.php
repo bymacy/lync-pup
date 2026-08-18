@@ -172,7 +172,7 @@
             <h2 class="font-bold text-gray-900 mb-4">Mentorship Evaluation</h2>
 
             @php
-            $stages = ['assessment' => 'Assessment', 'resolved' => 'Resolved', 'failed' => 'Failed'];
+            $stages = ['assessment' => 'Pending Review', 'resolved' => 'Resolved', 'failed' => 'Failed'];
             @endphp
 
             <div class="mb-6 flex items-center">
@@ -192,7 +192,7 @@
                     <div x-show="open" x-cloak x-transition.origin.top
                         class="absolute left-0 top-full mt-1 w-[160px] rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden z-20"
                         style="display:none;">
-                        @foreach (collect($stages)->except('assessment') as $value => $label)
+                        @foreach ($stages as $value => $label)
                         <button type="button"
                             @click="archiveStage = '{{ $value }}'; open = false"
                             class="w-full text-left px-3 py-2 text-sm transition"
@@ -243,7 +243,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-6 text-center text-gray-500">Nothing pending assessment.</td>
+                                <td colspan="6" class="px-4 py-6 text-center text-gray-500">Nothing pending review.</td>
                             </tr>
                             @endforelse
                         </tbody>

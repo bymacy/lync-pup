@@ -1,6 +1,25 @@
 <x-layouts.founder>
     <div x-data="{
         tab: '{{ request('tab', 'roadblock') }}',
+        archiveStatusFilter: 'all',
+        archiveRoadblockStatuses: @js($roadblocks->pluck('status')),
+
+        get archiveVisibleCount() {
+            return this.archiveStatusFilter === 'all'
+                ? this.archiveRoadblockStatuses.length
+                : this.archiveRoadblockStatuses.filter(s => s === this.archiveStatusFilter).length;
+        },
+
+        statusDotColor(status) {
+            return {
+                'Pending': 'bg-gray-400',
+                'Scheduled': 'bg-blue-500',
+                'Pending Review': 'bg-amber-500',
+                'Resolved': 'bg-green-500',
+                'Failed': 'bg-rose-600',
+            }[status] || 'bg-amber-500';
+        },
+
         category: '',
         categoryOther: '',
         otherSuggestions: @js($otherCategorySuggestions),
@@ -472,14 +491,56 @@
              ============================================================ --}}
         <div x-show="tab === 'archive'" x-cloak>
 
-            <div class="mb-4 flex items-center gap-3">
-                <span class="icon-mask h-10 w-10 shrink-0 text-[#6D0D23]"
-                    style="--icon: url('{{ asset('images/icons/submit-roadblock.svg') }}')"></span>
-                <h2 class="text-base font-bold tracking-tight text-gray-900">Archive</h2>
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <span class="icon-mask h-10 w-10 shrink-0 text-[#6D0D23]"
+                        style="--icon: url('{{ asset('images/icons/submit-roadblock.svg') }}')"></span>
+                    <h2 class="text-base font-bold tracking-tight text-gray-900">Archive</h2>
+                </div>
+
+                @php
+                    $archiveStatuses = ['all' => 'All Statuses', 'Pending' => 'Pending', 'Scheduled' => 'Scheduled', 'Pending Review' => 'Pending Review', 'Resolved' => 'Resolved', 'Failed' => 'Failed'];
+                @endphp
+                <div class="relative inline-block w-full max-w-[200px]" x-data="{ open: false }"
+                    @click.outside="open = false" @keydown.escape.window="open = false">
+                    <label class="mb-1 block text-xs font-medium text-gray-500">Filter by status</label>
+
+                    <button type="button" @click="open = !open"
+                        class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-2 text-sm text-gray-700 transition hover:border-gray-400">
+                        <span x-text="{{ Js::from($archiveStatuses) }}[archiveStatusFilter]"></span>
+                        <svg class="h-4 w-4 shrink-0 text-gray-400 transition" :class="open && 'rotate-180'"
+                            fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-100"
+                        x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0"
+                        class="absolute right-0 z-20 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                        @foreach ($archiveStatuses as $value => $label)
+                        <button type="button"
+                            x-show="archiveStatusFilter !== '{{ $value }}'"
+                            @click="archiveStatusFilter = '{{ $value }}'; open = false"
+                            class="w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                            {{ $label }}
+                        </button>
+                        @endforeach
+                    </div>
+                </div>
             </div>
 
             @forelse ($roadblocks as $roadblock)
-                <div class="mb-4 flex overflow-hidden rounded-lg border border-solid border-gray-200 bg-white">
+                @php
+                    $statusColors = [
+                        'Pending' => 'text-gray-500',
+                        'Scheduled' => 'text-blue-600',
+                        'Pending Review' => 'text-amber-600',
+                        'Resolved' => 'text-green-600',
+                        'Failed' => 'text-rose-700',
+                    ];
+                @endphp
+                <div x-show="archiveStatusFilter === 'all' || archiveStatusFilter === '{{ $roadblock->status }}'"
+                    class="mb-4 flex overflow-hidden rounded-lg border border-solid border-gray-200 bg-white">
 
                     {{-- Warning rail --}}
                     <div class="flex w-12 shrink-0 items-center justify-center bg-[#FFF1F2]">
@@ -502,7 +563,7 @@
                                 <p class="mt-0.5 text-sm text-gray-600">
                                     Submitted on: {{ $roadblock->created_at->format('M d, Y') }}
                                     <span class="ml-4">Status:
-                                        <span class="font-medium {{ $roadblock->status === 'Resolved' ? 'text-green-600' : 'text-amber-600' }}">
+                                        <span class="font-medium {{ $statusColors[$roadblock->status] ?? 'text-amber-600' }}">
                                             {{ $roadblock->status }}
                                         </span>
                                     </span>
@@ -540,6 +601,12 @@
                     <p class="text-sm text-gray-500">No roadblocks submitted yet.</p>
                 </div>
             @endforelse
+
+            @if ($roadblocks->isNotEmpty())
+            <div x-show="archiveVisibleCount === 0" x-cloak class="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center">
+                <p class="text-sm text-gray-500">No roadblocks match this filter.</p>
+            </div>
+            @endif
         </div>
 
         {{-- ============================================================
@@ -676,7 +743,7 @@
                         <span class="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
                             Status:
                             <span class="h-2 w-2 rounded-full"
-                                :class="activeRoadblock && activeRoadblock.status === 'Resolved' ? 'bg-green-500' : 'bg-amber-500'"></span>
+                                :class="activeRoadblock ? statusDotColor(activeRoadblock.status) : 'bg-amber-500'"></span>
                             <span class="font-normal text-gray-600"
                                 x-text="activeRoadblock ? activeRoadblock.status : ''"></span>
                         </span>

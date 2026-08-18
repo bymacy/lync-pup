@@ -11,13 +11,19 @@ class RoadblockController extends Controller
 {
     public function index()
     {
+        Roadblock::promoteEndedMeetingsToPendingReview();
+
         $pending = Roadblock::with(['startup', 'files'])
             ->where('status', 'Pending')
             ->latest()
             ->get();
 
+        // Pull both statuses here: Scheduled rows that haven't concluded yet
+        // (upcoming) plus anything already promoted to Pending Review. The
+        // isInAssessment() split below still catches the rare in-between row
+        // whose meeting just ended but hasn't been swept yet.
         $scheduled = Roadblock::with(['startup', 'mentor'])
-            ->where('status', 'Scheduled')
+            ->whereIn('status', ['Scheduled', 'Pending Review'])
             ->get();
 
         $upcoming = $scheduled->reject->isInAssessment()->sortBy('meeting_date')->values();
@@ -84,7 +90,7 @@ class RoadblockController extends Controller
 
     public function resolve(Roadblock $roadblock)
     {
-        if (! ($roadblock->status === 'Scheduled' && $roadblock->isInAssessment())) {
+        if (! $roadblock->isInAssessment()) {
             return back()->with('error', 'This roadblock can only be resolved once its meeting has taken place.');
         }
 
@@ -95,7 +101,7 @@ class RoadblockController extends Controller
 
     public function fail(Roadblock $roadblock)
     {
-        if (! ($roadblock->status === 'Scheduled' && $roadblock->isInAssessment())) {
+        if (! $roadblock->isInAssessment()) {
             return back()->with('error', 'This roadblock can only be marked failed once its meeting has taken place.');
         }
 
@@ -110,9 +116,11 @@ class RoadblockController extends Controller
             return back()->with('error', 'Only a resolved roadblock can be recovered.');
         }
 
-        $roadblock->update(['status' => 'Scheduled', 'resolved_at' => null]);
+        // Back to Pending Review, not Scheduled — the meeting already happened,
+        // so this goes straight back to awaiting a Resolved/Failed decision.
+        $roadblock->update(['status' => 'Pending Review', 'resolved_at' => null]);
 
-        return back()->with('status', 'Roadblock recovered to assessment.');
+        return back()->with('status', 'Roadblock recovered to Pending Review.');
     }
 
     public function destroy(Roadblock $roadblock)

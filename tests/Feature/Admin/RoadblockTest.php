@@ -80,11 +80,34 @@ class RoadblockTest extends TestCase
         $this->assertTrue($roadblock->fresh()->isInAssessment());
     }
 
+    /**
+     * Resolve/Fail are only allowed once the roadblock is actually awaiting
+     * review — either a real "Pending Review" status, or (transitionally)
+     * still "Scheduled" with its meeting already in the past. Mirrors
+     * test_scheduled_roadblock_moves_to_assessment_after_meeting_passes.
+     */
+    protected function pendingReviewRoadblock(): Roadblock
+    {
+        $roadblock = $this->pendingRoadblock();
+        $mentor = Mentor::factory()->create();
+
+        $roadblock->update([
+            'status' => 'Scheduled',
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_date' => now()->subDay()->toDateString(),
+            'meeting_start_time' => '08:00',
+            'meeting_end_time' => '10:00',
+            'meeting_platform' => 'Google Meet',
+            'meeting_link' => 'https://meet.google.com/abc-defg-hij',
+        ]);
+
+        return $roadblock;
+    }
+
     public function test_admin_can_resolve_a_roadblock(): void
     {
         $admin = $this->adminUser();
-        $roadblock = $this->pendingRoadblock();
-        $roadblock->update(['status' => 'Scheduled']);
+        $roadblock = $this->pendingReviewRoadblock();
 
         $response = $this->actingAs($admin)->post(route('admin.roadblocks.resolve', $roadblock));
 
@@ -98,8 +121,7 @@ class RoadblockTest extends TestCase
     public function test_admin_can_fail_a_roadblock(): void
     {
         $admin = $this->adminUser();
-        $roadblock = $this->pendingRoadblock();
-        $roadblock->update(['status' => 'Scheduled']);
+        $roadblock = $this->pendingReviewRoadblock();
 
         $response = $this->actingAs($admin)->post(route('admin.roadblocks.fail', $roadblock));
 
@@ -107,6 +129,21 @@ class RoadblockTest extends TestCase
         $this->assertDatabaseHas('roadblocks', [
             'roadblock_id' => $roadblock->roadblock_id,
             'status' => 'Failed',
+        ]);
+    }
+
+    public function test_admin_cannot_resolve_a_roadblock_before_its_meeting(): void
+    {
+        $admin = $this->adminUser();
+        $roadblock = $this->pendingRoadblock();
+        $roadblock->update(['status' => 'Scheduled']);
+
+        $response = $this->actingAs($admin)->post(route('admin.roadblocks.resolve', $roadblock));
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('roadblocks', [
+            'roadblock_id' => $roadblock->roadblock_id,
+            'status' => 'Scheduled',
         ]);
     }
 
@@ -121,7 +158,7 @@ class RoadblockTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('roadblocks', [
             'roadblock_id' => $roadblock->roadblock_id,
-            'status' => 'Scheduled',
+            'status' => 'Pending Review',
         ]);
     }
 

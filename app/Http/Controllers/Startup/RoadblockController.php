@@ -14,6 +14,8 @@ class RoadblockController extends Controller
 
     public function index()
     {
+        Roadblock::promoteEndedMeetingsToPendingReview();
+
         $startup = Auth::user()->startup;
 
         $roadblocks = Roadblock::with('files')

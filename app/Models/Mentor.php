@@ -28,6 +28,6 @@ class Mentor extends Model
 
     public function getCasesCountAttribute(): int
     {
-        return $this->roadblocks()->whereIn('status', ['Scheduled', 'Resolved', 'Failed'])->count();
+        return $this->roadblocks()->whereIn('status', ['Scheduled', 'Pending Review', 'Resolved', 'Failed'])->count();
     }
 }
