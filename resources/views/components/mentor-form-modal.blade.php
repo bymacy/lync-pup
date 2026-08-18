@@ -59,21 +59,24 @@
 
     <div class="grid grid-cols-2 gap-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email <span class="font-normal text-gray-400">(Optional)</span></label>
             <input type="email" name="contact_email" value="{{ old('contact_email', $mentor?->contact_email) }}"
                 placeholder="Email Address" class="w-full border rounded-lg px-3 py-2 text-sm">
             @error('contact_email') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number <span class="font-normal text-gray-400">(Optional)</span></label>
             <input type="text" name="contact_number" value="{{ old('contact_number', $mentor?->contact_number) }}"
-                placeholder="Phone Number" class="w-full border rounded-lg px-3 py-2 text-sm">
+                placeholder="09XXXXXXXXX" inputmode="numeric" maxlength="11"
+                oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)"
+                class="w-full border rounded-lg px-3 py-2 text-sm">
             @error('contact_number') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
         </div>
     </div>
 
     <div x-data="{ photoPreview: '{{ $mentor?->mentor_photo_path ? Storage::url($mentor->mentor_photo_path) : '' }}' }">
         <label class="block text-sm font-medium text-gray-700 mb-1">Profile Photo</label>
+        <p class="text-xs text-gray-400 mb-1">Max 20MB. Large photos are automatically resized and compressed.</p>
 
         <div class="border-2 border-dashed rounded-lg overflow-hidden bg-rose-50 relative"
             @dragover.prevent
