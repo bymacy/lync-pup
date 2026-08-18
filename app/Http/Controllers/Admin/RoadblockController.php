@@ -108,7 +108,11 @@ class RoadblockController extends Controller
 
         $roadblock->update(['status' => 'Resolved', 'resolved_at' => now()]);
 
-        return back()->with('status', 'Roadblock marked resolved.');
+        // Jump straight to the Resolved stage so the admin lands where the
+        // roadblock actually went, instead of staying on Pending Review where
+        // it no longer appears.
+        return redirect()->route('admin.roadblocks.index', ['tab' => 'archive', 'stage' => 'resolved'])
+            ->with('status', 'Roadblock marked resolved.');
     }
 
     public function fail(Roadblock $roadblock)
@@ -119,7 +123,8 @@ class RoadblockController extends Controller
 
         $roadblock->update(['status' => 'Failed', 'failed_at' => now()]);
 
-        return back()->with('status', 'Roadblock marked failed.');
+        return redirect()->route('admin.roadblocks.index', ['tab' => 'archive', 'stage' => 'failed'])
+            ->with('status', 'Roadblock marked failed.');
     }
 
     public function recover(Roadblock $roadblock)
@@ -132,7 +137,8 @@ class RoadblockController extends Controller
         // so this goes straight back to awaiting a Resolved/Failed decision.
         $roadblock->update(['status' => 'Pending Review', 'resolved_at' => null]);
 
-        return back()->with('status', 'Roadblock recovered to Pending Review.');
+        return redirect()->route('admin.roadblocks.index', ['tab' => 'archive', 'stage' => 'assessment'])
+            ->with('status', 'Roadblock recovered to Pending Review.');
     }
 
     public function destroy(Roadblock $roadblock)
