@@ -5,10 +5,18 @@
         // instead of silently reloading with no visible sign anything went wrong.
         $erroredRoadblockId = $errors->any() ? (int) old('roadblock_id') : null;
         $erroredIsFailed = $erroredRoadblockId && $failed->contains('roadblock_id', $erroredRoadblockId);
-        $initialTab = $erroredIsFailed ? 'archive' : 'manage';
-        $initialArchiveStage = $erroredIsFailed ? 'failed' : 'assessment';
+        // A validation error always wins (surface it where it happened), otherwise
+        // fall back to whatever tab/stage is in the URL — kept in sync client-side
+        // so the 60s auto-refresh (and any manual reload) lands back where the
+        // admin actually was instead of resetting to "Manage Roadblock".
+        $initialTab = $erroredIsFailed ? 'archive' : request('tab', 'manage');
+        $initialArchiveStage = $erroredIsFailed ? 'failed' : request('stage', 'assessment');
     @endphp
-    <div x-data="{ tab: @js($initialTab), archiveStage: @js($initialArchiveStage) }">
+    <div x-data="{ tab: @js($initialTab), archiveStage: @js($initialArchiveStage) }"
+        x-init="
+            $watch('tab', value => setQueryParam('tab', value));
+            $watch('archiveStage', value => setQueryParam('stage', value));
+        ">
         <div class="mb-6">
             <h1 class="text-3xl font-bold text-gray-900">Roadblock Management</h1>
             <p class="text-gray-500 mt-1">Review startup roadblocks and assign experts.</p>

@@ -1,5 +1,9 @@
 <x-layouts.admin title="Assessment Hub">
-    <div x-data="{ mainTab: 'information-sheet', addDayOpen: false }">
+    @php
+        $initialMainTab = in_array(request('main'), ['information-sheet', 'assessment']) ? request('main') : 'information-sheet';
+    @endphp
+    <div x-data="{ mainTab: @js($initialMainTab), addDayOpen: false }"
+        x-init="$watch('mainTab', value => setQueryParam('main', value))">
         <div class="mb-6 flex items-start justify-between gap-4">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">Assessment Hub</h1>
@@ -43,7 +47,8 @@
         $initialTab = in_array(request('tab'), ['schedule', 'evaluation', 'approved']) ? request('tab') : 'schedule';
         $subTabs = ['schedule' => 'Schedule', 'evaluation' => 'Evaluation', 'approved' => 'Approved'];
         @endphp
-        <div x-show="mainTab === 'information-sheet'" x-data="{ subTab: @js($initialTab) }">
+        <div x-show="mainTab === 'information-sheet'" x-data="{ subTab: @js($initialTab) }"
+            x-init="$watch('subTab', value => setQueryParam('tab', value))">
 
             {{-- replaces the old border-b sub-tab row --}}
             <div class="mb-6 inline-flex rounded-lg bg-gray-100 p-1">

@@ -1,7 +1,11 @@
+@php
+    $validArchiveStatuses = ['all', 'Pending', 'Scheduled', 'Pending Review', 'Resolved', 'Failed'];
+    $initialArchiveStatusFilter = in_array(request('status'), $validArchiveStatuses) ? request('status') : 'all';
+@endphp
 <x-layouts.founder>
     <div x-data="{
         tab: '{{ request('tab', 'roadblock') }}',
-        archiveStatusFilter: 'all',
+        archiveStatusFilter: @js($initialArchiveStatusFilter),
         archiveRoadblockStatuses: @js($roadblocks->pluck('status')),
 
         get archiveVisibleCount() {
@@ -187,7 +191,11 @@
             this.touched = {};
             this.fileError = '';
         },
-    }">
+    }"
+    x-init="
+        $watch('tab', value => setQueryParam('tab', value));
+        $watch('archiveStatusFilter', value => setQueryParam('status', value));
+    ">
         <div class="mb-6">
             <h1 class="text-2xl font-bold text-gray-900">Submit Roadblock</h1>
             <p class="text-gray-600 mt-1">Submit your roadblock below, and our team will assign a mentor to help you.</p>

@@ -12,7 +12,7 @@ $btn = 'inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg
 @php
 $initialStage = in_array(request('stage'), ['unscheduled', 'today', 'upcoming', 'missed']) ? request('stage') : 'today';
 @endphp
-<div x-data="{ stage: @js($initialStage) }">
+<div x-data="{ stage: @js($initialStage) }" x-init="$watch('stage', value => setQueryParam('stage', value))">
     @php $stages = ['unscheduled' => 'Unscheduled', 'today' => 'Today', 'upcoming' => 'Upcoming', 'missed' => 'Missed']; @endphp
 
     <div class="mb-6">
