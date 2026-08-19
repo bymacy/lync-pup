@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Storage;
 
 class Startup extends Model
 {
@@ -29,6 +30,18 @@ class Startup extends Model
     public function getBatchLabelAttribute(): string
     {
         return "Cohort {$this->cohort_number}";
+    }
+
+    /**
+     * Public URL for the uploaded startup logo/photo, or null when none has
+     * been uploaded — callers (e.g. the mentorship table's avatar) fall back
+     * to an initials badge in that case.
+     */
+    public function getStartupPhotoUrlAttribute(): ?string
+    {
+        return $this->startup_photo_path
+            ? Storage::disk('public')->url($this->startup_photo_path)
+            : null;
     }
 
     /**

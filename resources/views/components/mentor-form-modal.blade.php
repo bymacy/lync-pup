@@ -1,129 +1,261 @@
 @props(['mode', 'action', 'mentor' => null])
-@php $photoInputId = 'mentor_photo_input_'.($mentor?->mentor_id ?? 'new'); @endphp
 
-<div class="relative bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between">
-    <h3 class="font-bold">
-        {{ $mode === 'edit' ? 'Edit Mentor' : 'Add Mentor' }}
-    </h3>
+@php
+$photoInputId = 'mentor_photo_input_'.($mentor?->mentor_id ?? 'new');
 
-    <button
-        type="button"
-        @click="{{ $mode === 'edit' ? 'editOpen = false' : 'open = false' }}"
-        class="flex h-8 w-8 items-center justify-center rounded-full text-3xl text-white/70 transition hover:bg-white/10 hover:text-white"
-        aria-label="Close">
-        <span class="-mt-2">&times;</span>
-    </button>
-</div>
+// Same helper as the layout — components have isolated scope, so it can't be
+// inherited from x-layouts.admin and has to be redeclared here.
+$icon = function (string $name, string $class = 'w-4 h-4') {
+$path = public_path('images/icons/' . $name);
 
-<form method="POST" action="{{ $action }}" enctype="multipart/form-data" class="p-6 space-y-4">
-    @csrf
-    @if ($mode === 'edit')
-    @method('PUT')
-    @endif
+if (! file_exists($path)) {
+return '<span class="' . $class . ' inline-block"></span>';
+}
 
-    <div class="grid grid-cols-3 gap-4">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-            <input type="text" name="first_name" value="{{ old('first_name', $mentor?->first_name) }}"
-                placeholder="Mentor First Name" class="w-full border rounded-lg px-3 py-2 text-sm">
-            @error('first_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+$svg = file_get_contents($path);
+
+$svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $svg, 1);
+        $svg = preg_replace('/fill="(?!none)[^"]*"/i', 'fill="currentColor"', $svg);
+        $svg = preg_replace('/stroke="(?!none)[^"]*"/i', 'stroke="currentColor"', $svg);
+
+        return $svg;
+        };
+
+        // ONE border definition, used on every field edge and every divider:
+        // 1px solid gray-300. The icon slot and the input are two halves of a single
+        // bordered box, so the inner control must carry border-0 — @tailwindcss/forms
+        // gives inputs and selects their own 1px gray-500 border otherwise, which is
+        // what makes the input look like a separate box nested inside the group.
+        $edge = 'border-gray-300';
+        $group = "flex h-10 items-stretch overflow-hidden rounded-md border $edge bg-white transition focus-within:border-[#9F1239] focus-within:ring-2 focus-within:ring-[#9F1239]/12";
+        $slot_ = "flex w-10 flex-shrink-0 items-center justify-center border-r $edge bg-[#FAD4DE] text-[#9F1239]";
+        $field = 'w-full border-0 bg-transparent px-3 text-sm text-gray-800 placeholder-gray-400 focus:border-0 focus:outline-none focus:ring-0';
+        $plain = "h-10 w-full rounded-md border $edge px-3 text-sm text-gray-800 placeholder-gray-400 transition focus:border-[#9F1239] focus:outline-none focus:ring-2 focus:ring-[#9F1239]/12";
+        $label = 'block text-[13px] font-semibold text-gray-800 mb-1.5';
+        $chevron = 'pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500';
+        $err = 'mt-1 text-xs text-red-600';
+        @endphp
+
+        {{-- Header --}}
+        <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-8 py-6 text-white">
+            <div class="flex min-w-0 items-center gap-3">
+                <span class="flex-shrink-0 text-white">
+                    {!! $icon('upcoming-mentorship.svg', 'w-6 h-6') !!}
+                </span>
+
+                <h3 class="truncate text-base font-bold">
+                    {{ $mode === 'edit' ? 'Edit Mentor' : 'Add Mentor' }}
+                </h3>
+            </div>
+
+            <button
+                type="button"
+                @click="{{ $mode === 'edit' ? 'editOpen = false' : 'open = false' }}"
+                class="flex-shrink-0 rounded-full text-white/85 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                aria-label="Close">
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <circle cx="12" cy="12" r="9.25" />
+                    <path d="M15 9l-6 6M9 9l6 6" stroke-linecap="round" />
+                </svg>
+            </button>
         </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-            <input type="text" name="last_name" value="{{ old('last_name', $mentor?->last_name) }}"
-                placeholder="Mentor Last Name" class="w-full border rounded-lg px-3 py-2 text-sm">
-            @error('last_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Honorifics</label>
-            <select name="honorific" class="w-full border rounded-lg px-3 py-2 text-sm">
-                <option value="">Mentor Honorifics</option>
-                @foreach (['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Atty.', 'Engr.'] as $h)
-                <option value="{{ $h }}" @selected(old('honorific', $mentor?->honorific) === $h)>{{ $h }}</option>
-                @endforeach
-            </select>
-            @error('honorific') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-        </div>
-    </div>
 
-    <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Expertise</label>
-        <select name="specialization" class="w-full border rounded-lg px-3 py-2 text-sm">
-            <option value="">Select Expertise</option>
-            @foreach (['Engineering', 'Business', 'Marketing', 'Legal', 'Finance', 'Technology'] as $exp)
-            <option value="{{ $exp }}" @selected(old('specialization', $mentor?->specialization) === $exp)>{{ $exp }}</option>
-            @endforeach
-        </select>
-        @error('specialization') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-    </div>
+        <form method="POST" action="{{ $action }}" enctype="multipart/form-data"
+            class="flex flex-1 flex-col space-y-4 px-8 pb-8 pt-1">
+            @csrf
+            @if ($mode === 'edit')
+            @method('PUT')
+            @endif
 
-    <div class="grid grid-cols-2 gap-4">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Email <span class="font-normal text-gray-400">(Optional)</span></label>
-            <input type="email" name="contact_email" value="{{ old('contact_email', $mentor?->contact_email) }}"
-                placeholder="Email Address" class="w-full border rounded-lg px-3 py-2 text-sm">
-            @error('contact_email') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number <span class="font-normal text-gray-400">(Optional)</span></label>
-            <input type="text" name="contact_number" value="{{ old('contact_number', $mentor?->contact_number) }}"
-                placeholder="09XXXXXXXXX" inputmode="numeric" maxlength="11"
-                oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)"
-                class="w-full border rounded-lg px-3 py-2 text-sm">
-            @error('contact_number') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-        </div>
-    </div>
+            {{-- Row 1: First Name / Last Name / Honorifics --}}
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:w-[83%]">
+                <div>
+                    <label class="{{ $label }}">First Name</label>
 
-    <div x-data="{ photoPreview: '{{ $mentor?->mentor_photo_path ? Storage::url($mentor->mentor_photo_path) : '' }}' }">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Profile Photo</label>
-        <p class="text-xs text-gray-400 mb-1">Max 20MB. Large photos are automatically resized and compressed.</p>
+                    <div class="{{ $group }}">
+                        <span class="{{ $slot_ }}">
+                            {!! $icon('upcoming-mentorship.svg', 'w-4 h-4') !!}
+                        </span>
 
-        <div class="border-2 border-dashed rounded-lg overflow-hidden bg-rose-50 relative"
-            @dragover.prevent
-            @drop.prevent="
-                const file = $event.dataTransfer.files[0];
-                if (file) {
-                    $refs.photoInput.files = $event.dataTransfer.files;
-                    photoPreview = URL.createObjectURL(file);
-                }
-             ">
+                        <input type="text" name="first_name" value="{{ old('first_name', $mentor?->first_name) }}"
+                            placeholder="Mentor First Name" class="{{ $field }}">
+                    </div>
 
-            <div x-show="photoPreview" x-cloak class="relative">
-                <img :src="photoPreview" class="w-full h-48 object-cover">
-                <button type="button"
-                    @click="photoPreview = ''; $refs.photoInput.value = ''"
-                    class="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
-                    &times;
+                    @error('first_name') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label class="{{ $label }}">Last Name</label>
+
+                    <input type="text" name="last_name" value="{{ old('last_name', $mentor?->last_name) }}"
+                        placeholder="Mentor Last Name" class="{{ $plain }}">
+
+                    @error('last_name') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label class="{{ $label }}">Honorifics</label>
+
+                    <div class="relative">
+                        <select name="honorific" class="{{ $plain }} appearance-none bg-white pr-9">
+                            <option value="">Mentor Honorifics</option>
+                            @foreach (['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Atty.', 'Engr.'] as $h)
+                            <option value="{{ $h }}" @selected(old('honorific', $mentor?->honorific) === $h)>{{ $h }}</option>
+                            @endforeach
+                        </select>
+
+                        <svg class="{{ $chevron }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+
+                    @error('honorific') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                </div>
+            </div>
+
+            {{-- Expertise: half width --}}
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-6">
+                <div>
+                    <label class="{{ $label }}">Expertise</label>
+
+                    <div class="{{ $group }} relative">
+                        <span class="{{ $slot_ }}">
+                            {!! $icon('price-tag.svg', 'w-4 h-4') !!}
+                        </span>
+
+                        <select name="specialization" class="{{ $field }} appearance-none pr-9">
+                            <option value="">Select Expertise</option>
+                            @foreach (['Engineering', 'Business', 'Marketing', 'Legal', 'Finance', 'Technology'] as $exp)
+                            <option value="{{ $exp }}" @selected(old('specialization', $mentor?->specialization) === $exp)>{{ $exp }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    @error('specialization') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                </div>
+            </div>
+
+            {{-- Email / Phone --}}
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-6">
+                <div>
+                    <label class="{{ $label }}">Email</label>
+
+                    <div class="{{ $group }}">
+                        <span class="{{ $slot_ }}">
+                            {!! $icon('mail.svg', 'w-4 h-4') !!}
+                        </span>
+
+                        <input type="email" name="contact_email" value="{{ old('contact_email', $mentor?->contact_email) }}"
+                            placeholder="Email Address" class="{{ $field }}">
+                    </div>
+
+                    @error('contact_email') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label class="{{ $label }}">Phone Number</label>
+
+                    <div class="{{ $group }}">
+                        <span class="{{ $slot_ }}">
+                            {!! $icon('phone.svg', 'w-4 h-4') !!}
+                        </span>
+
+                        <input type="text" name="contact_number" value="{{ old('contact_number', $mentor?->contact_number) }}"
+                            placeholder="Phone Number" inputmode="numeric" maxlength="11"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)"
+                            class="{{ $field }}">
+                    </div>
+
+                    @error('contact_number') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                </div>
+            </div>
+
+            {{-- Profile Photo: half width --}}
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-6">
+                <div x-data="{ photoPreview: '{{ $mentor?->mentor_photo_path ? Storage::url($mentor->mentor_photo_path) : '' }}' }">
+                    <label class="{{ $label }}">Profile Photo</label>
+
+                    <div class="flex items-stretch overflow-hidden rounded-md border {{ $edge }} bg-white"
+                        @dragover.prevent
+                        @drop.prevent="
+                    const file = $event.dataTransfer.files[0];
+                    if (file) {
+                        $refs.photoInput.files = $event.dataTransfer.files;
+                        photoPreview = URL.createObjectURL(file);
+                    }
+                ">
+
+                        <span class="{{ $slot_ }}">
+                            {!! $icon('camera.svg', 'w-4 h-4') !!}
+                        </span>
+
+                        {{-- No border-l: the slot's border-r already draws that divider --}}
+                        <div class="min-w-0 flex-1 bg-[#FDF2F5]">
+
+                            {{-- Preview --}}
+                            <div x-show="photoPreview" x-cloak class="relative">
+                                <img :src="photoPreview" class="h-24 w-full object-cover">
+
+                                <button type="button"
+                                    @click="photoPreview = ''; $refs.photoInput.value = ''"
+                                    class="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white transition hover:bg-black/80">
+                                    &times;
+                                </button>
+
+                                <label for="{{ $photoInputId }}"
+                                    class="absolute bottom-2 right-2 cursor-pointer rounded bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-2.5 py-1 text-[11px] font-semibold text-white">
+                                    Change Photo
+                                </label>
+                            </div>
+
+                            {{-- Empty state --}}
+                            <div x-show="!photoPreview" class="flex h-24 flex-col items-center justify-center px-4">
+                                <svg class="h-5 w-5 text-[#9F1239]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                                </svg>
+
+                                <p class="mt-1 text-[13px] text-gray-500">Drag-and-drop</p>
+
+                                <label for="{{ $photoInputId }}"
+                                    class="mt-1.5 inline-block cursor-pointer rounded bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-3 py-1 text-[11px] font-bold text-white">
+                                    Browse Files
+                                </label>
+                            </div>
+
+                            <input type="file" x-ref="photoInput" id="{{ $photoInputId }}" name="mentor_photo" accept="image/*" class="hidden"
+                                @change="
+                            const file = $event.target.files[0];
+                            if (file) { photoPreview = URL.createObjectURL(file); }
+                        ">
+                        </div>
+                    </div>
+
+                    @error('mentor_photo') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                </div>
+            </div>
+
+            {{-- Actions --}}
+            <div class="flex flex-col justify-center gap-4 pt-5 sm:flex-row">
+                @if ($mode === 'edit')
+                <button type="button" @click="editOpen = false"
+                    class="h-10 rounded-md border border-[#9F1239]/40 bg-white text-sm font-bold text-[#9F1239] transition hover:bg-[#FDF2F5] sm:w-52">
+                    Cancel
                 </button>
-                <label for="{{ $photoInputId }}" class="absolute bottom-2 right-2 bg-rose-900 text-white text-xs rounded-lg px-3 py-1.5 cursor-pointer">
-                    Change Photo
-                </label>
+
+                <button type="submit"
+                    class="h-10 rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:w-52">
+                    Save Changes
+                </button>
+                @else
+                <button type="reset"
+                    class="h-10 rounded-md border border-[#9F1239]/40 bg-white text-sm font-bold text-[#9F1239] transition hover:bg-[#FDF2F5] sm:w-52">
+                    Clear Form
+                </button>
+
+                <button type="submit"
+                    class="h-10 rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:w-52">
+                    Add Mentor
+                </button>
+                @endif
             </div>
-
-            <div x-show="!photoPreview" class="p-6 text-center">
-                <p class="text-sm text-gray-500 mb-2">Drag-and-drop</p>
-                <label for="{{ $photoInputId }}" class="inline-block bg-rose-900 text-white text-sm rounded-lg px-4 py-2 cursor-pointer">
-                    Browse Files
-                </label>
-            </div>
-
-            <input type="file" x-ref="photoInput" id="{{ $photoInputId }}" name="mentor_photo" accept="image/*" class="hidden"
-                @change="
-                      const file = $event.target.files[0];
-                      if (file) { photoPreview = URL.createObjectURL(file); }
-                   ">
-        </div>
-
-        @error('mentor_photo') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-    </div>
-
-    <div class="flex gap-3 pt-2">
-        @if ($mode === 'edit')
-        <button type="button" @click="editOpen = false" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Cancel</button>
-        <button type="submit" class="flex-1 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium">Save Changes</button>
-        @else
-        <button type="reset" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Clear Form</button>
-        <button type="submit" class="flex-1 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium">Add Mentor</button>
-        @endif
-    </div>
-</form>
+        </form>

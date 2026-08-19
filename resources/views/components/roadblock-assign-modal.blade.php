@@ -7,6 +7,8 @@
         : ($roadblock->mentor_id ? 'mentor-'.$roadblock->mentor_id : ''));
 @endphp
 
+<div class="contents" x-data="{ deleteAssignmentOpen: false }">
+
 <div class="relative bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
         <span class="flex h-8 w-8 items-center justify-center">
@@ -23,9 +25,12 @@
 
     <button type="button"
         @click="{{ $mode === 'edit' ? 'editOpen = false' : ($mode === 'reschedule' ? 'rescheduleOpen = false' : 'assignOpen = false') }}"
-        class="flex h-8 w-8 items-center justify-center rounded-full text-3xl text-white/70 transition hover:bg-white/10 hover:text-white"
+        class="flex h-6 w-6 items-center justify-center rounded-full border border-white/70 bg-white/10 transition hover:bg-white/25 focus:outline-none"
         aria-label="Close">
-        <span class="-mt-2">&times;</span>
+        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="3" stroke-linecap="round">
+            <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
     </button>
 </div>
 
@@ -208,13 +213,15 @@
         @endif
 
         @if ($mode === 'edit')
-        <form method="POST" action="{{ route('admin.roadblocks.unassign', $roadblock) }}" class="flex-1">
+        <form method="POST" action="{{ route('admin.roadblocks.unassign', $roadblock) }}" id="{{ $formId }}-unassign">
             @csrf
             @method('DELETE')
-            <button type="submit" class="w-full bg-gradient-to-r from-rose-900 to-rose-950 text-white rounded-lg py-2.5 text-sm font-medium">
-                Delete Assignment
-            </button>
         </form>
+
+        <button type="button" @click="deleteAssignmentOpen = true"
+            class="flex-1 bg-gradient-to-r from-rose-900 to-rose-950 text-white rounded-lg py-2.5 text-sm font-medium">
+            Delete Assignment
+        </button>
         @endif
 
         <button type="submit" form="{{ $formId }}" class="flex-1 bg-gradient-to-r from-rose-900 to-blue-950 text-white rounded-lg py-2.5 text-sm font-medium">
@@ -224,4 +231,55 @@
             @endif
         </button>
     </div>
+
+    @if ($mode === 'edit')
+    {{-- Delete assignment confirmation --}}
+    <div
+        x-show="deleteAssignmentOpen"
+        x-cloak
+        x-transition.opacity
+        @keydown.escape.window="deleteAssignmentOpen = false"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        style="display:none;">
+
+        <div @click.outside="deleteAssignmentOpen = false"
+            class="relative w-full max-w-lg rounded-2xl bg-white px-6 py-5 text-center shadow-2xl">
+
+            <button type="button" @click="deleteAssignmentOpen = false"
+                class="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full border border-[#11386A]/40 text-[#11386A] transition hover:bg-[#11386A]/5"
+                aria-label="Close">
+                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </button>
+
+            <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A]">
+                <img src="{{ asset('images/icons/trash.svg') }}" alt="" class="h-5 w-5">
+            </div>
+
+            <h2 class="mt-2.5 bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-lg font-bold text-transparent">
+                Delete Mentor Assignment
+            </h2>
+
+            <p class="mt-1.5 text-xs leading-5 text-gray-600">
+                Are you sure you want to delete this assigned Mentor?<br>
+                This action is permanent and cannot be undone.
+            </p>
+
+            <div class="mt-4 flex items-center justify-center gap-3">
+                <button type="button" @click="deleteAssignmentOpen = false"
+                    class="flex-1 rounded-lg border border-[#6D0D23] px-6 py-2 text-sm font-semibold text-[#6D0D23] transition hover:bg-[#6D0D23]/5">
+                    Cancel
+                </button>
+
+                <button type="submit" form="{{ $formId }}-unassign"
+                    class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-2 text-sm font-semibold text-white transition hover:opacity-90">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
+</div>
+
 </div>

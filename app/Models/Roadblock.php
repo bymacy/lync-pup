@@ -156,10 +156,40 @@ class Roadblock extends Model
         }
 
         if ($this->meeting_date->isTomorrow()) {
-            return 'Soon (Tomorrow)';
+            return 'Upcoming (Tomorrow)';
+        }
+
+        if ($this->meeting_date->diffInDays(now()) <= 7) {
+            return 'Soon (Next Week)';
         }
 
         return 'Upcoming (' . $this->meeting_date->format('M j') . ')';
+    }
+
+    /**
+     * Short key describing where this meeting sits in the schedule — drives
+     * the row tint on the mentorship table (live/today/tomorrow get a
+     * colored highlight, anything further out stays plain white).
+     */
+    public function getMeetingStatusToneAttribute(): string
+    {
+        if (!$this->meeting_date) {
+            return '';
+        }
+
+        if ($this->isLive()) {
+            return 'live';
+        }
+
+        if ($this->meeting_date->isToday()) {
+            return 'today';
+        }
+
+        if ($this->meeting_date->isTomorrow()) {
+            return 'tomorrow';
+        }
+
+        return 'soon';
     }
 
     /**

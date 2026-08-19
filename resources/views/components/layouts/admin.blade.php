@@ -8,7 +8,8 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="antialiased bg-gray-50">
+<body x-data class="antialiased bg-gray-50">
+
     @php
     // Safely inline an SVG icon and make it recolorable via Tailwind text-color classes.
     // Falls back to an empty placeholder if the file doesn't exist yet, instead of crashing.
@@ -30,51 +31,85 @@
 
             return $svg;
             };
+
+            $navItems = [
+            ['route' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard.svg'],
+            ['route' => 'admin.startups.index', 'label' => 'Startup Profile', 'icon' => 'startupProfile.svg'],
+            ['route' => 'admin.founder-applications.index', 'label' => 'Founder Application', 'icon' => 'founderApplication.svg'],
+            ['route' => 'admin.mentors.index', 'label' => 'Mentor Profile', 'icon' => 'mentorProfile.svg'],
+            ['route' => 'admin.coordinators.index', 'label' => 'Coordinator Profile', 'icon' => 'coordProfile.svg'],
+            ['route' => 'admin.assessment-hub.index', 'label' => 'Assessment Hub', 'icon' => 'assessmentHub.svg'],
+            ['route' => 'admin.roadblocks.index', 'label' => 'Roadblock Management', 'icon' => 'roadblock.svg'],
+            [
+            'route' => 'admin.risk-monitoring.index',
+            'label' => 'Risk Monitoring',
+            'icon' => 'riskMon.svg',
+            'hasUnseen' => false,
+            ],
+            ];
             @endphp
 
-            <div class="h-screen flex">
-                <aside class="sticky top-0 h-screen w-64 flex-shrink-0 bg-gradient-to-b from-[#6D0D23] to-[#11386A] text-white flex flex-col justify-between">
+            <div
+                class="h-screen flex overflow-hidden"
+                x-data="{ sidebarOpen: false }"
+                @keydown.escape.window="sidebarOpen = false">
+
+                {{-- Mobile backdrop --}}
+                <div
+                    x-show="sidebarOpen"
+                    x-cloak
+                    x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0"
+                    x-transition:enter-end="opacity-100"
+                    x-transition:leave="transition ease-in duration-150"
+                    x-transition:leave-start="opacity-100"
+                    x-transition:leave-end="opacity-0"
+                    @click="sidebarOpen = false"
+                    class="fixed inset-0 z-40 bg-black/50 lg:hidden"></div>
+
+                {{-- Sidebar: drawer under lg, sticky column at lg and up --}}
+                <aside
+                    class="w-64 bg-gradient-to-b from-[#6D0D23] to-[#11386A] text-white flex flex-col justify-between overflow-y-auto
+            fixed inset-y-0 left-0 z-50 -translate-x-full transition-transform duration-300 ease-in-out
+            lg:sticky lg:top-0 lg:h-screen lg:flex-shrink-0 lg:translate-x-0"
+                    :class="{ 'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen }">
                     <div>
                         {{-- Logo / header --}}
                         <div class="flex items-center gap-3 px-5 pt-6 pb-5">
                             <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
                                 <img src="/images/logo/logo-sidebar.png" alt="PUP TBIDO" class="w-8 h-8 object-contain">
                             </div>
-                            <div>
+
+                            <div class="min-w-0">
                                 <p class="font-bold text-sm leading-tight tracking-wide">PUP TBIDO</p>
                                 <p class="text-[11px] text-white/60 leading-tight tracking-wide">ADMIN CONSOLE</p>
                             </div>
+
+                            {{-- Close drawer (mobile only) --}}
+                            <button
+                                type="button"
+                                @click="sidebarOpen = false"
+                                aria-label="Close menu"
+                                class="lg:hidden ml-auto -mr-1 p-1.5 rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
                         </div>
 
                         <div class="mx-5 border-b border-white/15"></div>
 
                         {{-- Nav --}}
                         <nav class="mt-4 space-y-1.5 px-3">
-                            @php
-                            $navItems = [
-                            ['route' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard.svg'],
-                            ['route' => 'admin.startups.index', 'label' => 'Startup Profile', 'icon' => 'startupProfile.svg'],
-                            ['route' => 'admin.founder-applications.index', 'label' => 'Founder Application', 'icon' => 'founderApplication.svg'],
-                            ['route' => 'admin.mentors.index', 'label' => 'Mentor Profile', 'icon' => 'mentorProfile.svg'],
-                            ['route' => 'admin.coordinators.index', 'label' => 'Coordinator Profile', 'icon' => 'coordProfile.svg'],
-                            ['route' => 'admin.assessment-hub.index', 'label' => 'Assessment Hub', 'icon' => 'assessmentHub.svg'],
-                            ['route' => 'admin.roadblocks.index', 'label' => 'Roadblock Management', 'icon' => 'roadblock.svg'],
-                            [
-                            'route' => 'admin.risk-monitoring.index',
-                            'label' => 'Risk Monitoring',
-                            'icon' => 'riskMon.svg',
-                            'hasUnseen' => false,
-                            ],
-                            ];
-                            @endphp
-
                             @foreach ($navItems as $item)
                             @php $isActive = request()->routeIs($item['route'] . '*'); @endphp
+
                             <a href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
+                                @click="sidebarOpen = false"
                                 class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                                {{ $isActive
-                                    ? 'bg-white text-[#6D0D23] shadow-sm'
-                                    : 'text-white/85 hover:bg-white/10 hover:text-white' }}">
+                        {{ $isActive
+                            ? 'bg-white text-[#6D0D23] shadow-sm'
+                            : 'text-white/85 hover:bg-white/10 hover:text-white' }}">
 
                                 <span class="w-5 h-5 flex items-center justify-center flex-shrink-0">
                                     {!! $icon($item['icon']) !!}
@@ -122,7 +157,30 @@
                     </div>
                 </aside>
 
-                <main class="flex-1 h-screen overflow-y-auto p-8">
+                <main class="flex-1 h-screen overflow-y-auto">
+
+                    {{-- Mobile top bar --}}
+                    <div class="lg:hidden sticky top-0 z-30 flex items-center gap-3 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-4 py-3 shadow-sm">
+                        <button
+                            type="button"
+                            @click="sidebarOpen = true"
+                            aria-label="Open menu"
+                            class="-ml-2 p-2 rounded-lg text-white/85 hover:bg-white/10 hover:text-white transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+                            </svg>
+                        </button>
+
+                        <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <img src="/images/logo/logo-sidebar.png" alt="PUP TBIDO" class="w-7 h-7 object-contain">
+                        </div>
+
+                        <div class="min-w-0">
+                            <p class="font-bold text-sm leading-tight tracking-wide">PUP TBIDO</p>
+                            <p class="text-[11px] text-white/60 leading-tight tracking-wide">ADMIN CONSOLE</p>
+                        </div>
+                    </div>
+
                     @if (session('status'))
                     <div
                         x-data="{ show: true }"
@@ -134,11 +192,11 @@
                         x-transition:leave="transform transition ease-in duration-200"
                         x-transition:leave-start="translate-x-0 opacity-100"
                         x-transition:leave-end="translate-x-full opacity-0"
-                        class="fixed top-6 right-6 z-[9999]">
+                        class="fixed top-20 right-4 lg:top-6 lg:right-6 z-[9999]">
 
-                        <div class="flex items-center gap-4 rounded-xl bg-white shadow-2xl border border-gray-200 px-5 py-4 min-w-[360px]">
+                        <div class="flex items-center gap-4 rounded-xl bg-white shadow-2xl border border-gray-200 px-5 py-4 w-[calc(100vw-2rem)] max-w-sm sm:min-w-[360px]">
 
-                            <div class="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white">
+                            <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white">
                                 <svg xmlns="http://www.w3.org/2000/svg"
                                     class="w-5 h-5"
                                     fill="none"
@@ -152,7 +210,7 @@
                                 </svg>
                             </div>
 
-                            <div class="flex-1">
+                            <div class="flex-1 min-w-0">
                                 <h4 class="font-semibold text-gray-900">
                                     Success
                                 </h4>
@@ -182,7 +240,6 @@
                     @endif
 
                     <div
-                        x-data
                         x-show="$store.toast.show"
                         x-cloak
                         x-transition:enter="transform transition ease-out duration-300"
@@ -191,24 +248,24 @@
                         x-transition:leave="transform transition ease-in duration-200"
                         x-transition:leave-start="translate-x-0 opacity-100"
                         x-transition:leave-end="translate-x-full opacity-0"
-                        class="fixed top-6 right-6 z-[9999]">
+                        class="fixed top-20 right-4 lg:top-6 lg:right-6 z-[9999]">
 
-                        <div class="flex items-center gap-4 rounded-xl bg-white shadow-2xl border border-gray-200 px-5 py-4 min-w-[360px]">
+                        <div class="flex items-center gap-4 rounded-xl bg-white shadow-2xl border border-gray-200 px-5 py-4 w-[calc(100vw-2rem)] max-w-sm sm:min-w-[360px]">
 
-                            <div class="flex h-11 w-11 items-center justify-center rounded-full text-white shadow-lg"
+                            <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-white shadow-lg"
                                 :class="{
-                                    'bg-gradient-to-r from-[#6D0D23] to-[#11386A]': $store.toast.type === 'success',
-                                    'bg-gradient-to-r from-red-600 to-red-700': $store.toast.type === 'error',
-                                    'bg-gradient-to-r from-amber-500 to-orange-500': $store.toast.type === 'warning',
-                                    'bg-gradient-to-r from-sky-500 to-blue-600': $store.toast.type === 'info',
-                                }">
+                            'bg-gradient-to-r from-[#6D0D23] to-[#11386A]': $store.toast.type === 'success',
+                            'bg-gradient-to-r from-red-600 to-red-700': $store.toast.type === 'error',
+                            'bg-gradient-to-r from-amber-500 to-orange-500': $store.toast.type === 'warning',
+                            'bg-gradient-to-r from-sky-500 to-blue-600': $store.toast.type === 'info',
+                        }">
                                 <template x-if="$store.toast.type === 'success'"><span class="text-xl font-bold">&#10003;</span></template>
                                 <template x-if="$store.toast.type === 'error'"><span class="text-xl font-bold">&#10005;</span></template>
                                 <template x-if="$store.toast.type === 'warning'"><span class="text-xl font-bold">!</span></template>
                                 <template x-if="$store.toast.type === 'info'"><span class="text-xl font-bold">i</span></template>
                             </div>
 
-                            <div class="flex-1">
+                            <div class="flex-1 min-w-0">
                                 <p class="font-semibold text-gray-900" x-text="$store.toast.title"></p>
                                 <p class="text-sm text-gray-500" x-text="$store.toast.message"></p>
                             </div>
@@ -223,7 +280,9 @@
 
                     </div>
 
-                    {{ $slot }}
+                    <div class="p-4 sm:p-6 lg:p-8">
+                        {{ $slot }}
+                    </div>
                 </main>
             </div>
 </body>
