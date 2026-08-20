@@ -99,8 +99,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         <tr class="border-b border-gray-100 last:border-0 {{ $rowTint }}"
                             x-data="{ viewOpen: false, editOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
 
-                            <td class="px-3 py-3 align-top sm:px-4">
-                                <div class="flex items-start gap-2.5 sm:items-center sm:gap-3">
+                            <td class="px-3 py-3 align-middle sm:px-4">
+                                <div class="flex items-center gap-2.5 sm:gap-3">
                                     @if ($roadblock->startup->startup_photo_url)
                                     <img src="{{ $roadblock->startup->startup_photo_url }}" alt=""
                                         class="h-7 w-7 flex-shrink-0 rounded-full object-cover sm:h-8 sm:w-8">
@@ -122,16 +122,16 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 </div>
                             </td>
 
-                            <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->display_category }}</td>
+                            <td class="{{ $foldCol }} px-4 py-3 align-middle">{{ $roadblock->display_category }}</td>
 
-                            <td class="px-3 py-3 align-top sm:px-4">
+                            <td class="px-3 py-3 align-middle sm:px-4">
                                 <p class="font-semibold text-gray-900">{{ $statusMain }}</p>
                                 @if ($statusSub)
                                 <p class="text-xs text-gray-500">{{ $statusSub }}</p>
                                 @endif
                             </td>
 
-                            <td class="px-3 py-3 align-top sm:px-4">
+                            <td class="px-3 py-3 align-middle sm:px-4">
                                 <div class="flex items-center gap-1.5 text-gray-700">
                                     <span class="flex-shrink-0 text-[#6C0E24]">{!! $icon('cal.svg', 'w-3.5 h-3.5') !!}</span>
                                     <span class="whitespace-nowrap">{{ $roadblock->meeting_date?->format('M j, Y') }}</span>
@@ -172,9 +172,9 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 </div>
                             </td>
 
-                            <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->assignee?->display_name }}</td>
+                            <td class="{{ $foldCol }} px-4 py-3 align-middle">{{ $roadblock->assignee?->display_name }}</td>
 
-                            <td class="px-3 py-3 align-top sm:px-4">
+                            <td class="px-3 py-3 align-middle sm:px-4">
                                 {{-- Stacked on phones: two buttons side by side squeeze the column --}}
                                 <div class="flex flex-col gap-2 sm:flex-row">
                                     <button type="button" @click="viewOpen = true"
@@ -266,10 +266,6 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                                 $assignee = $roadblock->assignee;
                                                 $isCoordinatorAssignee = $roadblock->coordinator_id !== null;
                                                 $assigneeLabel = $isCoordinatorAssignee ? 'Coordinator' : 'Mentor';
-
-                                                // Icon disc for the assignee pills — white on the gray pill,
-                                                // unlike the translucent version used over photos.
-                                                $pillDisc = 'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-white text-gray-500';
                                                 @endphp
 
                                                 {{-- Assignee --}}
@@ -280,10 +276,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                                         <div class="grid gap-3 md:grid-cols-2 md:gap-x-6 lg:w-[80%]">
                                                             <div>
                                                                 <label class="{{ $lbl }}">{{ $assigneeLabel }}</label>
-                                                                <p class="{{ $pill }} flex items-center gap-2">
-                                                                   
-                                                                    <span class="truncate">{{ $assignee?->display_name ?? '—' }}</span>
-                                                                </p>
+                                                                <p class="{{ $pill }} truncate">{{ $assignee?->display_name ?? '—' }}</p>
                                                             </div>
 
                                                             <div>
@@ -295,17 +288,15 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                                                             <div>
                                                                 <label class="{{ $lbl }}">Email</label>
-                                                                <p class="{{ $pill }} flex items-center gap-2">
-                                                                
-                                                                    <span class="truncate">{{ ($isCoordinatorAssignee ? $assignee?->email : $assignee?->contact_email) ?? '—' }}</span>
+                                                                <p class="{{ $pill }} truncate">
+                                                                    {{ ($isCoordinatorAssignee ? $assignee?->email : $assignee?->contact_email) ?? '—' }}
                                                                 </p>
                                                             </div>
 
                                                             <div>
                                                                 <label class="{{ $lbl }}">Contact Number</label>
-                                                                <p class="{{ $pill }} flex items-center gap-2">
-                                                                   
-                                                                    <span class="truncate">{{ ($isCoordinatorAssignee ? $assignee?->phone : $assignee?->contact_number) ?? '—' }}</span>
+                                                                <p class="{{ $pill }} truncate">
+                                                                    {{ ($isCoordinatorAssignee ? $assignee?->phone : $assignee?->contact_number) ?? '—' }}
                                                                 </p>
                                                             </div>
                                                         </div>

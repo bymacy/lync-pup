@@ -1,6 +1,6 @@
 @php
-    $validArchiveStatuses = ['all', 'Pending', 'Scheduled', 'Pending Review', 'Resolved', 'Failed'];
-    $initialArchiveStatusFilter = in_array(request('status'), $validArchiveStatuses) ? request('status') : 'all';
+$validArchiveStatuses = ['all', 'Pending', 'Scheduled', 'Pending Review', 'Resolved', 'Failed'];
+$initialArchiveStatusFilter = in_array(request('status'), $validArchiveStatuses) ? request('status') : 'all';
 @endphp
 <x-layouts.founder>
     <div x-data="{
@@ -192,20 +192,21 @@
             this.fileError = '';
         },
     }"
-    x-init="
+        x-init="
         $watch('tab', value => setQueryParam('tab', value));
         $watch('archiveStatusFilter', value => setQueryParam('status', value));
     ">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-900">Submit Roadblock</h1>
-            <p class="text-gray-600 mt-1">Submit your roadblock below, and our team will assign a mentor to help you.</p>
+            <h1 class="text-xl font-bold text-gray-900 sm:text-2xl">Submit Roadblock</h1>
+            <p class="mt-1 text-sm text-gray-600 sm:text-base">Submit your roadblock below, and our team will assign a mentor to help you.</p>
         </div>
 
+        {{-- Tabs scroll rather than wrap on narrow phones --}}
         <div class="border-b border-gray-200 mb-6">
-            <nav class="flex gap-8">
-                <button type="button" @click="tab = 'roadblock'" :class="tab === 'roadblock' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="pb-3 border-b-2 font-medium">Roadblock</button>
-                <button type="button" @click="tab = 'update'" :class="tab === 'update' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="pb-3 border-b-2 font-medium">Update</button>
-                <button type="button" @click="tab = 'archive'" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="pb-3 border-b-2 font-medium">Archive</button>
+            <nav class="flex gap-5 overflow-x-auto sm:gap-8">
+                <button type="button" @click="tab = 'roadblock'" :class="tab === 'roadblock' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Roadblock</button>
+                <button type="button" @click="tab = 'update'" :class="tab === 'update' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Update</button>
+                <button type="button" @click="tab = 'archive'" :class="tab === 'archive' ? 'border-rose-900 text-rose-900' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap border-b-2 pb-3 text-sm font-medium sm:text-base">Archive</button>
             </nav>
         </div>
 
@@ -214,9 +215,9 @@
              ============================================================ --}}
         <div x-show="tab === 'roadblock'">
 
-            <div class="flex items-center gap-2.5 mb-5">
-                <span class="text-rose-900"><x-icon name="warning.svg" class="w-10 h-10" /></span>
-                <h2 class="font-semibold text-lg text-gray-900">Roadblock Submission</h2>
+            <div class="mb-5 flex items-center gap-2.5">
+                <span class="text-rose-900"><x-icon name="warning.svg" class="w-8 h-8 sm:w-10 sm:h-10" /></span>
+                <h2 class="text-base font-semibold text-gray-900 sm:text-lg">Roadblock Submission</h2>
             </div>
 
             <form x-ref="form" method="POST" action="{{ route('startup.submissions.store') }}"
@@ -224,12 +225,12 @@
                 @csrf
 
                 {{-- Problem Category --}}
-                <div class="bg-white border border-gray-200 rounded-xl p-6">
-                    <label class="block text-sm font-semibold text-gray-900 mb-2">Problem Category</label>
+                <div class="rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
+                    <label class="mb-2 block text-sm font-semibold text-gray-900">Problem Category</label>
 
                     {{-- Custom listbox: native <option> can't take a gradient, so the popup is ours.
                          The real value rides on a hidden input bound to the same x-model. --}}
-                    <div class="relative max-w-md"
+                    <div class="relative w-full max-w-md"
                         x-data="{
                             open: false,
                             highlighted: -1,
@@ -273,7 +274,7 @@
                             @keydown.enter.prevent="open && highlighted > -1 ? choose(options[highlighted]) : toggle()"
                             :aria-expanded="open"
                             aria-haspopup="listbox"
-                            class="w-full flex items-stretch rounded-lg border overflow-hidden text-left
+                            class="flex w-full items-stretch overflow-hidden rounded-lg border text-left
                                    transition focus:outline-none focus:ring-2"
                             :class="errors.category && touched.category
                                 ? 'border-red-400 focus:border-red-400 focus:ring-red-100'
@@ -281,19 +282,19 @@
                                     ? 'border-rose-400 ring-2 ring-rose-100'
                                     : 'border-rose-200 focus:border-rose-400 focus:ring-rose-100')">
 
-                            <span class="w-11 flex-shrink-0 flex items-center justify-center border-r"
+                            <span class="flex w-10 flex-shrink-0 items-center justify-center border-r sm:w-11"
                                 :class="errors.category && touched.category
                                     ? 'bg-red-50 border-red-200 text-red-700'
                                     : 'bg-rose-50 border-rose-200 text-rose-800'">
                                 <x-icon name="warning-round.svg" class="w-5 h-5" />
                             </span>
 
-                            <span class="flex-1 px-3 py-2.5 text-sm"
+                            <span class="min-w-0 flex-1 truncate px-3 py-2.5 text-sm"
                                 :class="category ? 'text-gray-900' : 'text-gray-400'"
                                 x-text="category || 'Type of roadblock'"></span>
 
-                            <span class="pr-3 flex items-center">
-                                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open && 'rotate-180'"
+                            <span class="flex items-center pr-3">
+                                <svg class="h-4 w-4 flex-shrink-0 text-gray-400 transition-transform" :class="open && 'rotate-180'"
                                     fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                                 </svg>
@@ -315,7 +316,7 @@
                                     @mouseenter="highlighted = index"
                                     class="w-full px-4 py-2.5 text-left text-sm transition-colors"
                                     :class="highlighted === index
-                                        ? 'bg-gradient-to-r from-rose-900 to-blue-950 text-white'
+                                        ? 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white'
                                         : (category === option ? 'bg-rose-50 text-rose-900 font-medium' : 'text-gray-700')"
                                     x-text="option"></button>
                             </template>
@@ -326,8 +327,8 @@
                         class="mt-1.5 text-xs text-red-600" x-text="errors.category"></p>
 
                     {{-- "Others" free-text --}}
-                    <div x-show="category === 'Others'" x-cloak class="mt-4 max-w-md">
-                        <label class="block text-xs text-gray-500 mb-1.5">Type specific roadblock (e.g., Legal Counseling)</label>
+                    <div x-show="category === 'Others'" x-cloak class="mt-4 w-full max-w-md">
+                        <label class="mb-1.5 block text-xs text-gray-500">Type specific roadblock (e.g., Legal Counseling)</label>
 
                         <div class="relative">
                             <input type="text" name="problem_category_other" x-model="categoryOther"
@@ -337,7 +338,7 @@
                                 @blur="touched.categoryOther = true; validateField('categoryOther'); setTimeout(() => showOtherSuggestions = false, 150)"
                                 @input="showOtherSuggestions = true; touched.categoryOther && validateField('categoryOther')"
                                 placeholder="Enter here..."
-                                class="w-full rounded-lg border px-3 py-2.5 text-sm focus:ring-2 focus:outline-none"
+                                class="w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2"
                                 :class="errors.categoryOther && touched.categoryOther
                                     ? 'border-red-400 focus:border-red-400 focus:ring-red-100'
                                     : 'border-rose-200 focus:border-rose-400 focus:ring-rose-100'">
@@ -354,7 +355,7 @@
                                     <button type="button"
                                         role="option"
                                         @mousedown.prevent="pickOtherSuggestion(suggestion)"
-                                        class="w-full px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-rose-50 hover:text-rose-900"
+                                        class="w-full truncate px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-rose-50 hover:text-rose-900"
                                         x-text="suggestion"></button>
                                 </template>
                             </div>
@@ -366,15 +367,15 @@
                 </div>
 
                 {{-- Description --}}
-                <div class="bg-white border border-gray-300 rounded-xl p-6">
-                    <label class="block text-sm font-semibold text-gray-900 mb-2">Describe your roadblock</label>
+                <div class="rounded-xl border border-gray-300 bg-white p-4 sm:p-6">
+                    <label class="mb-2 block text-sm font-semibold text-gray-900">Describe your roadblock</label>
 
-                    <div class="flex items-stretch rounded-lg border overflow-hidden transition focus-within:ring-2"
+                    <div class="flex items-stretch overflow-hidden rounded-lg border transition focus-within:ring-2"
                         :class="errors.description && touched.description
                             ? 'border-red-400 focus-within:border-red-400 focus-within:ring-red-100'
                             : 'border-rose-200 focus-within:border-rose-400 focus-within:ring-rose-100'">
 
-                        <div class="w-11 flex-shrink-0 flex items-center justify-center border-r"
+                        <div class="flex w-10 flex-shrink-0 items-center justify-center border-r sm:w-11"
                             :class="errors.description && touched.description
                                 ? 'bg-red-50 border-red-200 text-red-700'
                                 : 'bg-rose-50 border-rose-200 text-rose-800'">
@@ -385,11 +386,11 @@
                             @blur="touched.description = true; validateField('description')"
                             @input="touched.description && validateField('description')"
                             placeholder="Enter details about your roadblock..."
-                            class="flex-1 border-0 px-3 py-2.5 text-sm resize-y
+                            class="min-w-0 flex-1 resize-y border-0 px-3 py-2.5 text-sm
                                    placeholder:text-gray-400 focus:outline-none focus:ring-0"></textarea>
                     </div>
 
-                    <div class="mt-2 flex items-start justify-between gap-4">
+                    <div class="mt-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <p class="text-xs"
                             :class="errors.description && touched.description ? 'text-red-600' : 'text-gray-500'"
                             x-text="(errors.description && touched.description)
@@ -403,12 +404,12 @@
                 </div>
 
                 {{-- Supporting Files --}}
-                <div class="bg-white border border-gray-300 rounded-xl p-6">
-                    <label class="block text-sm font-semibold text-gray-900 mb-2">Supporting Files</label>
+                <div class="rounded-xl border border-gray-300 bg-white p-4 sm:p-6">
+                    <label class="mb-2 block text-sm font-semibold text-gray-900">Supporting Files</label>
 
-                    <div class="flex items-stretch max-w-md">
-                        <div class="w-11 flex-shrink-0 rounded-l-lg bg-rose-50 border border-rose-200
-                                    flex items-center justify-center text-rose-800">
+                    <div class="flex w-full max-w-md items-stretch">
+                        <div class="flex w-10 flex-shrink-0 items-center justify-center rounded-l-lg border border-rose-200
+                                    bg-rose-50 text-rose-800 sm:w-11">
                             <x-icon name="cam.svg" class="w-5 h-5" />
                         </div>
 
@@ -420,18 +421,18 @@
                             :class="fileError
                                 ? 'border-red-400 bg-red-50/60'
                                 : (dragOver ? 'border-rose-500 bg-rose-100' : 'border-rose-200 bg-rose-50/60')"
-                            class="flex-1 border-2 border-l-0 border-dashed rounded-r-lg px-4 py-5 text-center transition">
+                            class="min-w-0 flex-1 rounded-r-lg border-2 border-l-0 border-dashed px-3 py-4 text-center transition sm:px-4 sm:py-5">
 
-                            <svg class="w-5 h-5 mx-auto mb-1.5 text-rose-800" fill="none" viewBox="0 0 24 24"
+                            <svg class="mx-auto mb-1.5 h-5 w-5 text-rose-800" fill="none" viewBox="0 0 24 24"
                                 stroke-width="1.8" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-.41-8.98 4.5 4.5 0 0 1 8.08-3.32 3 3 0 0 1 3.76 3.87 4.5 4.5 0 0 1-.44 8.43H6.75Z" />
                             </svg>
 
-                            <p class="text-xs text-gray-600 mb-2.5">Drag-and-drop</p>
+                            <p class="mb-2.5 text-xs text-gray-600">Drag-and-drop</p>
 
                             <button type="button" @click="$refs.fileInput.click()"
-                                class="bg-rose-900 hover:bg-rose-800 transition text-white text-xs font-medium px-4 py-1.5 rounded">
+                                class="rounded bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-4 py-1.5 text-xs font-medium text-white transition hover:opacity-95">
                                 Browse Files
                             </button>
 
@@ -441,48 +442,52 @@
                         </div>
                     </div>
 
-                    <p x-show="fileError" x-cloak class="mt-2 text-xs text-red-600 max-w-md" x-text="fileError"></p>
+                    <p x-show="fileError" x-cloak class="mt-2 max-w-md text-xs text-red-600" x-text="fileError"></p>
 
-                    <p class="mt-2 text-xs text-gray-500 max-w-md"
+                    <p class="mt-2 max-w-md text-xs text-gray-500"
                         x-text="`Up to ${limits.maxFiles} files, 5MB each. Images, PDF, Word, or Excel.`"></p>
 
                     <template x-if="files.length > 0">
-                        <ul class="mt-4 space-y-2 max-w-md">
+                        <ul class="mt-4 w-full max-w-md space-y-2">
                             <template x-for="(file, index) in files" :key="index">
                                 <li class="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-                                    <div class="flex items-center gap-3 min-w-0">
+                                    <div class="flex min-w-0 items-center gap-3">
                                         <template x-if="file.isImage">
-                                            <img :src="file.url" class="w-9 h-9 object-cover rounded flex-shrink-0">
+                                            <img :src="file.url" class="h-9 w-9 flex-shrink-0 rounded object-cover">
                                         </template>
                                         <template x-if="!file.isImage">
-                                            <span class="w-9 h-9 flex-shrink-0 rounded bg-rose-50 text-rose-900 font-semibold
-                                                         text-[10px] flex items-center justify-center"
+                                            <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded bg-rose-50
+                                                         text-[10px] font-semibold text-rose-900"
                                                 x-text="file.name.split('.').pop().toUpperCase()"></span>
                                         </template>
-                                        <span x-text="file.name" class="text-sm text-gray-700 truncate"></span>
+                                        <span x-text="file.name" class="truncate text-sm text-gray-700"></span>
                                     </div>
                                     <button type="button" @click="removeFile(index)"
-                                        class="flex-shrink-0 ml-3 text-gray-400 hover:text-rose-900 transition">&times;</button>
+                                        class="ml-3 flex-shrink-0 text-gray-400 transition hover:text-rose-900">&times;</button>
                                 </li>
                             </template>
                         </ul>
                     </template>
                 </div>
 
-                {{-- Actions --}}
-                <div class="flex gap-4 pt-1">
-                    <button type="button" @click="resetForm()"
-                        class="flex-1 border border-blue-950 text-blue-950 rounded-lg py-3 text-sm font-semibold
-                               hover:bg-blue-50/50 transition">
-                        Clear Form
-                    </button>
+                {{-- Actions: stack on phones so neither label wraps --}}
+                <div class="flex flex-col gap-3 pt-1 sm:flex-row sm:gap-4">
+                    {{-- Clear Form: gradient hairline border, gradient label --}}
+                    <div class="order-2 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] p-px sm:order-none sm:flex-1">
+                        <button type="button" @click="resetForm()"
+                            class="h-full w-full rounded-[7px] bg-white py-3 text-sm font-semibold transition hover:bg-gray-50 focus:outline-none">
+                            <span class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-transparent">
+                                Clear Form
+                            </span>
+                        </button>
+                    </div>
 
                     <button type="button"
                         @click="validateAll() && (showConfirm = true)"
                         :disabled="!isValid"
                         :class="isValid ? 'hover:opacity-95' : 'opacity-50 cursor-not-allowed'"
-                        class="flex-1 bg-gradient-to-r from-rose-900 to-blue-950 text-white rounded-lg py-3
-                               text-sm font-semibold transition">
+                        class="order-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-3 text-sm
+                               font-semibold text-white transition sm:order-none sm:flex-1">
                         Submit Roadblock
                     </button>
                 </div>
@@ -499,23 +504,23 @@
              ============================================================ --}}
         <div x-show="tab === 'archive'" x-cloak>
 
-            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-3">
-                    <span class="icon-mask h-10 w-10 shrink-0 text-[#6D0D23]"
+            <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div class="flex items-center gap-2.5 sm:gap-3">
+                    <span class="icon-mask h-8 w-8 shrink-0 text-[#6D0D23] sm:h-10 sm:w-10"
                         style="--icon: url('{{ asset('images/icons/submit-roadblock.svg') }}')"></span>
                     <h2 class="text-base font-bold tracking-tight text-gray-900">Archive</h2>
                 </div>
 
                 @php
-                    $archiveStatuses = ['all' => 'All Statuses', 'Pending' => 'Pending', 'Scheduled' => 'Scheduled', 'Pending Review' => 'Pending Review', 'Resolved' => 'Resolved', 'Failed' => 'Failed'];
+                $archiveStatuses = ['all' => 'All Statuses', 'Pending' => 'Pending', 'Scheduled' => 'Scheduled', 'Pending Review' => 'Pending Review', 'Resolved' => 'Resolved', 'Failed' => 'Failed'];
                 @endphp
-                <div class="relative inline-block w-full max-w-[200px]" x-data="{ open: false }"
+                <div class="relative inline-block w-full max-w-[180px] sm:max-w-[200px]" x-data="{ open: false }"
                     @click.outside="open = false" @keydown.escape.window="open = false">
                     <label class="mb-1 block text-xs font-medium text-gray-500">Filter by status</label>
 
                     <button type="button" @click="open = !open"
                         class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-2 text-sm text-gray-700 transition hover:border-gray-400">
-                        <span x-text="{{ Js::from($archiveStatuses) }}[archiveStatusFilter]"></span>
+                        <span class="truncate" x-text="{{ Js::from($archiveStatuses) }}[archiveStatusFilter]"></span>
                         <svg class="h-4 w-4 shrink-0 text-gray-400 transition" :class="open && 'rotate-180'"
                             fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
@@ -538,48 +543,50 @@
             </div>
 
             @forelse ($roadblocks as $roadblock)
-                @php
-                    $statusColors = [
-                        'Pending' => 'text-gray-500',
-                        'Scheduled' => 'text-blue-600',
-                        'Pending Review' => 'text-amber-600',
-                        'Resolved' => 'text-green-600',
-                        'Failed' => 'text-rose-700',
-                    ];
-                @endphp
-                <div x-show="archiveStatusFilter === 'all' || archiveStatusFilter === '{{ $roadblock->status }}'"
-                    class="mb-4 flex overflow-hidden rounded-lg border border-solid border-gray-200 bg-white">
+            @php
+            $statusColors = [
+            'Pending' => 'text-gray-500',
+            'Scheduled' => 'text-blue-600',
+            'Pending Review' => 'text-amber-600',
+            'Resolved' => 'text-green-600',
+            'Failed' => 'text-rose-700',
+            ];
+            @endphp
+            <div x-show="archiveStatusFilter === 'all' || archiveStatusFilter === '{{ $roadblock->status }}'"
+                class="mb-4 flex overflow-hidden rounded-lg border border-solid border-gray-200 bg-white">
 
-                    {{-- Warning rail --}}
-                    <div class="flex w-12 shrink-0 items-center justify-center bg-[#FFF1F2]">
-                        <span class="icon-mask h-5 w-5 text-[#6D0D23]"
-                            style="--icon: url('{{ asset('images/icons/warning.svg') }}')"></span>
-                    </div>
+                {{-- Warning rail --}}
+                <div class="flex w-10 shrink-0 items-center justify-center bg-[#FFF1F2] sm:w-12">
+                    <span class="icon-mask h-5 w-5 text-[#6D0D23]"
+                        style="--icon: url('{{ asset('images/icons/warning.svg') }}')"></span>
+                </div>
 
-                    {{-- Body --}}
-                    <div class="flex-1 px-5 py-4">
+                {{-- Body --}}
+                <div class="min-w-0 flex-1 px-4 py-3 sm:px-5 sm:py-4">
 
-                        <div class="flex items-start justify-between gap-4">
-                            <div class="min-w-0">
-                                <p class="mb-1 text-sm font-bold text-gray-900">Roadblock</p>
+                    {{-- Stacks on phones: the View button beside the text leaves too little room --}}
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                        <div class="min-w-0">
+                            <p class="mb-1 text-sm font-bold text-gray-900">Roadblock</p>
 
-                                <p class="text-sm text-gray-700">
-                                    <span class="font-semibold text-gray-900">Problem Category:</span>
-                                    {{ $roadblock->display_category }}
-                                </p>
+                            <p class="text-sm text-gray-700">
+                                <span class="font-semibold text-gray-900">Problem Category:</span>
+                                {{ $roadblock->display_category }}
+                            </p>
 
-                                <p class="mt-0.5 text-sm text-gray-600">
-                                    Submitted on: {{ $roadblock->created_at->format('M d, Y') }}
-                                    <span class="ml-4">Status:
-                                        <span class="font-medium {{ $statusColors[$roadblock->status] ?? 'text-amber-600' }}">
-                                            {{ $roadblock->status }}
-                                        </span>
+                            {{-- flex-wrap so "Status" drops to its own line instead of overflowing --}}
+                            <div class="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-gray-600">
+                                <span>Submitted on: {{ $roadblock->created_at->format('M d, Y') }}</span>
+                                <span>Status:
+                                    <span class="font-medium {{ $statusColors[$roadblock->status] ?? 'text-amber-600' }}">
+                                        {{ $roadblock->status }}
                                     </span>
-                                </p>
+                                </span>
                             </div>
+                        </div>
 
-                            <button type="button"
-                                @click="activeRoadblock = @js([
+                        <button type="button"
+                            @click="activeRoadblock = @js([
                                     'category' => $roadblock->display_category,
                                     'date' => $roadblock->created_at->format('M d, Y'),
                                     'status' => $roadblock->status,
@@ -590,24 +597,24 @@
                                         'is_image' => $f->is_image,
                                     ]),
                                 ])"
-                                class="h-fit shrink-0 rounded-md border border-[#6D0D23] px-6 py-1.5 text-sm font-medium text-[#6D0D23] transition hover:bg-[#6D0D23] hover:text-white focus:outline-none">
-                                View
-                            </button>
-                        </div>
-
-                        {{-- Divider + excerpt --}}
-                        <div class="mt-3 border-t border-gray-200 pt-3">
-                            <p class="truncate text-sm text-gray-600">
-                                {{ \Illuminate\Support\Str::limit($roadblock->description, 80) }}
-                            </p>
-                        </div>
-
+                            class="h-fit w-full shrink-0 rounded-md border border-[#6D0D23] px-6 py-1.5 text-sm font-medium text-[#6D0D23] transition hover:bg-[#6D0D23] hover:text-white focus:outline-none sm:w-auto">
+                            View
+                        </button>
                     </div>
+
+                    {{-- Divider + excerpt --}}
+                    <div class="mt-3 border-t border-gray-200 pt-3">
+                        <p class="truncate text-sm text-gray-600">
+                            {{ \Illuminate\Support\Str::limit($roadblock->description, 80) }}
+                        </p>
+                    </div>
+
                 </div>
+            </div>
             @empty
-                <div class="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center">
-                    <p class="text-sm text-gray-500">No roadblocks submitted yet.</p>
-                </div>
+            <div class="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center">
+                <p class="text-sm text-gray-500">No roadblocks submitted yet.</p>
+            </div>
             @endforelse
 
             @if ($roadblocks->isNotEmpty())
@@ -623,51 +630,46 @@
         <div x-show="showConfirm" x-cloak
             x-transition.opacity.duration.200ms
             @keydown.escape.window="showConfirm = false"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
 
             <div @click.outside="showConfirm = false"
                 x-transition:enter="transition ease-out duration-200"
                 x-transition:enter-start="opacity-0 scale-95"
                 x-transition:enter-end="opacity-100 scale-100"
-                class="relative w-full max-w-lg rounded-2xl bg-white px-10 py-9 text-center shadow-2xl">
+                class="relative w-full max-w-lg rounded-2xl bg-white px-5 pb-5 pt-8 text-center shadow-2xl sm:px-6">
 
                 {{-- Close --}}
                 <button type="button" @click="showConfirm = false" aria-label="Close"
-                    class="absolute right-5 top-5 flex h-6 w-6 items-center justify-center rounded-full border border-[#6D0D23] text-[#6D0D23] transition hover:bg-[#6D0D23] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6D0D23]/40">
-                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="3" stroke-linecap="round">
-                        <path d="M6 6l12 12M18 6L6 18" />
+                    class="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full border border-gray-900 text-gray-900 transition hover:border-transparent hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white focus:outline-none">
+                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
                     </svg>
                 </button>
 
                 {{-- Icon --}}
-                <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A]">
-                    <span class="icon-mask h-8 w-8 text-white"
+                <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A]">
+                    <span class="icon-mask h-5 w-5 text-white"
                         style="--icon: url('{{ asset('images/icons/submit-roadblock.svg') }}')"></span>
                 </div>
 
-                <h3 class="mb-3 text-2xl font-extrabold tracking-tight bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-transparent">
+                <h3 class="mt-2.5 bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-lg font-bold text-transparent">
                     Submit Roadblock?
                 </h3>
 
-                <p class="mx-auto mb-8 max-w-sm text-sm leading-relaxed text-gray-600">
-                    Are you sure you want to submit your roadblock details?
+                <p class="mt-1.5 text-xs leading-5 text-gray-600">
+                    Are you sure you want to submit your roadblock details?<br class="hidden sm:inline">
                     This will notify the team and initiate the mentor assignment process.
                 </p>
 
-                <div class="flex gap-4">
-                    {{-- Cancel: gradient hairline border --}}
-                    <div class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] p-px">
-                        <button type="button" @click="showConfirm = false"
-                            class="h-full w-full rounded-[7px] bg-white py-2.5 text-sm font-bold text-[#11386A] transition hover:bg-gray-50 focus:outline-none">
-                            Cancel
-                        </button>
-                    </div>
+                <div class="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
+                    <button type="button" @click="showConfirm = false"
+                        class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 focus:outline-none">
+                        Cancel
+                    </button>
 
-                    {{-- Submit --}}
                     <button type="button"
                         @click="if (validateAll()) { showConfirm = false; $refs.form.requestSubmit(); }"
-                        class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-sm font-bold text-white transition hover:opacity-90 focus:outline-none">
+                        class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 focus:outline-none">
                         Submit
                     </button>
                 </div>
@@ -679,33 +681,38 @@
              ============================================================ --}}
         <div x-show="showSuccess" x-cloak
             x-transition.opacity.duration.200ms
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            @keydown.escape.window="showSuccess = false"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
 
-            <div x-transition:enter="transition ease-out duration-200"
+            <div @click.outside="showSuccess = false"
+                x-transition:enter="transition ease-out duration-200"
                 x-transition:enter-start="opacity-0 scale-95"
                 x-transition:enter-end="opacity-100 scale-100"
-                class="w-full max-w-lg overflow-hidden rounded-2xl bg-white text-center shadow-2xl">
+                class="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white text-center shadow-2xl">
 
-                {{-- Gradient header with check --}}
-                <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-7">
-                    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm">
-                        <svg class="h-7 w-7 text-[#6D0D23]" viewBox="0 0 24 24" fill="none"
+                {{-- Gradient header --}}
+                <div class="flex items-center justify-center bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-3">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm">
+                        <svg class="h-4 w-4 text-[#11386A]" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M5 13l4 4L19 7" />
                         </svg>
                     </div>
                 </div>
 
-                <div class="px-8 pb-9 pt-7">
-                    <h3 class="mb-2 text-3xl font-extrabold tracking-tight bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-transparent">
+                <div class="px-5 pb-5 pt-4 sm:px-6">
+                    <h3 class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-lg font-bold text-transparent">
                         Great!
                     </h3>
-                    <p class="mb-6 text-gray-600">Submission successful.</p>
 
-                    <button type="button" @click="showSuccess = false; tab = 'archive'"
-                        class="rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-12 py-2.5 text-sm font-bold text-white transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#11386A]/40">
-                        Continue
-                    </button>
+                    <p class="mt-1.5 text-xs leading-5 text-gray-600">Submission successful.</p>
+
+                    <div class="mt-4">
+                        <button type="button" @click="showSuccess = false; tab = 'archive'"
+                            class="mx-auto block h-10 w-full max-w-[200px] rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 focus:outline-none">
+                            Continue
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -718,7 +725,7 @@
             x-transition:enter-start="opacity-0"
             x-transition:enter-end="opacity-100"
             @keydown.escape.window="activeRoadblock = null"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 sm:py-6">
 
             <div @click.outside="activeRoadblock = null"
                 x-transition:enter="transition ease-out duration-200"
@@ -727,26 +734,25 @@
                 class="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
 
                 {{-- Header (pinned) --}}
-                <div class="flex shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 text-white">
-                    <div class="flex items-center gap-3">
-                        <span class="icon-mask h-7 w-7 shrink-0 text-white"
+                <div class="flex shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-4 text-white sm:px-6">
+                    <div class="flex min-w-0 items-center gap-2.5 sm:gap-3">
+                        <span class="icon-mask h-6 w-6 shrink-0 text-white sm:h-7 sm:w-7"
                             style="--icon: url('{{ asset('images/icons/upcoming-mentorship.svg') }}')"></span>
-                        <span class="text-lg font-bold tracking-tight">Roadblock</span>
+                        <span class="truncate text-base font-bold tracking-tight sm:text-lg">Roadblock</span>
                     </div>
 
                     <button type="button" @click="activeRoadblock = null" aria-label="Close"
-                        class="flex h-6 w-6 items-center justify-center rounded-full border border-white/70 bg-white/10 transition hover:bg-white/25 focus:outline-none">
-                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="3" stroke-linecap="round">
-                            <path d="M6 6l12 12M18 6L6 18" />
+                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none">
+                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
 
                 {{-- Body (scrolls) --}}
-                <div class="min-h-0 flex-1 overflow-y-auto p-6">
+                <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
 
-                    <div class="mb-4 flex items-center justify-between">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
                         <h4 class="text-sm font-semibold text-gray-900">Roadblock Details</h4>
                         <span class="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
                             Status:
@@ -758,12 +764,12 @@
                     </div>
 
                     {{-- Detail card --}}
-                    <div class="rounded-xl border border-gray-200 p-5">
+                    <div class="rounded-xl border border-gray-200 p-4 sm:p-5">
 
-                        <div class="mb-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
                             <div>
                                 <label class="mb-1.5 block text-xs font-medium text-gray-500">Roadblock Category</label>
-                                <p class="rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-800"
+                                <p class="truncate rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-800"
                                     x-text="activeRoadblock ? activeRoadblock.category : ''"></p>
                             </div>
                             <div>
@@ -776,7 +782,7 @@
                         {{-- Issue: clamped to 6 lines, expandable --}}
                         <div class="mb-4" x-data="{ expanded: false }">
                             <label class="mb-1.5 block text-xs font-medium text-gray-500">Issue</label>
-                            <p class="whitespace-pre-line rounded-md bg-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-800"
+                            <p class="whitespace-pre-line rounded-md bg-gray-100 px-3 py-3 text-sm leading-relaxed text-gray-800 sm:px-4"
                                 :class="expanded ? '' : 'line-clamp-6'"
                                 x-text="activeRoadblock ? activeRoadblock.description : ''"></p>
 
@@ -791,12 +797,12 @@
                             <label class="mb-1.5 block text-xs font-medium text-gray-500">Supporting Files</label>
 
                             <template x-if="activeRoadblock && activeRoadblock.files && activeRoadblock.files.length">
-                                <ul class="flex flex-wrap gap-3">
+                                <ul class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
                                     <template x-for="file in activeRoadblock.files" :key="file.name">
-                                        <li class="flex items-center gap-8 rounded-md border border-gray-200 px-3 py-2">
-                                            <span class="text-sm font-medium text-[#6D0D23]" x-text="file.name"></span>
+                                        <li class="flex min-w-0 items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2 sm:justify-start sm:gap-8">
+                                            <span class="truncate text-sm font-medium text-[#6D0D23]" x-text="file.name"></span>
 
-                                            <span class="flex items-center gap-3 text-[#6D0D23]">
+                                            <span class="flex flex-shrink-0 items-center gap-3 text-[#6D0D23]">
                                                 {{-- Preview: images open in an on-page lightbox, everything else opens in a new tab --}}
                                                 <button type="button" x-show="file.is_image" x-cloak
                                                     @click="previewImageUrl = file.url" aria-label="Preview image"
@@ -842,10 +848,10 @@
         {{-- ============================================================
              Image preview lightbox
              ============================================================ --}}
-        <div x-show="previewImageUrl" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-6"
+        <div x-show="previewImageUrl" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 sm:p-6"
             @click.self="previewImageUrl = null" @keydown.escape.window="previewImageUrl = null">
             <button type="button" @click="previewImageUrl = null" aria-label="Close preview"
-                class="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-2xl text-white hover:bg-white/20">&times;</button>
+                class="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-2xl text-white hover:bg-white/20 sm:right-5 sm:top-5">&times;</button>
             <img :src="previewImageUrl" class="max-h-full max-w-full rounded-lg object-contain">
         </div>
     </div>

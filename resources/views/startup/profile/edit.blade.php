@@ -1,7 +1,19 @@
 <x-layouts.founder title="Startup Profile">
 
+    {{-- Cropper.js: circular crop for the startup avatar --}}
+    <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js" defer></script>
+
+    <style>
+        /* Round the crop box so it previews as the circular avatar it becomes */
+        .cropper-view-box,
+        .cropper-face {
+            border-radius: 50%;
+        }
+    </style>
+
     <div
-    x-data="{
+        x-data="{
         editing: false,
         dirty: false,
 
@@ -11,7 +23,7 @@
         newMembers: [''],
         deletedMembers: []
     }"
-    x-init="
+        x-init="
         $watch('dirty', value => {
             $store.navigation.hasUnsavedChanges = value;
         });
@@ -52,8 +64,10 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-6">
 
+                {{-- id lets the photo input in the sidebar (outside this form) submit with it --}}
                 <form
                     method="POST"
+                    id="startup-profile-form"
                     action="{{ route('startup.profile.update') }}"
                     enctype="multipart/form-data"
                     @submit="
@@ -111,15 +125,14 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Business Description</label>
+                            {{-- No whitespace inside <textarea>: it becomes part of the value --}}
                             <textarea
                                 name="business_description"
                                 rows="4"
                                 :readonly="!editing"
                                 :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                 class="w-full border rounded-lg px-3 py-2 text-sm"
-                                @input="dirty = true">{{ old('business_description', $startup->informationSheet?->business_description) }}
-
-                            </textarea>
+                                @input="dirty = true">{{ old('business_description', $startup->informationSheet?->business_description) }}</textarea>
 
                             @error('business_description')
                             <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
@@ -288,56 +301,179 @@
 
             <div class="bg-white rounded-xl border border-gray-200 p-6 h-fit">
                 <h2 class="font-bold text-gray-900 mb-4">Startup Overview</h2>
-                <div
-                    class="flex justify-center mb-4"
-                    x-data="{ photoPreview: '' }">
+
+                <div class="flex justify-center mb-4"
+                    x-data="{
+                        photoPreview: '',
+                        cropOpen: false,
+                        cropSrc: '',
+                        cropper: null,
+
+                        pickFile(event) {
+                            const file = event.target.files[0];
+                            if (! file) return;
+
+                            this.cropSrc = URL.createObjectURL(file);
+                            this.cropOpen = true;
+                            this.$nextTick(() => this.startCropper());
+                        },
+
+                        startCropper() {
+                            this.cropper?.destroy();
+                            this.cropper = new Cropper(this.$refs.cropImage, {
+                                aspectRatio: 1,
+                                viewMode: 1,
+                                dragMode: 'move',
+                                autoCropArea: 0.9,
+                                background: false,
+                                responsive: true,
+                            });
+                        },
+
+                        applyCrop() {
+                            this.cropper.getCroppedCanvas({
+                                width: 512,
+                                height: 512,
+                                imageSmoothingQuality: 'high',
+                            }).toBlob((blob) => {
+                                const file = new File([blob], 'startup-photo.jpg', { type: 'image/jpeg' });
+
+                                // Write the cropped file back into the real input so it
+                                // submits with the form — no extra backend handling needed.
+                                const dt = new DataTransfer();
+                                dt.items.add(file);
+                                this.$refs.photoInput.files = dt.files;
+
+                                this.photoPreview = URL.createObjectURL(blob);
+                                this.dirty = true;
+                                this.closeCrop();
+                            }, 'image/jpeg', 0.9);
+                        },
+
+                        closeCrop() {
+                            this.cropper?.destroy();
+                            this.cropper = null;
+                            this.cropOpen = false;
+                            URL.revokeObjectURL(this.cropSrc);
+                            this.cropSrc = '';
+                        },
+
+                        cancelCrop() {
+                            // Clear the input so a cancelled crop doesn't leave a
+                            // stale file queued for submission
+                            this.$refs.photoInput.value = '';
+                            this.closeCrop();
+                        },
+                    }">
+
+                    {{-- form="" ties this to the form above, which lives outside this div --}}
                     <input
                         x-ref="photoInput"
+                        form="startup-profile-form"
                         type="file"
                         name="startup_photo"
                         accept="image/*"
                         class="hidden"
-                        @change="
-        dirty = true;
-        const file = $event.target.files[0];
-        if (file) {
-            photoPreview = URL.createObjectURL(file);
-        }
-    ">
-                    @if ($startup->startup_photo_path)
-                    <div class="relative inline-block">
+                        @change="pickFile($event)">
 
+                    <div class="relative inline-block">
+                        @if ($startup->startup_photo_path)
                         <img
                             :src="photoPreview || '{{ Storage::url($startup->startup_photo_path) }}'"
                             @click="editing && $refs.photoInput.click()"
-                            class="w-24 h-24 rounded-full object-cover cursor-pointer hover:brightness-90 transition">
+                            :class="editing && 'cursor-pointer hover:brightness-90'"
+                            class="h-24 w-24 rounded-full object-cover transition">
+                        @else
+                        {{-- No photo yet: initials circle, same click target, swaps to
+                             the cropped preview once one is applied --}}
+                        <template x-if="photoPreview">
+                            <img
+                                :src="photoPreview"
+                                @click="editing && $refs.photoInput.click()"
+                                :class="editing && 'cursor-pointer hover:brightness-90'"
+                                class="h-24 w-24 rounded-full object-cover transition">
+                        </template>
 
+                        <div
+                            x-show="!photoPreview"
+                            @click="editing && $refs.photoInput.click()"
+                            :class="editing && 'cursor-pointer hover:brightness-90'"
+                            class="flex h-24 w-24 items-center justify-center rounded-full bg-purple-100 text-xl font-bold text-purple-600 transition">
+                            {{ substr($startup->company_name, 0, 1) }}
+                        </div>
+                        @endif
+
+                        {{-- Pencil, on both the photo and the initials branch --}}
                         <button
                             x-show="editing"
+                            x-cloak
                             type="button"
                             @click="$refs.photoInput.click()"
-                            class="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white shadow-lg flex items-center justify-center hover:scale-105 transition">
+                            aria-label="Change startup photo"
+                            class="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white shadow-lg transition hover:scale-105">
 
                             <svg xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
                                 stroke-width="2"
-                                class="w-4 h-4">
+                                class="h-4 w-4">
                                 <path stroke-linecap="round"
                                     stroke-linejoin="round"
                                     d="M16.862 3.487a2.25 2.25 0 113.182 3.182L8.25 18.463 4 19.5l1.037-4.25L16.862 3.487z" />
                             </svg>
 
                         </button>
+                    </div>
 
-                    </div>
-                    @else
-                    <div class="w-20 h-20 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-xl">
-                        {{ substr($startup->company_name, 0, 1) }}
-                    </div>
-                    @endif
+                    {{-- Crop modal --}}
+                    <template x-teleport="body">
+                        <div x-show="cropOpen" x-cloak x-transition.opacity
+                            @keydown.escape.window="cancelCrop()"
+                            class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+                            style="display:none;">
+
+                            <div @click.outside="cancelCrop()"
+                                class="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+
+                                <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-4 text-white sm:px-8 sm:py-5">
+                                    <h3 class="truncate text-sm font-bold sm:text-base">Crop Photo</h3>
+
+                                    <button type="button" @click="cancelCrop()"
+                                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                                        aria-label="Close">
+                                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <div class="overflow-y-auto p-4 sm:p-5">
+                                    <div class="mx-auto max-h-[55vh] bg-gray-100">
+                                        <img x-ref="cropImage" :src="cropSrc" alt="" class="block max-w-full">
+                                    </div>
+
+                                    <p class="mt-3 text-center text-xs text-gray-500">
+                                        Drag to reposition, scroll or pinch to zoom.
+                                    </p>
+
+                                    <div class="mt-4 grid grid-cols-2 gap-3">
+                                        <button type="button" @click="cancelCrop()"
+                                            class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50">
+                                            Cancel
+                                        </button>
+
+                                        <button type="button" @click="applyCrop()"
+                                            class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95">
+                                            Apply
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
+
                 <p class="text-center font-bold text-gray-900">{{ $startup->company_name }}</p>
                 <p class="text-center text-xs text-gray-500 mb-3">{{ $startup->industry_sector }} · {{ $startup->batch_label }}</p>
                 <p class="text-xs text-gray-500 line-clamp-3 mb-3">{{ $startup->informationSheet?->business_description }}</p>

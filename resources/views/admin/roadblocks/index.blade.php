@@ -47,7 +47,7 @@
         <div x-show="tab === 'manage'">
             <h2 class="font-bold text-gray-900 mb-4">Pending Roadblock</h2>
 
-            <div class="mb-10 grid grid-cols-1 gap-3 md:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-6">
+            <div class="mb-10 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6">
                 @forelse ($pending as $roadblock)
                 @php $banners = ['from-purple-500 to-purple-700', 'from-blue-500 to-blue-700', 'from-teal-500 to-teal-700']; @endphp
                 <div class="flex h-full flex-col overflow-hidden rounded-xl border"
