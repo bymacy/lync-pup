@@ -11,6 +11,11 @@
     // admin actually was instead of resetting to "Manage Roadblock".
     $initialTab = $erroredIsFailed ? 'archive' : request('tab', 'manage');
     $initialArchiveStage = $erroredIsFailed ? 'failed' : request('stage', 'assessment');
+
+    // Archive tables share these: two columns fold away below lg and reappear
+    // under the startup name, so a phone doesn't need a 700px scroll.
+    $foldCol = 'hidden lg:table-cell';
+    $archiveBtn = 'w-full whitespace-nowrap rounded-lg px-3 py-1.5 text-center sm:w-auto';
     @endphp
     <div x-data="{ tab: @js($initialTab), archiveStage: @js($initialArchiveStage) }"
         x-init="
@@ -18,8 +23,8 @@
             $watch('archiveStage', value => setQueryParam('stage', value));
         ">
         <div class="mb-6">
-            <h1 class="text-3xl font-bold text-gray-900">Roadblock Management</h1>
-            <p class="text-gray-500 mt-1">Review startup roadblocks and assign experts.</p>
+            <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Roadblock Management</h1>
+            <p class="mt-1 text-sm text-gray-500 sm:text-base">Review startup roadblocks and assign experts.</p>
         </div>
 
         <div class="border-b border-gray-200 mb-6">
@@ -42,7 +47,7 @@
         <div x-show="tab === 'manage'">
             <h2 class="font-bold text-gray-900 mb-4">Pending Roadblock</h2>
 
-            <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            <div class="mb-10 grid grid-cols-1 gap-3 md:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-6">
                 @forelse ($pending as $roadblock)
                 @php $banners = ['from-purple-500 to-purple-700', 'from-blue-500 to-blue-700', 'from-teal-500 to-teal-700']; @endphp
                 <div class="flex h-full flex-col overflow-hidden rounded-xl border"
@@ -102,7 +107,7 @@
                             };
                             }
 
-                            $card = 'rounded-lg border border-gray-300 p-4';
+                            $card = 'rounded-lg border border-gray-300 p-3 sm:p-4';
                             $section = 'mb-2 text-sm font-semibold text-gray-900';
                             $lbl = 'mb-1 block text-xs text-gray-500';
                             $pill = 'rounded bg-gray-100 px-3 py-2 text-sm text-gray-800';
@@ -117,43 +122,44 @@
 
                                 <div class="flex min-h-full items-center justify-center">
                                     <div
-                                        class="relative flex w-[880px] max-w-full flex-col overflow-hidden rounded-xl bg-white text-left shadow-2xl"
+                                        class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-hidden rounded-xl bg-white text-left shadow-2xl"
                                         @click.outside="viewOpen = false">
 
                                         {{-- Header --}}
-                                        <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-8 py-4 text-white">
-                                            <div class="flex min-w-0 items-center gap-3">
+                                        <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-4 text-white sm:px-8 sm:py-5">
+                                            <div class="flex min-w-0 items-center gap-2.5 sm:gap-3">
                                                 <span class="flex-shrink-0 text-white">
-                                                    {!! $icon('upcoming-mentorship.svg', 'w-6 h-6') !!}
+                                                    {!! $icon('upcoming-mentorship.svg', 'w-5 h-5 sm:w-6 sm:h-6') !!}
                                                 </span>
 
-                                                <h3 class="truncate text-base font-bold">Roadblock</h3>
+                                                <h3 class="truncate text-sm font-bold sm:text-base">Roadblock</h3>
                                             </div>
 
+                                            {{-- STANDARD close button, dark-background variant --}}
                                             <button
                                                 type="button"
                                                 @click="viewOpen = false"
-                                                class="flex-shrink-0 rounded-full text-white/85 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                                                class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                                                 aria-label="Close">
-                                                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                                                    <circle cx="12" cy="12" r="9.25" />
-                                                    <path d="M15 9l-6 6M9 9l6 6" stroke-linecap="round" />
+                                                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
                                                 </svg>
                                             </button>
                                         </div>
 
-                                        <div class="flex flex-col gap-5 px-8 pb-6 pt-4">
+                                        {{-- Body scrolls; the header stays put --}}
+                                        <div class="flex flex-col gap-4 overflow-y-auto px-5 pb-5 pt-4 sm:gap-5 sm:px-8 sm:pb-6">
 
                                             {{-- Startup Information --}}
                                             <section>
                                                 <p class="{{ $section }}">Startup Information</p>
 
                                                 <div class="{{ $card }}">
-                                                    <div class="grid gap-4 sm:grid-cols-[1.15fr_1fr] sm:gap-6">
+                                                    <div class="grid gap-4 md:grid-cols-[1.15fr_1fr] sm:gap-6">
 
                                                         {{-- Left: name, category, batch --}}
                                                         <div class="space-y-3">
-                                                            <div class="grid gap-3 sm:grid-cols-2">
+                                                            <div class="grid gap-3 md:grid-cols-2">
                                                                 <div>
                                                                     <label class="{{ $lbl }}">Startup Name</label>
                                                                     <p class="{{ $pill }} truncate">{{ $roadblock->startup->company_name }}</p>
@@ -176,11 +182,11 @@
                                                             <label class="{{ $lbl }}">Team</label>
 
                                                             {{-- relation name is a guess: confirm teamMembers() on Startup --}}
-                                                            <div class="grid grid-cols-2 gap-2.5">
+                                                            <div class="grid grid-cols-1 gap-2.5 md:grid-cols-2">
                                                                 @forelse ($roadblock->startup->teamMembers as $member)
                                                                 <p class="{{ $pill }} truncate text-center">{{ $member->full_name }}</p>
                                                                 @empty
-                                                                <p class="col-span-2 text-sm text-gray-400">No team members listed.</p>
+                                                                <p class="text-sm text-gray-400 md:col-span-2">No team members listed.</p>
                                                                 @endforelse
                                                             </div>
                                                         </div>
@@ -195,7 +201,7 @@
                                                 <div class="{{ $card }} space-y-3">
 
                                                     {{-- Category / date stop short of the right edge, as in the design --}}
-                                                    <div class="grid gap-3 sm:grid-cols-2 lg:w-[62%]">
+                                                    <div class="grid gap-3 md:grid-cols-2 lg:w-[62%]">
                                                         <div>
                                                             <label class="{{ $lbl }}">Roadblock Category</label>
                                                             <p class="{{ $pill }} truncate">{{ $roadblock->display_category }}</p>
@@ -218,7 +224,7 @@
                                                     <div>
                                                         <label class="{{ $lbl }}">Supporting Files</label>
 
-                                                        <div class="space-y-2 sm:w-1/2">
+                                                        <div class="space-y-2 md:w-1/2">
                                                             @foreach ($roadblock->files as $file)
                                                             <div class="flex items-center justify-between gap-3 rounded-md border border-gray-300 px-3 py-2">
                                                                 <span class="truncate text-sm text-[#9F1239]">{{ $file->original_filename }}</span>
@@ -264,17 +270,22 @@
                             </div>
 
                             {{-- Assign & Schedule modal --}}
-                            <div x-show="assignOpen" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 sm:p-6" style="display:none;">
-                                <div class="w-[880px] max-w-full rounded-xl bg-white overflow-hidden" @click.outside="assignOpen = false">
-                                    <x-roadblock-assign-modal mode="assign" :roadblock="$roadblock" :mentors="$mentors" :coordinators="$coordinators" :action="route('admin.roadblocks.assign', $roadblock)" />
+                            <div x-show="assignOpen" x-cloak
+                                @keydown.escape.window="assignOpen = false"
+                                class="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6" style="display:none;">
+                                <div class="flex min-h-full items-center justify-center">
+                                    <div class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-y-auto rounded-xl bg-white shadow-2xl"
+                                        @click.outside="assignOpen = false">
+                                        <x-roadblock-assign-modal mode="assign" :roadblock="$roadblock" :mentors="$mentors" :coordinators="$coordinators" :action="route('admin.roadblocks.assign', $roadblock)" />
+                                    </div>
                                 </div>
                             </div>
 
                             {{-- Image preview lightbox --}}
-                            <div x-show="previewImage" x-cloak class="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-6" style="display:none;"
+                            <div x-show="previewImage" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 sm:p-6" style="display:none;"
                                 @click.self="previewImage = null" @keydown.escape.window="previewImage = null">
                                 <button type="button" @click="previewImage = null" aria-label="Close preview"
-                                    class="absolute top-5 right-5 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white text-2xl hover:bg-white/20">&times;</button>
+                                    class="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-2xl text-white hover:bg-white/20 sm:right-5 sm:top-5">&times;</button>
                                 <img :src="previewImage" class="max-h-full max-w-full rounded-lg object-contain">
                             </div>
                 </div>
@@ -283,8 +294,8 @@
                 @endforelse
             </div>
 
-            <h2 class="flex items-center gap-2 font-bold text-gray-900 mb-4">
-                <img src="{{ asset('images/icons/upcoming-mentorship.svg') }}" alt="" class="w-6 h-6" aria-hidden="true">
+            <h2 class="mb-4 flex items-center gap-2 font-bold text-gray-900">
+                <img src="{{ asset('images/icons/upcoming-mentorship.svg') }}" alt="" class="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true">
                 <span>Upcoming Mentorship</span>
             </h2>
             @include('admin.roadblocks._mentorship-table', ['rows' => $upcoming])
@@ -292,8 +303,8 @@
 
         {{-- ============ SCHEDULED TODAY ============ --}}
         <div x-show="tab === 'today'">
-            <h2 class="flex items-center gap-2 font-bold text-gray-900 mb-4">
-                <img src="{{ asset('images/icons/upcoming-mentorship.svg') }}" alt="" class="w-6 h-6" aria-hidden="true">
+            <h2 class="mb-4 flex items-center gap-2 font-bold text-gray-900">
+                <img src="{{ asset('images/icons/upcoming-mentorship.svg') }}" alt="" class="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true">
                 <span>Mentorship Today</span>
             </h2>
             @include('admin.roadblocks._mentorship-table', ['rows' => $scheduledToday])
@@ -311,22 +322,22 @@
             $avatarPalette = ['bg-purple-600', 'bg-rose-600', 'bg-blue-600', 'bg-emerald-600', 'bg-teal-600', 'bg-indigo-600', 'bg-amber-600'];
             @endphp
 
-            <div class="mb-6 flex items-center">
-                <label class="text-sm font-medium mr-2">Stage:</label>
+            <div class="mb-6 flex items-center gap-2">
+                <label class="flex-shrink-0 text-sm font-medium">Stage:</label>
 
                 <div class="relative inline-block" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">
                     {{-- trigger --}}
                     <button type="button" @click="open = !open"
-                        class="flex items-center justify-between gap-2 w-[160px] border border-gray-300 rounded-lg pl-3 pr-2 py-2 text-sm bg-white text-gray-700 hover:border-gray-400">
-                        <span x-text="{{ Js::from($stages) }}[archiveStage]"></span>
-                        <svg class="h-4 w-4 text-gray-400 transition" :class="open && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        class="flex w-[140px] items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-2 text-sm text-gray-700 hover:border-gray-400 sm:w-[160px]">
+                        <span class="truncate" x-text="{{ Js::from($stages) }}[archiveStage]"></span>
+                        <svg class="h-4 w-4 flex-shrink-0 text-gray-400 transition" :class="open && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                         </svg>
                     </button>
 
                     {{-- options --}}
                     <div x-show="open" x-cloak x-transition.origin.top
-                        class="absolute left-0 top-full mt-1 w-[160px] rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden z-20"
+                        class="absolute left-0 top-full z-20 mt-1 w-[140px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg sm:w-[160px]"
                         style="display:none;">
                         @foreach ($stages as $value => $label)
                         {{-- Gradient is the ONLY accent color here, and only while actually
@@ -348,56 +359,63 @@
             <div x-show="archiveStage === 'assessment'">
                 <div class="rounded-xl border border-gray-200 overflow-hidden">
                     <div class="overflow-x-auto">
-                    <table class="w-full min-w-[700px] text-sm">
-                        <thead>
-                            <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-left">
-                                <th class="px-4 py-3 font-semibold">Startup</th>
-                                <th class="px-4 py-3 font-semibold">Roadblock</th>
-                                <th class="px-4 py-3 font-semibold">Date</th>
-                                <th class="px-4 py-3 font-semibold">Mentor</th>
-                                <th class="px-4 py-3 font-semibold">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($assessment as $roadblock)
-                            @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
-                            <tr class="border-b border-gray-100 last:border-0">
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center gap-3">
-                                        @if ($roadblock->startup->startup_photo_url)
-                                        <img src="{{ $roadblock->startup->startup_photo_url }}" alt=""
-                                            class="h-8 w-8 flex-shrink-0 rounded-full object-cover">
-                                        @else
-                                        <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full {{ $avatarColor }} text-xs font-semibold text-white">
-                                            {{ strtoupper(substr($roadblock->startup->company_name, 0, 1)) }}
-                                        </span>
-                                        @endif
-                                        <span class="font-medium text-gray-900">{{ $roadblock->startup->company_name }}</span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3">{{ $roadblock->display_category }}</td>
-                                <td class="px-4 py-3">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
-                                <td class="px-4 py-3">{{ $roadblock->assignee?->display_name }}</td>
-                                <td class="px-4 py-3">
-                                    <div class="flex gap-2">
-                                        <form method="POST" action="{{ route('admin.roadblocks.fail', $roadblock) }}">
-                                            @csrf
-                                            <button type="submit" class="border border-[#6D0D23] text-[#6D0D23] rounded-lg px-3 py-1.5 hover:bg-[#6D0D23]/5">Failed</button>
-                                        </form>
-                                        <form method="POST" action="{{ route('admin.roadblocks.resolve', $roadblock) }}">
-                                            @csrf
-                                            <button type="submit" class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg px-3 py-1.5">Resolve</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="5" class="px-4 py-6 text-center text-gray-500">Nothing pending review.</td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                        <table class="w-full min-w-[440px] text-sm lg:min-w-[700px]">
+                            <thead>
+                                <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-left">
+                                    <th class="px-3 py-3 font-semibold sm:px-4">Startup</th>
+                                    <th class="{{ $foldCol }} px-4 py-3 font-semibold">Roadblock</th>
+                                    <th class="px-3 py-3 font-semibold sm:px-4">Date</th>
+                                    <th class="{{ $foldCol }} px-4 py-3 font-semibold">Mentor</th>
+                                    <th class="px-3 py-3 font-semibold sm:px-4">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($assessment as $roadblock)
+                                @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
+                                <tr class="border-b border-gray-100 last:border-0">
+                                    <td class="px-3 py-3 align-top sm:px-4">
+                                        <div class="flex items-start gap-2.5 sm:items-center sm:gap-3">
+                                            @if ($roadblock->startup->startup_photo_url)
+                                            <img src="{{ $roadblock->startup->startup_photo_url }}" alt=""
+                                                class="h-7 w-7 flex-shrink-0 rounded-full object-cover sm:h-8 sm:w-8">
+                                            @else
+                                            <span class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full {{ $avatarColor }} text-xs font-semibold text-white sm:h-8 sm:w-8">
+                                                {{ strtoupper(substr($roadblock->startup->company_name, 0, 1)) }}
+                                            </span>
+                                            @endif
+
+                                            <div class="min-w-0">
+                                                <span class="font-medium text-gray-900">{{ $roadblock->startup->company_name }}</span>
+                                                <p class="mt-0.5 text-xs text-gray-500 lg:hidden">{{ $roadblock->display_category }}</p>
+                                                @if ($roadblock->assignee)
+                                                <p class="text-xs text-gray-500 lg:hidden">{{ $roadblock->assignee->display_name }}</p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->display_category }}</td>
+                                    <td class="whitespace-nowrap px-3 py-3 align-top sm:px-4">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
+                                    <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->assignee?->display_name }}</td>
+                                    <td class="px-3 py-3 align-top sm:px-4">
+                                        <div class="flex flex-col gap-2 sm:flex-row">
+                                            <form method="POST" action="{{ route('admin.roadblocks.fail', $roadblock) }}">
+                                                @csrf
+                                                <button type="submit" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">Failed</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('admin.roadblocks.resolve', $roadblock) }}">
+                                                @csrf
+                                                <button type="submit" class="{{ $archiveBtn }} bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white transition hover:opacity-95">Resolve</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-6 text-center text-gray-500">Nothing pending review.</td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -409,50 +427,57 @@
                 </div>
                 <div class="rounded-xl border border-gray-200 overflow-hidden">
                     <div class="overflow-x-auto">
-                    <table class="w-full min-w-[700px] text-sm">
-                        <thead>
-                            <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-left">
-                                <th class="px-4 py-3 font-semibold">Startup</th>
-                                <th class="px-4 py-3 font-semibold">Roadblock</th>
-                                <th class="px-4 py-3 font-semibold">Date</th>
-                                <th class="px-4 py-3 font-semibold">Mentor</th>
-                                <th class="px-4 py-3 font-semibold">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($resolved as $roadblock)
-                            @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
-                            <tr class="border-b border-gray-100 last:border-0">
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center gap-3">
-                                        @if ($roadblock->startup->startup_photo_url)
-                                        <img src="{{ $roadblock->startup->startup_photo_url }}" alt=""
-                                            class="h-8 w-8 flex-shrink-0 rounded-full object-cover">
-                                        @else
-                                        <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full {{ $avatarColor }} text-xs font-semibold text-white">
-                                            {{ strtoupper(substr($roadblock->startup->company_name, 0, 1)) }}
-                                        </span>
-                                        @endif
-                                        <span class="font-medium text-gray-900">{{ $roadblock->startup->company_name }}</span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3">{{ $roadblock->display_category }}</td>
-                                <td class="px-4 py-3">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
-                                <td class="px-4 py-3">{{ $roadblock->assignee?->display_name }}</td>
-                                <td class="px-4 py-3">
-                                    <form method="POST" action="{{ route('admin.roadblocks.recover', $roadblock) }}">
-                                        @csrf
-                                        <button type="submit" class="border border-[#6D0D23] text-[#6D0D23] rounded-lg px-3 py-1.5 hover:bg-[#6D0D23]/5">Recover</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="5" class="px-4 py-6 text-center text-gray-500">No resolved roadblocks.</td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                        <table class="w-full min-w-[440px] text-sm lg:min-w-[700px]">
+                            <thead>
+                                <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-left">
+                                    <th class="px-3 py-3 font-semibold sm:px-4">Startup</th>
+                                    <th class="{{ $foldCol }} px-4 py-3 font-semibold">Roadblock</th>
+                                    <th class="px-3 py-3 font-semibold sm:px-4">Date</th>
+                                    <th class="{{ $foldCol }} px-4 py-3 font-semibold">Mentor</th>
+                                    <th class="px-3 py-3 font-semibold sm:px-4">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($resolved as $roadblock)
+                                @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
+                                <tr class="border-b border-gray-100 last:border-0">
+                                    <td class="px-3 py-3 align-top sm:px-4">
+                                        <div class="flex items-start gap-2.5 sm:items-center sm:gap-3">
+                                            @if ($roadblock->startup->startup_photo_url)
+                                            <img src="{{ $roadblock->startup->startup_photo_url }}" alt=""
+                                                class="h-7 w-7 flex-shrink-0 rounded-full object-cover sm:h-8 sm:w-8">
+                                            @else
+                                            <span class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full {{ $avatarColor }} text-xs font-semibold text-white sm:h-8 sm:w-8">
+                                                {{ strtoupper(substr($roadblock->startup->company_name, 0, 1)) }}
+                                            </span>
+                                            @endif
+
+                                            <div class="min-w-0">
+                                                <span class="font-medium text-gray-900">{{ $roadblock->startup->company_name }}</span>
+                                                <p class="mt-0.5 text-xs text-gray-500 lg:hidden">{{ $roadblock->display_category }}</p>
+                                                @if ($roadblock->assignee)
+                                                <p class="text-xs text-gray-500 lg:hidden">{{ $roadblock->assignee->display_name }}</p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->display_category }}</td>
+                                    <td class="whitespace-nowrap px-3 py-3 align-top sm:px-4">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
+                                    <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->assignee?->display_name }}</td>
+                                    <td class="px-3 py-3 align-top sm:px-4">
+                                        <form method="POST" action="{{ route('admin.roadblocks.recover', $roadblock) }}">
+                                            @csrf
+                                            <button type="submit" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">Recover</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-6 text-center text-gray-500">No resolved roadblocks.</td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -464,71 +489,115 @@
                 </div>
                 <div class="rounded-xl border border-gray-200 overflow-hidden">
                     <div class="overflow-x-auto">
-                    <table class="w-full min-w-[700px] text-sm">
-                        <thead>
-                            <tr class="bg-gradient-to-b from-[#6D0D23] to-[#11386A] text-white text-left">
-                                <th class="px-4 py-3 font-semibold">Startup</th>
-                                <th class="px-4 py-3 font-semibold">Roadblock</th>
-                                <th class="px-4 py-3 font-semibold">Date</th>
-                                <th class="px-4 py-3 font-semibold">Mentor</th>
-                                <th class="px-4 py-3 font-semibold">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($failed as $roadblock)
-                            @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
-                            <tr class="border-b border-gray-100 last:border-0" x-data="{ deleteOpen: false, rescheduleOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center gap-3">
-                                        @if ($roadblock->startup->startup_photo_url)
-                                        <img src="{{ $roadblock->startup->startup_photo_url }}" alt=""
-                                            class="h-8 w-8 flex-shrink-0 rounded-full object-cover">
-                                        @else
-                                        <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full {{ $avatarColor }} text-xs font-semibold text-white">
-                                            {{ strtoupper(substr($roadblock->startup->company_name, 0, 1)) }}
-                                        </span>
-                                        @endif
-                                        <span class="font-medium text-gray-900">{{ $roadblock->startup->company_name }}</span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3">{{ $roadblock->display_category }}</td>
-                                <td class="px-4 py-3">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
-                                <td class="px-4 py-3">{{ $roadblock->assignee?->display_name }}</td>
-                                <td class="px-4 py-3">
-                                    <div class="flex gap-2">
-                                        <button type="button" @click="deleteOpen = true" class="border border-[#6D0D23] text-[#6D0D23] rounded-lg px-3 py-1.5 hover:bg-[#6D0D23]/5">Delete</button>
-                                        <button type="button" @click="rescheduleOpen = true" class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg px-3 py-1.5">Reschedule</button>
-                                    </div>
+                        <table class="w-full min-w-[440px] text-sm lg:min-w-[700px]">
+                            <thead>
+                                <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-left">
+                                    <th class="px-3 py-3 font-semibold sm:px-4">Startup</th>
+                                    <th class="{{ $foldCol }} px-4 py-3 font-semibold">Roadblock</th>
+                                    <th class="px-3 py-3 font-semibold sm:px-4">Date</th>
+                                    <th class="{{ $foldCol }} px-4 py-3 font-semibold">Mentor</th>
+                                    <th class="px-3 py-3 font-semibold sm:px-4">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($failed as $roadblock)
+                                @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
+                                <tr class="border-b border-gray-100 last:border-0" x-data="{ deleteOpen: false, rescheduleOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
+                                    <td class="px-3 py-3 align-top sm:px-4">
+                                        <div class="flex items-start gap-2.5 sm:items-center sm:gap-3">
+                                            @if ($roadblock->startup->startup_photo_url)
+                                            <img src="{{ $roadblock->startup->startup_photo_url }}" alt=""
+                                                class="h-7 w-7 flex-shrink-0 rounded-full object-cover sm:h-8 sm:w-8">
+                                            @else
+                                            <span class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full {{ $avatarColor }} text-xs font-semibold text-white sm:h-8 sm:w-8">
+                                                {{ strtoupper(substr($roadblock->startup->company_name, 0, 1)) }}
+                                            </span>
+                                            @endif
 
-                                    <div x-show="deleteOpen" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style="display:none;">
-                                        <div class="bg-white rounded-2xl w-full max-w-md p-8 text-center" @click.outside="deleteOpen = false">
-                                            <h3 class="text-xl font-semibold mb-2">Delete Roadblock</h3>
-                                            <p class="text-sm text-gray-600 mb-6">This action is permanent and cannot be undone.</p>
-                                            <div class="flex gap-3 justify-center">
-                                                <button type="button" @click="deleteOpen = false" class="border rounded-lg px-5 py-2.5 text-sm font-medium">Cancel</button>
-                                                <form method="POST" action="{{ route('admin.roadblocks.destroy', $roadblock) }}">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg px-5 py-2.5 text-sm font-medium">Delete</button>
-                                                </form>
+                                            <div class="min-w-0">
+                                                <span class="font-medium text-gray-900">{{ $roadblock->startup->company_name }}</span>
+                                                <p class="mt-0.5 text-xs text-gray-500 lg:hidden">{{ $roadblock->display_category }}</p>
+                                                @if ($roadblock->assignee)
+                                                <p class="text-xs text-gray-500 lg:hidden">{{ $roadblock->assignee->display_name }}</p>
+                                                @endif
                                             </div>
                                         </div>
-                                    </div>
-
-                                    <div x-show="rescheduleOpen" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 sm:p-6" style="display:none;">
-                                        <div class="w-[880px] max-w-full rounded-xl bg-white overflow-hidden" @click.outside="rescheduleOpen = false">
-                                            <x-roadblock-assign-modal mode="reschedule" :roadblock="$roadblock" :mentors="$mentors" :coordinators="$coordinators" :action="route('admin.roadblocks.assign', $roadblock)" />
+                                    </td>
+                                    <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->display_category }}</td>
+                                    <td class="whitespace-nowrap px-3 py-3 align-top sm:px-4">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
+                                    <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->assignee?->display_name }}</td>
+                                    <td class="px-3 py-3 align-top sm:px-4">
+                                        <div class="flex flex-col gap-2 sm:flex-row">
+                                            <button type="button" @click="deleteOpen = true" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">Delete</button>
+                                            <button type="button" @click="rescheduleOpen = true" class="{{ $archiveBtn }} bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white transition hover:opacity-95">Reschedule</button>
                                         </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="5" class="px-4 py-6 text-center text-gray-500">No failed roadblocks.</td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+
+                                        {{-- STANDARD delete confirmation --}}
+                                        <div x-show="deleteOpen" x-cloak x-transition.opacity
+                                            @keydown.escape.window="deleteOpen = false"
+                                            class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" style="display:none;">
+
+                                            <div @click.outside="deleteOpen = false"
+                                                class="relative w-full max-w-lg rounded-2xl bg-white px-5 pb-5 pt-8 text-center shadow-2xl sm:px-6">
+
+                                                <button type="button" @click="deleteOpen = false"
+                                                    class="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full border border-gray-900 text-gray-900 transition hover:border-transparent hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white"
+                                                    aria-label="Close">
+                                                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+
+                                                <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A]">
+                                                    <img src="{{ asset('images/icons/trash.svg') }}" alt="" class="h-5 w-5">
+                                                </div>
+
+                                                <h2 class="mt-2.5 bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-base font-bold text-transparent sm:text-lg">
+                                                    Delete Roadblock
+                                                </h2>
+
+                                                <p class="mt-1.5 text-xs leading-5 text-gray-600">
+                                                    Are you sure you want to delete this roadblock?<br>
+                                                    This action is permanent and cannot be undone.
+                                                </p>
+
+                                                <div class="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
+                                                    <button type="button" @click="deleteOpen = false"
+                                                        class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50">
+                                                        Cancel
+                                                    </button>
+
+                                                    <form method="POST" action="{{ route('admin.roadblocks.destroy', $roadblock) }}">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit"
+                                                            class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95">
+                                                            Delete
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div x-show="rescheduleOpen" x-cloak
+                                            @keydown.escape.window="rescheduleOpen = false"
+                                            class="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6" style="display:none;">
+                                            <div class="flex min-h-full items-center justify-center">
+                                                <div class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-y-auto rounded-xl bg-white shadow-2xl"
+                                                    @click.outside="rescheduleOpen = false">
+                                                    <x-roadblock-assign-modal mode="reschedule" :roadblock="$roadblock" :mentors="$mentors" :coordinators="$coordinators" :action="route('admin.roadblocks.assign', $roadblock)" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-6 text-center text-gray-500">No failed roadblocks.</td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

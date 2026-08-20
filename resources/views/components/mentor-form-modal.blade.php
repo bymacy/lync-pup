@@ -37,7 +37,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         @endphp
 
         {{-- Header --}}
-        <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-8 py-6 text-white">
+        <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-8 py-5 text-white">
             <div class="flex min-w-0 items-center gap-3">
                 <span class="flex-shrink-0 text-white">
                     {!! $icon('upcoming-mentorship.svg', 'w-6 h-6') !!}
@@ -51,24 +51,23 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             <button
                 type="button"
                 @click="{{ $mode === 'edit' ? 'editOpen = false' : 'open = false' }}"
-                class="flex-shrink-0 rounded-full text-white/85 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                 aria-label="Close">
-                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                    <circle cx="12" cy="12" r="9.25" />
-                    <path d="M15 9l-6 6M9 9l6 6" stroke-linecap="round" />
+                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
                 </svg>
             </button>
         </div>
 
         <form method="POST" action="{{ $action }}" enctype="multipart/form-data"
-            class="flex flex-1 flex-col space-y-4 px-8 pb-8 pt-1">
+            class="flex flex-1 flex-col space-y-3 px-8 pb-6 pt-1">
             @csrf
             @if ($mode === 'edit')
             @method('PUT')
             @endif
 
             {{-- Row 1: First Name / Last Name / Honorifics --}}
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:w-[83%]">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                     <label class="{{ $label }}">First Name</label>
 
@@ -194,7 +193,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                             {{-- Preview --}}
                             <div x-show="photoPreview" x-cloak class="relative">
-                                <img :src="photoPreview" class="h-24 w-full object-cover">
+                                <img :src="photoPreview" class="h-20 w-full object-cover">
 
                                 <button type="button"
                                     @click="photoPreview = ''; $refs.photoInput.value = ''"
@@ -209,15 +208,15 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             </div>
 
                             {{-- Empty state --}}
-                            <div x-show="!photoPreview" class="flex h-24 flex-col items-center justify-center px-4">
+                            <div x-show="!photoPreview" class="flex h-20 flex-col items-center justify-center px-4">
                                 <svg class="h-5 w-5 text-[#9F1239]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
                                 </svg>
 
-                                <p class="mt-1 text-[13px] text-gray-500">Drag-and-drop</p>
+                                <p class="mt-0.5 text-[13px] text-gray-500">Drag-and-drop</p>
 
                                 <label for="{{ $photoInputId }}"
-                                    class="mt-1.5 inline-block cursor-pointer rounded bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-3 py-1 text-[11px] font-bold text-white">
+                                    class="mt-1 inline-block cursor-pointer rounded bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-3 py-1 text-[11px] font-bold text-white">
                                     Browse Files
                                 </label>
                             </div>
@@ -234,26 +233,26 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                 </div>
             </div>
 
-            {{-- Actions --}}
-            <div class="flex flex-col justify-center gap-4 pt-5 sm:flex-row">
+            {{-- Actions: full width, split evenly between the two buttons --}}
+            <div class="flex flex-col gap-4 pt-4 sm:flex-row">
                 @if ($mode === 'edit')
                 <button type="button" @click="editOpen = false"
-                    class="h-10 rounded-md border border-[#9F1239]/40 bg-white text-sm font-bold text-[#9F1239] transition hover:bg-[#FDF2F5] sm:w-52">
+                    class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:flex-1">
                     Cancel
                 </button>
 
                 <button type="submit"
-                    class="h-10 rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:w-52">
+                    class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:flex-1">
                     Save Changes
                 </button>
                 @else
                 <button type="reset"
-                    class="h-10 rounded-md border border-[#9F1239]/40 bg-white text-sm font-bold text-[#9F1239] transition hover:bg-[#FDF2F5] sm:w-52">
+                    class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:flex-1">
                     Clear Form
                 </button>
 
                 <button type="submit"
-                    class="h-10 rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:w-52">
+                    class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:flex-1">
                     Add Mentor
                 </button>
                 @endif

@@ -156,11 +156,11 @@ class Roadblock extends Model
         }
 
         if ($this->meeting_date->isTomorrow()) {
-            return 'Upcoming (Tomorrow)';
+            return 'Soon (Tomorrow)';
         }
 
         if ($this->meeting_date->diffInDays(now()) <= 7) {
-            return 'Soon (Next Week)';
+            return 'Upcoming (Next Week)';
         }
 
         return 'Upcoming (' . $this->meeting_date->format('M j') . ')';

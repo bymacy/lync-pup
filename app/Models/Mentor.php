@@ -12,13 +12,22 @@ class Mentor extends Model
     protected $primaryKey = 'mentor_id';
 
     protected $fillable = [
-        'honorific', 'first_name', 'last_name', 'full_name',
-        'specialization', 'contact_email', 'contact_number', 'organization', 'mentor_photo_path',
+        'honorific',
+        'first_name',
+        'last_name',
+        'full_name',
+        'specialization',
+        'contact_email',
+        'contact_number',
+        'organization',
+        'mentor_photo_path',
     ];
 
     public function getDisplayNameAttribute(): string
     {
-        return trim("{$this->honorific}{$this->last_name}");
+        return collect([$this->honorific, $this->last_name])
+            ->filter()
+            ->implode(' ');
     }
 
     public function roadblocks()
