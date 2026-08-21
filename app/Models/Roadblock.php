@@ -131,14 +131,28 @@ class Roadblock extends Model
 
     /**
      * True right now, between the meeting's start and end time (inclusive).
-     * This is the single source of truth for "is this meeting live" — used
-     * to switch the admin Edit button to Join, and to gate the founder-side
-     * Join Meeting button.
+     * Used only to drive the "Live (In-Session)" status label/tint — not for
+     * gating the Join button (see isJoinable() below).
      */
     public function isLive(): bool
     {
         return $this->meeting_starts_at && $this->meeting_ends_at
             && now()->between($this->meeting_starts_at, $this->meeting_ends_at);
+    }
+
+    /**
+     * Whether the Join button should be clickable: any time on the
+     * meeting's scheduled day, not just during its exact start–end window.
+     * Testers flagged the old isLive()-gated Join button as effectively
+     * unclickable most of the day. promoteEndedMeetingsToPendingReview()
+     * already moves meetings whose end time has passed out of 'Scheduled',
+     * so anything still Scheduled on its own date hasn't ended yet — this
+     * matches the day-based rule the founder-side Meetings page already
+     * used (MeetingController@index's 'can_join').
+     */
+    public function isJoinable(): bool
+    {
+        return (bool) $this->meeting_date?->isToday();
     }
 
     public function getMeetingStatusLabelAttribute(): string

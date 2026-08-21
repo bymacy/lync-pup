@@ -130,7 +130,7 @@ $initialArchiveStatusFilter = in_array(request('status'), $validArchiveStatuses)
                 const ext = file.name.split('.').pop().toLowerCase();
 
                 if (this.dt.files.length >= this.limits.maxFiles) {
-                    this.fileError = `Attach up to ${this.limits.maxFiles} files.`;
+                    this.fileError = 'Maximum file limit reached.';
                     return;
                 }
                 if (!this.limits.accept.includes(ext)) {

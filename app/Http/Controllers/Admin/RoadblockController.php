@@ -27,7 +27,19 @@ class RoadblockController extends Controller
             ->whereIn('status', ['Scheduled', 'Pending Review'])
             ->get();
 
-        $upcoming = $scheduled->reject->isInAssessment()->sortBy('meeting_date')->values();
+        // sortBy('meeting_date') only compares the date part, so multiple
+        // meetings on the same day kept whatever arbitrary order the query
+        // happened to return them in — testers correctly flagged this as
+        // not actually ordered by time. Sort by the full start timestamp
+        // instead, and pull anything currently Live to the very top
+        // regardless of what time it started, per the requested priority.
+        $upcoming = $scheduled->reject->isInAssessment()
+            ->sort(function (Roadblock $a, Roadblock $b) {
+                $liveRank = ($b->isLive() ? 1 : 0) - ($a->isLive() ? 1 : 0);
+
+                return $liveRank !== 0 ? $liveRank : $a->meeting_starts_at <=> $b->meeting_starts_at;
+            })
+            ->values();
         $scheduledToday = $upcoming->filter(fn ($r) => $r->meeting_date?->isToday())->values();
         $assessment = $scheduled->filter->isInAssessment()->sortByDesc('meeting_date')->values();
 

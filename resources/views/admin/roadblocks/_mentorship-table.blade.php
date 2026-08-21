@@ -59,8 +59,6 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         ];
 
                         // File name (in public/images/icons) for each meeting platform's logo.
-                        // Membership in this map is also what marks a platform as "linkable":
-                        // anything else (i.e. "Other") is treated as a typed address.
                         $platformIcons = [
                         'Google Meet' => 'gmeet.png',
                         'Zoom' => 'zoom.png',
@@ -82,10 +80,13 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         $platformIcon = $platformIcons[$roadblock->meeting_platform] ?? null;
                         $platformLabel = $platformLabels[$roadblock->meeting_platform] ?? $roadblock->meeting_platform;
 
-                        // "Other" means the admin typed an address or venue rather than a URL,
-                        // so there's nothing to link to — show the raw text instead of a dead
-                        // "Join meeting" anchor.
-                        $isLinkablePlatform = isset($platformIcons[$roadblock->meeting_platform]);
+                        // "Location" is a physical meetup — there's nothing to join online,
+                        // so it shows a building icon and the typed address instead of a
+                        // "Join meeting" link. Everything else (the three known platforms,
+                        // plus "Other" — an unbranded/unlisted video platform) is joinable
+                        // via its link; "Other" used to be lumped in with "Location" here,
+                        // which incorrectly hid its join link.
+                        $isLocation = $roadblock->meeting_platform === 'Location';
 
                         // Split "Live (In-Session)" into a bold main word and a lighter sub-label
                         // so the status column renders on two lines, as in the design.
@@ -144,12 +145,23 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                                 {{-- Wraps to a second line rather than forcing the column wider --}}
                                 <div class="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                    @if ($isLocation)
+                                    {{-- Physical meetup: building icon, address text, no join link. --}}
+                                    <span class="flex-shrink-0 text-[#6C0E24]">{!! $icon('building.svg', 'w-3.5 h-3.5') !!}</span>
+                                    <span class="text-gray-700">Location</span>
+                                    <span class="hidden text-gray-300 sm:inline">&bull;</span>
+                                    <span class="max-w-[12rem] text-gray-700 sm:max-w-[16rem]">
+                                        {{ $roadblock->meeting_link ?? '—' }}
+                                    </span>
+                                    @else
                                     @if ($platformIcon)
                                     <img src="{{ asset('images/icons/' . $platformIcon) }}" alt=""
                                         class="h-3.5 w-3.5 flex-shrink-0">
+                                    @else
+                                    {{-- "Other": no logo on file — generic camera icon instead. --}}
+                                    <span class="flex-shrink-0 text-[#6C0E24]">{!! $icon('camera.svg', 'w-3.5 h-3.5') !!}</span>
                                     @endif
 
-                                    @if ($isLinkablePlatform)
                                     <span class="text-gray-700">{{ $platformLabel }}</span>
 
                                     @if ($roadblock->meeting_link)
@@ -163,11 +175,6 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                         </svg>
                                     </a>
                                     @endif
-                                    @else
-                                    {{-- "Other": no platform name and no link — just the venue that was typed --}}
-                                    <span class="max-w-[12rem] text-gray-700 sm:max-w-[16rem]">
-                                        <span class="font-medium">Loc:</span> {{ $roadblock->meeting_link ?? '—' }}
-                                    </span>
                                     @endif
                                 </div>
                             </td>
@@ -180,7 +187,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <button type="button" @click="viewOpen = true"
                                         class="whitespace-nowrap rounded-lg border border-[#6D0D23] px-3 py-1.5 text-[#6D0D23] hover:bg-[#6D0D23]/5">View</button>
 
-                                    @if ($roadblock->isLive())
+                                    @if ($roadblock->isJoinable() && ! $isLocation)
                                     <a href="{{ $roadblock->meeting_link }}" target="_blank"
                                         class="whitespace-nowrap rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-3 py-1.5 text-center text-white transition hover:opacity-95">Join</a>
                                     @else

@@ -37,11 +37,9 @@ class MeetingController extends Controller
                     'mentor_name' => $roadblock->assignee?->display_name ?: '—',
                     'platform' => $roadblock->meeting_platform,
                     'meeting_link' => $roadblock->meeting_link,
-                    // Joinable for the whole meeting day rather than only once the
-                    // start time has passed. promoteEndedMeetingsToPendingReview()
-                    // above has already moved finished meetings out of 'Scheduled',
-                    // so anything still in this list on its own date hasn't ended.
-                    'can_join' => $roadblock->meeting_date->isToday(),
+                    // Joinable for the whole meeting day, not just its exact
+                    // start–end window — see Roadblock::isJoinable().
+                    'can_join' => $roadblock->isJoinable(),
                 ];
             });
 

@@ -20,7 +20,16 @@
 </head>
 
 <body class="antialiased font-['Poppins']">
-    <div class="h-screen lg:overflow-hidden flex flex-col lg:flex-row" x-data="{ activeTab: 'Startup' }">
+    {{--
+        Defaults to whatever role was actually submitted on the previous
+        request (old('role')) rather than always 'Startup'. Without this, a
+        failed Admin login (wrong password, etc.) redirects back to this same
+        page and Alpine re-initializes to the Founder tab, making it look
+        like the login attempt "redirected to the founder side" even though
+        no such redirect happened — the tab selector itself just forgot what
+        the user had picked.
+    --}}
+    <div class="h-screen lg:overflow-hidden flex flex-col lg:flex-row" x-data="{ activeTab: '{{ old('role', 'Startup') }}' }">
 
         {{-- Left panel --}}
         <div class="hidden lg:flex lg:w-1/2 relative bg-[#5c0f1e] text-white flex-col justify-between
@@ -103,9 +112,11 @@
                         @click="activeTab = 'Startup'"
                         :class="activeTab === 'Startup' ? 'bg-white shadow text-gray-900' : 'text-gray-500'"
                         class="flex-1 flex items-center justify-center gap-2 text-sm font-medium py-2 rounded-md transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
+
+                        <img src="{{ asset('images/icons/login-founder.svg') }}"
+                            alt="Founder"
+                            class="w-4 h-4">
+
                         Founder
                     </button>
                     <button type="button"

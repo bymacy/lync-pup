@@ -27,8 +27,16 @@
     $addBtn = 'items-center gap-2 whitespace-nowrap rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-3 py-2.5 text-sm font-medium text-white transition hover:from-[#5A0A1D] hover:to-[#0D2F59] sm:px-4';
     @endphp
 
+    @php
+    // A failed Add-Mentor submission comes back here with $errors populated
+    // and no '_mentor_id' (that hidden field is only non-empty on an Edit
+    // form). Reopen the Add modal in that case so the errors are actually
+    // visible instead of the page just looking like nothing happened.
+    $reopenAddModal = $errors->any() && ! old('_mentor_id');
+    @endphp
+
     {{-- Alpine root wraps both triggers so they share one `open` state and one modal --}}
-    <div x-data="{ open: false }">
+    <div x-data="{ open: @js($reopenAddModal) }">
 
         {{-- Page header --}}
         <div class="mb-6 flex items-start justify-between gap-4">
@@ -58,7 +66,7 @@
 
             @forelse ($mentors as $mentor)
             <div class="relative aspect-[3/4] overflow-hidden rounded-xl border"
-                x-data="{ menuOpen: false, editOpen: false, deleteOpen: false }">
+                x-data="{ menuOpen: false, editOpen: @js($errors->any() && old('_mentor_id') == $mentor->mentor_id), deleteOpen: false }">
 
                 {{-- Menu wrapper. z-index lifts while the dropdown is open so it clears
                      neighbouring cards, which all sit at z-20 too. --}}
@@ -144,7 +152,10 @@
                             <span class="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-white/15 sm:h-5 sm:w-5">
                                 {!! $icon('3person.svg', 'w-2 h-2 sm:w-2.5 sm:h-2.5') !!}
                             </span>
-                            <span class="truncate">{{ $mentor->cases_count }} Cases</span>
+                            <span class="truncate">
+                                {{ $mentor->active_cases_count }} {{ Str::plural('Active Case', $mentor->active_cases_count) }}
+                                &middot; {{ $mentor->completed_cases_count }} Completed
+                            </span>
                         </p>
                     </div>
                 </div>

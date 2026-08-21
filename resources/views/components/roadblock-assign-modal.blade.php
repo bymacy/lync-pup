@@ -2,7 +2,20 @@
 @php $coordinators = $coordinators ?? collect(); @endphp
 @php
 $formId = 'roadblock-assign-form-'.$roadblock->roadblock_id;
-$selectedAssignee = old('assignee', $roadblock->coordinator_id
+
+// This component is rendered once PER roadblock on pages that list many of
+// them (Pending cards, the Upcoming Mentorship table, etc). old()/$errors
+// are both global to the whole request, not scoped to a single form — so
+// without this check, a validation failure on roadblock #5's modal used to
+// bleed its stale old-input values (and error messages) into every OTHER
+// roadblock's modal too, since they all share the same field names. Only
+// apply old()/$errors when the failed submission was actually for *this*
+// roadblock (its hidden roadblock_id input is what old('roadblock_id')
+// reflects back).
+$isErroredRoadblock = $errors->any() && (int) old('roadblock_id') === $roadblock->roadblock_id;
+$oldFor = fn (string $field, $default) => $isErroredRoadblock ? old($field, $default) : $default;
+
+$selectedAssignee = $oldFor('assignee', $roadblock->coordinator_id
 ? 'coordinator-'.$roadblock->coordinator_id
 : ($roadblock->mentor_id ? 'mentor-'.$roadblock->mentor_id : ''));
 
@@ -75,7 +88,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             </div>
 
             <div class="p-4 sm:p-6">
-                <form method="POST" action="{{ $action }}" id="{{ $formId }}">
+                <form method="POST" action="{{ $action }}" id="{{ $formId }}" autocomplete="off">
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="roadblock_id" value="{{ $roadblock->roadblock_id }}">
@@ -84,13 +97,16 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
                         <div class="relative rounded-xl border p-3 sm:p-4" x-data="{ previewId: null }">
                             <p class="mb-3 text-sm font-medium sm:text-base">1. Assign Mentor or Coordinator</p>
-                            <select name="assignee" class="{{ $fieldCls }} mb-4">
-                                <option value="">Select Mentor</option>
+                            <select name="assignee" autocomplete="off" class="{{ $fieldCls }} mb-4">
+                                <option value="" disabled hidden @selected($selectedAssignee === '')>Select Mentor or Coordinator</option>
+                                @if ($mentors->isNotEmpty())
+                                <option disabled>── Mentors ──</option>
                                 @foreach ($mentors as $m)
                                 <option value="mentor-{{ $m->mentor_id }}" @selected($selectedAssignee==='mentor-' .$m->mentor_id)>
                                     {{ $m->display_name }}
                                 </option>
                                 @endforeach
+                                @endif
                                 @if ($coordinators->isNotEmpty())
                                 <option disabled>── Coordinators ──</option>
                                 @foreach ($coordinators as $c)
@@ -100,7 +116,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 @endforeach
                                 @endif
                             </select>
-                            @if ($errors->has('assignee') || $errors->has('mentor_id') || $errors->has('coordinator_id'))
+                            @if ($isErroredRoadblock && ($errors->has('assignee') || $errors->has('mentor_id') || $errors->has('coordinator_id')))
                             <p class="mb-3 text-xs text-red-600">
                                 {{ $errors->first('assignee') ?: ($errors->first('mentor_id') ?: $errors->first('coordinator_id')) }}
                             </p>
@@ -171,7 +187,10 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                                             <p class="{{ $previewRow }}">
                                                 <span class="{{ $previewDisc }}">{!! $icon('3person.svg', 'w-2.5 h-2.5') !!}</span>
-                                                <span class="truncate">{{ $m->cases_count }} Cases</span>
+                                                <span class="truncate">
+                                                    {{ $m->active_cases_count }} {{ Str::plural('Active Case', $m->active_cases_count) }}
+                                                    &middot; {{ $m->completed_cases_count }} Completed
+                                                </span>
                                             </p>
                                         </div>
                                     </div>
@@ -229,50 +248,64 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             </div>
                         </div>
 
+                        @php
+                        // Only a brand-new assignment needs to be floored at
+                        // "today"/"now" — editing or rescheduling an existing
+                        // roadblock pre-fills its own already-valid date/time,
+                        // and clamping those with the *current* clock was
+                        // rejecting them as "in the past" the moment real time
+                        // moved past the original value, forcing the admin to
+                        // manually re-click the field before it would submit
+                        // even when nothing was actually being changed.
+                        $enforceFutureOnly = $mode === 'assign';
+                        @endphp
                         <div class="rounded-xl border p-3 sm:p-4"
                             @form-cleared.window="if ($event.detail === '{{ $formId }}') meetingDate = ''"
                             x-data="{
-                    meetingDate: @js(old('meeting_date', $roadblock->meeting_date?->format('Y-m-d'))),
+                    meetingDate: @js($oldFor('meeting_date', $roadblock->meeting_date?->format('Y-m-d'))),
                     todayStr: @js(now()->format('Y-m-d')),
                     nowTime: @js(now()->format('H:i')),
                 }">
                             <p class="mb-3 text-sm font-medium sm:text-base">2. Set a Meeting</p>
 
                             <label class="{{ $lblCls }}">Date</label>
-                            <input type="date" name="meeting_date" x-model="meetingDate" :min="todayStr"
-                                value="{{ old('meeting_date', $roadblock->meeting_date?->format('Y-m-d')) }}"
+                            <input type="date" name="meeting_date" autocomplete="off" x-model="meetingDate"
+                                @if ($enforceFutureOnly) :min="todayStr" @endif
+                                value="{{ $oldFor('meeting_date', $roadblock->meeting_date?->format('Y-m-d')) }}"
                                 class="{{ $fieldCls }} mb-3">
-                            @error('meeting_date') <p class="mb-3 text-xs text-red-600">{{ $message }}</p> @enderror
+                            @if ($isErroredRoadblock) @error('meeting_date') <p class="mb-3 text-xs text-red-600">{{ $message }}</p> @enderror @endif
 
                             <div class="mb-3 grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="{{ $lblCls }}">Start Time</label>
-                                    <input type="time" name="meeting_start_time" :min="meetingDate === todayStr ? nowTime : null"
-                                        value="{{ old('meeting_start_time', $asTime($roadblock->meeting_start_time)) }}"
+                                    <input type="time" name="meeting_start_time" autocomplete="off"
+                                        @if ($enforceFutureOnly) :min="meetingDate === todayStr ? nowTime : null" @endif
+                                        value="{{ $oldFor('meeting_start_time', $asTime($roadblock->meeting_start_time)) }}"
                                         class="{{ $fieldCls }}">
-                                    @error('meeting_start_time') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                    @if ($isErroredRoadblock) @error('meeting_start_time') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror @endif
                                 </div>
                                 <div>
                                     <label class="{{ $lblCls }}">End Time</label>
-                                    <input type="time" name="meeting_end_time" value="{{ old('meeting_end_time', $asTime($roadblock->meeting_end_time)) }}"
+                                    <input type="time" name="meeting_end_time" autocomplete="off"
+                                        value="{{ $oldFor('meeting_end_time', $asTime($roadblock->meeting_end_time)) }}"
                                         class="{{ $fieldCls }}">
-                                    @error('meeting_end_time') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                    @if ($isErroredRoadblock) @error('meeting_end_time') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror @endif
                                 </div>
                             </div>
 
-                            <label class="{{ $lblCls }}">Select Platform</label>
-                            <select name="meeting_platform" class="{{ $fieldCls }} mb-3">
-                                <option value="">Select Platform</option>
-                                @foreach (['Google Meet', 'Zoom', 'Microsoft Teams', 'Other'] as $platform)
-                                <option value="{{ $platform }}" @selected(old('meeting_platform', $roadblock->meeting_platform) === $platform)>{{ $platform }}</option>
+                            <label class="{{ $lblCls }}">Platform</label>
+                            <select name="meeting_platform" autocomplete="off" class="{{ $fieldCls }} mb-3">
+                                <option value="" disabled hidden @selected(! $oldFor('meeting_platform', $roadblock->meeting_platform))>Select Platform</option>
+                                @foreach (['Google Meet', 'Zoom', 'Microsoft Teams', 'Location', 'Other'] as $platform)
+                                <option value="{{ $platform }}" @selected($oldFor('meeting_platform', $roadblock->meeting_platform) === $platform)>{{ $platform }}</option>
                                 @endforeach
                             </select>
-                            @error('meeting_platform') <p class="mb-3 text-xs text-red-600">{{ $message }}</p> @enderror
+                            @if ($isErroredRoadblock) @error('meeting_platform') <p class="mb-3 text-xs text-red-600">{{ $message }}</p> @enderror @endif
 
                             <label class="{{ $lblCls }}">Meeting Link / Location</label>
-                            <textarea name="meeting_link" rows="3" placeholder="Input Meeting Link / Address"
-                                class="{{ $fieldCls }}">{{ old('meeting_link', $roadblock->meeting_link) }}</textarea>
-                            @error('meeting_link') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            <textarea name="meeting_link" autocomplete="off" rows="3" placeholder="Input Meeting Link / Address"
+                                class="{{ $fieldCls }}">{{ $oldFor('meeting_link', $roadblock->meeting_link) }}</textarea>
+                            @if ($isErroredRoadblock) @error('meeting_link') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror @endif
                         </div>
                     </div>
                 </form>
@@ -291,9 +324,17 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         const f = document.getElementById('{{ $formId }}');
         f.querySelectorAll('input, select, textarea').forEach(el => {
             if (el.type === 'hidden') return;
-            if (el.tagName === 'SELECT') { el.selectedIndex = 0; return; }
+            // .value = '' (rather than .selectedIndex = 0) so this reliably
+            // lands on each select's empty placeholder option even now that
+            // it's marked disabled — script-driven value changes aren't
+            // blocked by disabled, only user clicks are, but selectedIndex
+            // is less consistent across browsers for that case.
             el.value = '';
         });
+        // meeting_date is bound via x-model, so the direct DOM writes above
+        // don't reach Alpine's own copy of the value — without this, Alpine
+        // would silently write its still-stale meetingDate right back into
+        // the date field on its next reactive tick, undoing the clear.
         window.dispatchEvent(new CustomEvent('form-cleared', { detail: '{{ $formId }}' }));
     "
                         class="order-2 h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:order-none sm:flex-1">

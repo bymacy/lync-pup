@@ -42,6 +42,28 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    /**
+     * Regression test: a mistyped password on the Admin tab must not make
+     * the login page's tab selector snap back to Founder on redirect. The
+     * Alpine tab state re-inits from old('role', 'Startup'), so the failed
+     * request's role must actually come back as flashed old input — not get
+     * silently dropped by Laravel's default $dontFlash exclusions.
+     */
+    public function test_failed_admin_login_keeps_the_role_selector_on_admin(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+
+        $response = $this->post('/login', [
+            'email' => $admin->email,
+            'password' => 'wrong-password',
+            'role' => 'Admin',
+        ]);
+
+        $this->assertGuest();
+        $response->assertSessionHasErrors('email');
+        $response->assertSessionHasInput('role', 'Admin');
+    }
+
     public function test_users_can_logout(): void
     {
         $user = User::factory()->create();
@@ -225,5 +247,38 @@ class AuthenticationTest extends TestCase
         // And the route itself must be reachable afterwards too — not just
         // the initial post-login redirect target.
         $this->get(route('dashboard'))->assertStatus(200);
+    }
+
+    /**
+     * Regression test: a guest who first visits /dashboard (e.g. typing it
+     * directly, or an old bookmark) gets bounced to /login with that URL
+     * remembered as the "intended" destination. If a Founder then logs in
+     * from that same login page, redirect()->intended() must not blindly
+     * send them to the remembered /dashboard (the Admin-only route) — they
+     * need to land on their own startup dashboard, and /dashboard itself
+     * must refuse them if they try it directly.
+     */
+    public function test_founder_login_does_not_land_on_the_admin_dashboard_via_a_stale_intended_url(): void
+    {
+        $founder = User::factory()->create(['role' => 'Startup', 'account_status' => 'Active']);
+
+        // Simulate the guest visit to /dashboard that seeds the "intended"
+        // URL in the session, exactly like AuthenticationTest above does
+        // for the guest-redirect case.
+        $this->get('/dashboard')->assertRedirect('/login');
+
+        $response = $this->post('/login', [
+            'email' => $founder->email,
+            'password' => 'password',
+            'role' => 'Startup',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect(route('startup.dashboard', absolute: false));
+
+        // And even if something did send them to /dashboard directly, the
+        // route itself must refuse a non-Admin rather than rendering the
+        // admin layout for them.
+        $this->get(route('dashboard'))->assertForbidden();
     }
 }

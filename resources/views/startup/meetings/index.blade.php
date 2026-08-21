@@ -117,7 +117,20 @@
                             </div>
                         </div>
 
-                        {{-- Platform: real logo for the three known platforms, camera for "Other" --}}
+                        {{-- Platform: real logo for the three known platforms, camera for
+                             "Other" (an unbranded video call), or a building + address for
+                             an in-person "Location" meeting. --}}
+                        @if (($meeting['platform'] ?? null) === 'Location')
+                        <div class="{{ $row }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="{{ $rowIcon }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                            </svg>
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold text-gray-900 sm:text-sm">Location</p>
+                                <p class="truncate text-xs text-gray-600 sm:text-sm">{{ $meeting['meeting_link'] ?? '—' }}</p>
+                            </div>
+                        </div>
+                        @else
                         <div class="{{ $row }}">
                             @if ($platformLogo)
                             <img src="{{ asset('images/icons/' . $platformLogo) }}" alt=""
@@ -132,6 +145,7 @@
                                 <p class="truncate text-xs text-gray-600 sm:text-sm">{{ $meeting['platform'] ?? '—' }}</p>
                             </div>
                         </div>
+                        @endif
                         @else
                         <div class="{{ $row }}">
                             <svg xmlns="http://www.w3.org/2000/svg" class="{{ $rowIcon }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -162,7 +176,13 @@
                     {{-- Action panel: full-width footer on phones --}}
                     <div class="w-full flex-shrink-0 border-t border-gray-200 px-3 pb-3 pt-3 sm:px-4 sm:pb-4 sm:pt-4 xl:flex xl:w-36 xl:items-end xl:justify-center xl:border-t-0 xl:pb-5 xl:pt-5 2xl:w-44">
                         @if ($meeting['type'] === 'mentorship')
-                        @if ($meeting['can_join'] && $meeting['meeting_link'])
+                        @if (($meeting['platform'] ?? null) === 'Location')
+                        {{-- In-person meeting: nothing to join online. --}}
+                        <div class="text-xs text-gray-600">
+                            <p class="font-semibold text-gray-800">In-person</p>
+                            <p class="italic">See Location for the address.</p>
+                        </div>
+                        @elseif ($meeting['can_join'] && $meeting['meeting_link'])
                         <a href="{{ $meeting['meeting_link'] }}" target="_blank" rel="noopener"
                             class="block w-full rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2 text-center text-xs font-medium text-white transition hover:opacity-95 sm:py-2.5 sm:text-sm">
                             Join Meeting

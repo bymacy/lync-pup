@@ -66,6 +66,17 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             @method('PUT')
             @endif
 
+            {{--
+                Not a validated field — just lets the index page know, after a
+                validation-failed redirect back, which modal to reopen (the
+                Add modal, or a specific mentor's Edit modal). Without this,
+                every modal on the page defaults its Alpine `open`/`editOpen`
+                state to false on every request, so a failed submission looks
+                like the modal just silently closed instead of showing the
+                errors that are actually sitting in the session.
+            --}}
+            <input type="hidden" name="_mentor_id" value="{{ $mentor?->mentor_id }}">
+
             {{-- Row 1: First Name / Last Name / Honorifics --}}
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>

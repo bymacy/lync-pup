@@ -40,4 +40,20 @@ class Coordinator extends Model
     {
         return $this->roadblocks()->whereIn('status', ['Scheduled', 'Pending Review', 'Resolved', 'Failed'])->count();
     }
+
+    /**
+     * Mirrors Mentor::getActiveCasesCountAttribute().
+     */
+    public function getActiveCasesCountAttribute(): int
+    {
+        return $this->roadblocks()->whereIn('status', ['Scheduled', 'Pending Review'])->count();
+    }
+
+    /**
+     * Mirrors Mentor::getCompletedCasesCountAttribute().
+     */
+    public function getCompletedCasesCountAttribute(): int
+    {
+        return $this->roadblocks()->whereIn('status', ['Resolved', 'Failed'])->count();
+    }
 }

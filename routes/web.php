@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\StorageController;
 use App\Http\Controllers\Admin\StartupProfileController;
 use App\Http\Controllers\Admin\CoordinatorAssignmentController;
 use App\Http\Controllers\Admin\InformationSheetController;
@@ -31,13 +32,35 @@ Route::get('/privacy-policy', function () {
     return view('legal.privacy');
 })->name('legal.privacy');
 
+// Fallback for machines where `php artisan storage:link` hasn't been run
+// (e.g. Windows testers — creating a symlink there needs Developer Mode or
+// an elevated shell). Every image URL in the app already resolves to
+// "/storage/{path}" via Storage::url(). Where the symlink exists, the
+// webserver serves that path as a static file and this route is never
+// reached; where it doesn't, this route streams the same file straight out
+// of storage/app/public instead, so the symlink step is no longer required
+// for images to show up. See app/Http/Controllers/StorageController.php.
+Route::get('/storage/{path}', [StorageController::class, 'show'])
+    ->where('path', '.*')
+    ->name('storage.show');
+
 // No 'verified' middleware here — email verification is a step in the
 // self-registered Founder flow only. This /dashboard route is what Admin
 // accounts land on (Startups get their own 'startup.dashboard' instead),
 // and Admins are created directly (e.g. via seeder) without ever going
 // through that verification step, so gating this route on it would lock
 // admins out whenever their email_verified_at happens to be null.
-Route::middleware(['auth'])->group(function () {
+//
+// 'role:Admin' is required here too: without it, this route is reachable by
+// any authenticated user regardless of role. Normally a Founder never ends
+// up here because AuthenticatedSessionController sends them to
+// 'startup.dashboard' — but redirect()->intended() will happily send a
+// freshly-logged-in Founder to a stale intended URL of '/dashboard' left
+// over from an earlier guest visit (e.g. typing /dashboard before logging
+// in), and without a role check this route rendered the full admin layout
+// for them. CheckRole now catches that and bounces them to their own
+// dashboard instead.
+Route::middleware(['auth', 'role:Admin'])->group(function () {
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->name('dashboard');

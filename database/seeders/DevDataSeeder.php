@@ -24,11 +24,22 @@ class DevDataSeeder extends Seeder
             ['name' => 'TBI Administrator', 'password' => 'password', 'role' => 'Admin']
         );
 
-        // Founder test account
+        // Founder test account — verified + Active so it can log straight in.
+        // This one is meant for general day-to-day testing (dashboard,
+        // profile, roadblocks, etc.), not for exercising the verify-email or
+        // admin-approval screens themselves — FounderApplicationSeeder's
+        // accounts exist specifically for that instead.
+        //
+        // firstOrCreate()'s attributes only apply the first time this row is
+        // created — anyone who already ran this seeder before verified/Active
+        // were added here is stuck with an unverified row that a re-seed
+        // alone won't fix. The explicit update() below forces it every run,
+        // so re-running `php artisan db:seed` actually repairs it.
         $founder = User::firstOrCreate(
             ['email' => 'founder@test.com'],
             ['name' => 'Maria Santos', 'password' => 'password', 'role' => 'Startup']
         );
+        $founder->update(['account_status' => 'Active', 'email_verified_at' => now()]);
 
         // Coordinators (only seed if none exist yet)
         if (Coordinator::count() === 0) {
@@ -102,11 +113,13 @@ class DevDataSeeder extends Seeder
             StartupReference::create(['info_sheet_id' => $sheet->info_sheet_id, 'name' => 'Engr. Paolo Reyes', 'contact' => '09211234567', 'email' => 'paolo.reyes@dti.gov.ph', 'address' => 'DTI Makati']);
         }
 
-        // EcoWatt Solutions - Approved, needs coordinator
+        // EcoWatt Solutions - Approved, needs coordinator. Verified + Active
+        // for the same reason as founder@test.com above.
         $ecowattFounder = User::firstOrCreate(
             ['email' => 'ecowatt.founder@test.com'],
             ['name' => 'EcoWatt Founder', 'password' => 'password', 'role' => 'Startup']
         );
+        $ecowattFounder->update(['account_status' => 'Active', 'email_verified_at' => now()]);
 
         $needsCoordinator = Startup::firstOrCreate(
             ['company_name' => 'EcoWatt Solutions'],
@@ -159,5 +172,9 @@ class DevDataSeeder extends Seeder
         );
 
         $this->command->info('Dev data seeded successfully.');
+        $this->command->info('Ready-to-login accounts (password: "password"):');
+        $this->command->info('  Admin:   admin@pup.edu.ph');
+        $this->command->info('  Founder: founder@test.com (AgriSense PH), ecowatt.founder@test.com (EcoWatt Solutions)');
+        $this->command->info('For Pending/Rejected/unverified test accounts (to try the admin approval and verify-email screens), run: php artisan db:seed --class=FounderApplicationSeeder');
     }
 }
