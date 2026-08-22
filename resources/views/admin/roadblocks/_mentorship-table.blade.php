@@ -219,7 +219,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <div class="flex min-h-full items-center justify-center">
                                         <div
                                             class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-hidden rounded-xl bg-white text-left shadow-2xl"
-                                            @click.outside="viewOpen = false">
+                                            >
 
                                             {{-- STANDARD header --}}
                                             <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-4 text-white sm:px-8 sm:py-5">
@@ -391,7 +391,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <div class="flex min-h-full items-center justify-center">
                                         <div
                                             class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-y-auto rounded-xl bg-white text-left shadow-2xl"
-                                            @click.outside="editOpen = false">
+                                            >
 
                                             <x-roadblock-assign-modal
                                                 mode="edit"

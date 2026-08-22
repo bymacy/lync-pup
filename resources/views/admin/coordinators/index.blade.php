@@ -73,7 +73,7 @@
 
                             <button
                                 @click="menuOpen = !menuOpen"
-                                @click.outside="menuOpen = false"
+                                
                                 class="flex h-8 w-8 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm transition duration-200 hover:bg-white hover:text-[#6D0D23] sm:h-9 sm:w-9">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                                     <circle cx="12" cy="5" r="2" />
@@ -166,7 +166,7 @@
                                 class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
                                 style="display:none;">
 
-                                <div @click.outside="deleteOpen = false"
+                                <div "
                                     class="relative w-full max-w-lg rounded-2xl bg-white px-6 pb-5 pt-8 text-center shadow-2xl">
 
                                     <button type="button" @click="deleteOpen = false"
@@ -222,7 +222,7 @@
                                 <div class="flex min-h-full items-center justify-center">
                                     <div
                                         class="relative flex max-h-[85vh] w-[740px] max-w-full flex-col overflow-y-auto rounded-xl bg-white text-left shadow-2xl"
-                                        @click.outside="editOpen = false">
+                                       >
 
                                         <x-coordinator-form-modal
                                             mode="edit"
@@ -250,7 +250,7 @@
                         <div class="flex min-h-full items-center justify-center">
                             <div
                                 class="relative flex max-h-[85vh] w-[740px] max-w-full flex-col overflow-y-auto rounded-xl bg-white shadow-2xl"
-                                @click.outside="open = false">
+                                ">
 
                                 <x-coordinator-form-modal
                                     mode="add"

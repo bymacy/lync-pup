@@ -21,11 +21,6 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         return $svg;
         };
 
-        // ONE border definition, used on every field edge and every divider:
-        // 1px solid gray-300. The icon slot and the input are two halves of a single
-        // bordered box, so the inner control must carry border-0 — @tailwindcss/forms
-        // gives inputs and selects their own 1px gray-500 border otherwise, which is
-        // what makes the input look like a separate box nested inside the group.
         $edge = 'border-gray-300';
         $group = "flex h-10 items-stretch overflow-hidden rounded-md border $edge bg-white transition focus-within:border-[#9F1239] focus-within:ring-2 focus-within:ring-[#9F1239]/12";
         $slot_ = "flex w-10 flex-shrink-0 items-center justify-center border-r $edge bg-[#FAD4DE] text-[#9F1239]";
@@ -66,15 +61,6 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             @method('PUT')
             @endif
 
-            {{--
-                Not a validated field — just lets the index page know, after a
-                validation-failed redirect back, which modal to reopen (the
-                Add modal, or a specific mentor's Edit modal). Without this,
-                every modal on the page defaults its Alpine `open`/`editOpen`
-                state to false on every request, so a failed submission looks
-                like the modal just silently closed instead of showing the
-                errors that are actually sitting in the session.
-            --}}
             <input type="hidden" name="_mentor_id" value="{{ $mentor?->mentor_id }}">
 
             {{-- Row 1: First Name / Last Name / Honorifics --}}

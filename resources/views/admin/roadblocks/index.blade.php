@@ -123,7 +123,7 @@
                                 <div class="flex min-h-full items-center justify-center">
                                     <div
                                         class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-hidden rounded-xl bg-white text-left shadow-2xl"
-                                        @click.outside="viewOpen = false">
+                                        >
 
                                         {{-- Header --}}
                                         <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-4 text-white sm:px-8 sm:py-5">
@@ -275,7 +275,7 @@
                                 class="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6" style="display:none;">
                                 <div class="flex min-h-full items-center justify-center">
                                     <div class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-y-auto rounded-xl bg-white shadow-2xl"
-                                        @click.outside="assignOpen = false">
+                                        >
                                         <x-roadblock-assign-modal mode="assign" :roadblock="$roadblock" :mentors="$mentors" :coordinators="$coordinators" :action="route('admin.roadblocks.assign', $roadblock)" />
                                     </div>
                                 </div>
@@ -331,7 +331,7 @@
             <div class="mb-6 flex items-center gap-2">
                 <label class="flex-shrink-0 text-sm font-medium">Stage:</label>
 
-                <div class="relative inline-block" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">
+                <div class="relative inline-block" x-data="{ open: false }" @keydown.escape="open = false">
                     {{-- trigger --}}
                     <button type="button" @click="open = !open"
                         class="flex w-[140px] items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-2 text-sm text-gray-700 hover:border-gray-400 sm:w-[160px]">
@@ -543,7 +543,7 @@
                                             @keydown.escape.window="deleteOpen = false"
                                             class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" style="display:none;">
 
-                                            <div @click.outside="deleteOpen = false"
+                                            <div"
                                                 class="relative w-full max-w-lg rounded-2xl bg-white px-5 pb-5 pt-8 text-center shadow-2xl sm:px-6">
 
                                                 <button type="button" @click="deleteOpen = false"
@@ -590,7 +590,7 @@
                                             class="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6" style="display:none;">
                                             <div class="flex min-h-full items-center justify-center">
                                                 <div class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-y-auto rounded-xl bg-white shadow-2xl"
-                                                    @click.outside="rescheduleOpen = false">
+                                                   >
                                                     <x-roadblock-assign-modal mode="reschedule" :roadblock="$roadblock" :mentors="$mentors" :coordinators="$coordinators" :action="route('admin.roadblocks.assign', $roadblock)" />
                                                 </div>
                                             </div>

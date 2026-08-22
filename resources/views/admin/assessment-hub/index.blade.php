@@ -19,7 +19,7 @@
             </button>
 
             <div x-show="addDayOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;">
-                <div class="w-full max-w-3xl overflow-hidden rounded-xl bg-white" @click.outside="addDayOpen = false">
+                <div class="w-full max-w-3xl overflow-hidden rounded-xl bg-white">
                     <x-evaluation-schedule-modal mode="add"
                         close="addDayOpen = false"
                         :action="route('admin.assessment-hub.evaluations.store')"

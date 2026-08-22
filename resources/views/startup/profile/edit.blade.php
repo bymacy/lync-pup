@@ -21,7 +21,28 @@
         nextUrl: null,
 
         newMembers: [''],
-        deletedMembers: []
+        deletedMembers: [],
+
+        // Cancel has to do three things, and the old version did only the first:
+        //   1. leave edit mode
+        //   2. clear dirty, or the unsaved-changes guard keeps firing on a cancel
+        //      the user already confirmed
+        //   3. put the typed values back — without a reload the inputs still show
+        //      the edits, so the page would claim to be clean while displaying
+        //      changes that were never saved
+        cancelEdit() {
+            if (! this.dirty) {
+                this.editing = false;
+                return;
+            }
+
+            // Clear the store BEFORE reloading, or the beforeunload listener
+            // pops the browser's own 'Leave site?' dialog on the way out.
+            this.dirty = false;
+            this.$store.navigation.hasUnsavedChanges = false;
+
+            window.location.reload();
+        },
     }"
         x-init="
         $watch('dirty', value => {
@@ -50,7 +71,7 @@
 
             <button
                 type="button"
-                @click="editing = !editing"
+                @click="editing ? cancelEdit() : editing = true"
                 class="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition"
                 :class="editing
         ? 'border border-gray-300 text-gray-700 hover:bg-gray-100'
@@ -83,7 +104,6 @@
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Startup Name</label>
                             <input
-
                                 type="text"
                                 name="company_name"
                                 value="{{ old('company_name', $startup->company_name) }}"

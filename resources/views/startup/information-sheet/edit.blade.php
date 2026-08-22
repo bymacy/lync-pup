@@ -124,29 +124,26 @@ pendingRemoval: [],
 
         {{-- Startup Header Bar --}}
         <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-6 py-3 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
+            <img src="{{ asset('images/icons/3person.svg') }}" alt=""
+                class="h-5 w-5 flex-shrink-0 brightness-0 invert">
             <h2 class="font-bold text-sm">{{ $startup->company_name }}</h2>
         </div>
 
         <div class="p-6">
             <div class="flex justify-center mb-3">
-                <span class="border border-rose-800 text-rose-800 text-xs italic font-medium px-4 py-1 rounded-full">PUP-TBIDO FORM No.001</span>
+                <span class="border border-rose-800 text-rose-800 text-xs italic font-medium px-4 py-1 rounded-md">PUP-TBIDO FORM No.001</span>
             </div>
             <h1 class="text-center font-bold text-xl text-blue-950 mb-4">STARTUP INFORMATION SHEET</h1>
 
             {{-- Instruction box --}}
-            <div class="flex gap-3 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 mb-6 text-xs text-gray-700">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0 text-blue-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 mb-6 text-xs text-[#11386A]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 flex-shrink-0" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    <line x1="12" y1="7" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
-                <ul class="space-y-0.5 italic">
+                <ul class="list-disc pl-4 space-y-0.5 italic marker:text-[#11386A]">
                     <li>Read The Attached Guide to Filling Out the Startup Information Sheet Before Accomplishing the Pup-TBIDO Form No. 100.</li>
                     <li>Use Capital Letters and Print Legibly. Tick Appropriate Boxes and Use Separate Sheet if Necessary. Indicate N/A If Not Applicable. Do Not Abbreviate.</li>
                     <li>Date Format (mm/dd/yyyy)</li>
@@ -755,16 +752,206 @@ pendingRemoval: [],
                     </div>
                 </div>
 
+                {{--
+    SECTIONS 31 & 34 AS TABLES — FRONTEND ONLY
+
+    No migration, no routes, no controller. Both still save into the columns they already
+    use (non_academic_distinctions and membership_associations) via the existing
+    #info-sheet-form PATCH.
+
+    LAYOUT
+    Side by side in the same md:grid-cols-2 the textareas used, so Section V keeps its
+    two-column rhythm. The number sits above the frame ("31." / "34.") and the full label
+    is the table's header row, matching the printed form.
+
+    HOW IT WORKS
+    Those columns already hold newline-separated text, so a "row" is just a line. PHP splits
+    the stored text on load, Alpine owns the array from then on, and a hidden field joins it
+    back with \n. Existing data shows up as rows immediately — nothing to backfill, and
+    anything else reading these columns keeps working.
+
+    SCOPE
+    Each block has its own x-data but sits INSIDE the page's x-data, so `editing` and `dirty`
+    are inherited. You do NOT need to touch newRows, addRow(), toggleRemoval(), or
+    submitInfoSheetForms.
+
+    WHERE IT GOES
+    Replaces the <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"> block in Section V
+    that currently holds the two textareas — this file includes that wrapper.
+--}}
+
+                @php
+                // One line = one row. Blank lines are dropped so trailing newlines don't
+                // render as empty rows.
+                $splitRows = fn ($text) => collect(preg_split('/\r\n|\r|\n/', (string) $text))
+                ->map(fn ($line) => trim($line))
+                ->filter()
+                ->values()
+                ->map(fn ($value, $i) => ['id' => $i + 1, 'text' => $value]);
+
+                $distRows = $splitRows(old('non_academic_distinctions', $sheet?->non_academic_distinctions));
+                $memRows = $splitRows(old('membership_associations', $sheet?->membership_associations));
+
+                // Shared so the two tables stay identical without copy-paste drift.
+                $listCell = 'w-full h-full border-0 bg-transparent px-3 py-2.5 text-sm
+                focus:outline-none focus:bg-blue-50
+                read-only:bg-transparent read-only:text-gray-500 placeholder:text-gray-300';
+                @endphp
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                        <p class="text-xs font-semibold text-gray-700 mb-1">31. NON-ACADEMIC DISTINCTIONS / RECOGNITION / ELIGIBILITIES</p>
-                        <textarea name="non_academic_distinctions" rows="3" form="info-sheet-form" :readonly="!editing" placeholder="SAMPLE"
-                            class="w-full border rounded px-3 py-2 text-sm readonly:bg-transparent readonly:text-gray-500 placeholder:text-gray-300">{{ old('non_academic_distinctions', $sheet?->non_academic_distinctions) }}</textarea>
+
+                    {{-- 31. Non-Academic Distinctions --}}
+                    <div
+                        x-data="{
+            rows: {{ Illuminate\Support\Js::from($distRows) }},
+            original: {{ Illuminate\Support\Js::from($distRows) }},
+            nextId: {{ $distRows->count() + 1 }},
+
+            // What actually gets submitted. Blank rows are dropped here rather than on
+            // add, so a half-typed row doesn't vanish under the cursor.
+            get packed() {
+                return this.rows.map(r => r.text.trim()).filter(Boolean).join('\n');
+            },
+
+            add() {
+                this.rows.push({ id: this.nextId++, text: '' });
+                dirty = true;
+            },
+
+            remove(id) {
+                this.rows = this.rows.filter(r => r.id !== id);
+                dirty = true;
+            },
+
+            reset() {
+                this.rows = JSON.parse(JSON.stringify(this.original));
+            },
+        }"
+                        x-init="$watch('editing', value => { if (!value) reset() })">
+
+                        <p class="text-xs font-semibold text-gray-700 mb-1">31.</p>
+
+                        {{-- The real field. Hidden, but still part of the main form via form="info-sheet-form".
+             x-effect writes .value directly — :value on a <textarea> only sets the attribute,
+             which the browser ignores once the element exists, so the form would submit empty. --}}
+                        <textarea name="non_academic_distinctions" form="info-sheet-form" class="hidden"
+                            x-ref="packedField" x-effect="$refs.packedField.value = packed"></textarea>
+
+                        <div class="border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
+
+                            {{-- Header. flex-1 label + fixed w-10 gutter, the same shape every row uses,
+                 so nothing shifts between view and edit mode. --}}
+                            <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
+                                <div class="flex-1 px-3 py-3 leading-tight">NON-ACADEMIC DISTINCTIONS / RECOGNITION / ELIGIBILITIES</div>
+                                <div class="w-10 flex-shrink-0"></div>
+                            </div>
+
+                            {{-- Rows --}}
+                            <template x-for="row in rows" :key="row.id">
+                                <div class="flex items-stretch">
+                                    <div class="flex-1">
+                                        <input type="text" x-model="row.text"
+                                            placeholder="SAMPLE"
+                                            :readonly="!editing" @input="dirty = true"
+                                            class="{{ $listCell }}">
+                                    </div>
+                                    <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                        {{-- Immediate, not deferred: there's no DELETE to queue, the row only
+                             exists in this array until Save packs it. --}}
+                                        <button type="button" x-show="editing" x-cloak
+                                            @click="remove(row.id)"
+                                            title="Remove entry" aria-label="Remove entry"
+                                            class="text-red-600 hover:text-red-800 text-base leading-none">
+                                            &times;
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <p class="text-sm text-gray-400 px-3 py-3" x-show="rows.length === 0" x-cloak>None listed yet.</p>
+
+                            {{-- Footer action inside the frame, same as References --}}
+                            <div class="px-3 py-2" x-show="editing" x-cloak>
+                                <button type="button" @click="add()"
+                                    class="text-sm font-medium text-[#11386A] hover:text-[#6D0D23] hover:underline transition">
+                                    + Add Entry
+                                </button>
+                            </div>
+                        </div>
+                        @error('non_academic_distinctions') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                     </div>
-                    <div>
-                        <p class="text-xs font-semibold text-gray-700 mb-1">34. MEMBERSHIP IN ASSOCIATION/ORGANIZATION</p>
-                        <textarea name="membership_associations" rows="3" form="info-sheet-form" :readonly="!editing" placeholder="SAMPLE"
-                            class="w-full border rounded px-3 py-2 text-sm readonly:bg-transparent readonly:text-gray-500 placeholder:text-gray-300">{{ old('membership_associations', $sheet?->membership_associations) }}</textarea>
+
+
+                    {{-- 34. Membership in Association / Organization --}}
+                    <div
+                        x-data="{
+            rows: {{ Illuminate\Support\Js::from($memRows) }},
+            original: {{ Illuminate\Support\Js::from($memRows) }},
+            nextId: {{ $memRows->count() + 1 }},
+
+            get packed() {
+                return this.rows.map(r => r.text.trim()).filter(Boolean).join('\n');
+            },
+
+            add() {
+                this.rows.push({ id: this.nextId++, text: '' });
+                dirty = true;
+            },
+
+            remove(id) {
+                this.rows = this.rows.filter(r => r.id !== id);
+                dirty = true;
+            },
+
+            reset() {
+                this.rows = JSON.parse(JSON.stringify(this.original));
+            },
+        }"
+                        x-init="$watch('editing', value => { if (!value) reset() })">
+
+                        <p class="text-xs font-semibold text-gray-700 mb-1">34.</p>
+
+                        <textarea name="membership_associations" form="info-sheet-form" class="hidden"
+                            x-ref="packedField" x-effect="$refs.packedField.value = packed"></textarea>
+
+                        <div class="border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
+
+                            {{-- Header --}}
+                            <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
+                                <div class="flex-1 px-3 py-3 leading-tight">MEMBERSHIP IN ASSOCIATION/ORGANIZATION</div>
+                                <div class="w-10 flex-shrink-0"></div>
+                            </div>
+
+                            {{-- Rows --}}
+                            <template x-for="row in rows" :key="row.id">
+                                <div class="flex items-stretch">
+                                    <div class="flex-1">
+                                        <input type="text" x-model="row.text"
+                                            placeholder="SAMPLE"
+                                            :readonly="!editing" @input="dirty = true"
+                                            class="{{ $listCell }}">
+                                    </div>
+                                    <div class="w-10 flex-shrink-0 flex items-center justify-center">
+                                        <button type="button" x-show="editing" x-cloak
+                                            @click="remove(row.id)"
+                                            title="Remove entry" aria-label="Remove entry"
+                                            class="text-red-600 hover:text-red-800 text-base leading-none">
+                                            &times;
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <p class="text-sm text-gray-400 px-3 py-3" x-show="rows.length === 0" x-cloak>None listed yet.</p>
+
+                            <div class="px-3 py-2" x-show="editing" x-cloak>
+                                <button type="button" @click="add()"
+                                    class="text-sm font-medium text-[#11386A] hover:text-[#6D0D23] hover:underline transition">
+                                    + Add Entry
+                                </button>
+                            </div>
+                        </div>
+                        @error('membership_associations') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                     </div>
                 </div>
 

@@ -132,7 +132,7 @@
                         <div class="flex items-center gap-3 px-5 py-4">
                             <div class="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0">
                                 <span class="text-white">
-                                    {!! $icon('mentorProfile.svg', 'w-5 h-5') !!}
+                                    {!! $icon('login-admin.svg', 'w-5 h-5') !!}
                                 </span>
                             </div>
 
@@ -142,18 +142,73 @@
                             </div>
                         </div>
 
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-
+                        {{-- Sign out. The button no longer submits directly — signing out mid-task
+                     is easy to do by accident on a nav item this close to the others. --}}
+                        <div x-data="{ confirmSignOut: false }">
                             <button
-                                type="submit"
+                                type="button"
+                                @click="confirmSignOut = true"
                                 class="w-full flex items-center gap-3 px-5 py-3 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-all duration-200">
 
                                 {!! $icon('sign-out.svg', 'w-4 h-4 flex-shrink-0') !!}
 
                                 <span>Sign Out</span>
                             </button>
-                        </form>
+
+                            {{-- Teleported to body on purpose: <aside> carries translate-x-*, and a
+                         transform makes an element the containing block for fixed-position
+                         descendants. Left in place, this overlay would be trapped inside the
+                         256px sidebar instead of covering the viewport. --}}
+                            <template x-teleport="body">
+                                <div x-show="confirmSignOut" x-cloak x-transition.opacity
+                                    @keydown.escape.window="confirmSignOut = false"
+                                    class="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4"
+                                    style="display:none;">
+
+                                    <div @click.outside="confirmSignOut = false"
+                                        class="relative w-full max-w-lg rounded-2xl bg-white px-8 pb-8 pt-10 text-center shadow-2xl">
+
+                                        <button type="button" @click="confirmSignOut = false"
+                                            class="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full border border-[#6D0D23] text-[#6D0D23] transition hover:bg-[#6D0D23] hover:text-white"
+                                            aria-label="Close">
+                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                                            </svg>
+                                        </button>
+
+                                        <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white">
+                                            {!! $icon('sign-out.svg', 'w-6 h-6') !!}
+                                        </div>
+
+                                        <h3 class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-2xl font-bold text-transparent">
+                                            Sign Out
+                                        </h3>
+
+                                        <p class="mt-2 text-sm text-gray-600">
+                                            Are you sure you want to sign out?<br>
+                                            You'll need to log in again to continue.
+                                        </p>
+
+                                        <div class="mt-6 grid grid-cols-2 gap-4">
+                                            <button type="button" @click="confirmSignOut = false"
+                                                class="h-11 rounded-lg border border-[#6D0D23] bg-white text-sm font-bold text-[#6D0D23] transition hover:bg-rose-50">
+                                                Cancel
+                                            </button>
+
+                                            {{-- A real POST form, not a link: Laravel's logout route
+                                         rejects GET, and the CSRF token has to ride along. --}}
+                                            <form method="POST" action="{{ route('logout') }}">
+                                                @csrf
+                                                <button type="submit"
+                                                    class="h-11 w-full rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95">
+                                                    Sign Out
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </aside>
 
