@@ -88,6 +88,19 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         // which incorrectly hid its join link.
                         $isLocation = $roadblock->meeting_platform === 'Location';
 
+                        // Upcoming Mentorship and Scheduled Today share this partial but
+                        // intentionally gate the Join/Edit swap differently:
+                        //   - Upcoming Mentorship ($gateOnExactTime = true): stays editable
+                        //     right up until the meeting's actual start time, since these
+                        //     rows can be hours (or days) away — swapping to "Join" early
+                        //     would be misleading.
+                        //   - Scheduled Today (default/false): swaps to "Join" as soon as
+                        //     it's the meeting's day, even before its start time, so hosts
+                        //     can get in early to set up.
+                        $canJoinNow = (isset($gateOnExactTime) && $gateOnExactTime)
+                        ? $roadblock->isLive()
+                        : $roadblock->isJoinable();
+
                         // Split "Live (In-Session)" into a bold main word and a lighter sub-label
                         // so the status column renders on two lines, as in the design.
                         $statusMain = $roadblock->meeting_status_label;
@@ -187,7 +200,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <button type="button" @click="viewOpen = true"
                                         class="whitespace-nowrap rounded-lg border border-[#6D0D23] px-3 py-1.5 text-[#6D0D23] hover:bg-[#6D0D23]/5">View</button>
 
-                                    @if ($roadblock->isJoinable() && ! $isLocation)
+                                    @if ($canJoinNow && ! $isLocation)
                                     <a href="{{ $roadblock->meeting_link }}" target="_blank"
                                         class="whitespace-nowrap rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-3 py-1.5 text-center text-white transition hover:opacity-95">Join</a>
                                     @else

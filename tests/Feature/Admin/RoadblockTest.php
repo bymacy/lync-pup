@@ -428,6 +428,54 @@ class RoadblockTest extends TestCase
     }
 
     /**
+     * The two tabs intentionally gate the Join/Edit button swap
+     * differently for the very same roadblock row: "Upcoming Mentorship"
+     * stays on "Edit" until the meeting's actual start time arrives (it can
+     * list rows hours or days out), while "Scheduled Today" already shows
+     * "Join" as soon as it's the meeting's day, letting hosts get in early.
+     */
+    public function test_upcoming_mentorship_stays_editable_before_start_time_while_scheduled_today_shows_join(): void
+    {
+        Carbon::setTestNow(Carbon::parse('today 10:00'));
+
+        $admin = $this->adminUser();
+        $mentor = Mentor::factory()->create();
+
+        $roadblock = $this->pendingRoadblock();
+        $roadblock->update([
+            'status' => 'Scheduled',
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_date' => now()->toDateString(),
+            'meeting_start_time' => '15:00',
+            'meeting_end_time' => '16:00',
+            'meeting_platform' => 'Google Meet',
+            'meeting_link' => 'https://meet.google.com/abc-defg-hij',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.roadblocks.index'));
+        $response->assertOk();
+
+        $html = $response->getContent();
+        $upcomingStart = strpos($html, 'Upcoming Mentorship');
+        $todayStart = strpos($html, 'Mentorship Today');
+
+        $this->assertNotFalse($upcomingStart);
+        $this->assertNotFalse($todayStart);
+
+        $upcomingSection = substr($html, $upcomingStart, $todayStart - $upcomingStart);
+        $todaySection = substr($html, $todayStart);
+
+        // Upcoming Mentorship: 3pm hasn't arrived yet (it's 10am) — must
+        // still show "Edit", not "Join".
+        $this->assertStringContainsString('>Edit<', $upcomingSection);
+        $this->assertStringNotContainsString('>Join<', $upcomingSection);
+
+        // Scheduled Today: same roadblock, same 3pm meeting that hasn't
+        // started — but this tab shows "Join" already since it's today.
+        $this->assertStringContainsString('>Join<', $todaySection);
+    }
+
+    /**
      * Regression test: editing an already-Scheduled roadblock (e.g. just to
      * swap the platform) without touching its date/time used to get
      * rejected as "in the past" the moment real time moved past the

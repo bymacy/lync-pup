@@ -298,7 +298,10 @@
                 <img src="{{ asset('images/icons/upcoming-mentorship.svg') }}" alt="" class="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true">
                 <span>Upcoming Mentorship</span>
             </h2>
-            @include('admin.roadblocks._mentorship-table', ['rows' => $upcoming])
+            {{-- gateOnExactTime: stays editable until the meeting's actual start
+                 time — these rows can be hours/days out, so swapping to "Join"
+                 the moment the day arrives would be misleading here. --}}
+            @include('admin.roadblocks._mentorship-table', ['rows' => $upcoming, 'gateOnExactTime' => true])
         </div>
 
         {{-- ============ SCHEDULED TODAY ============ --}}
@@ -307,6 +310,9 @@
                 <img src="{{ asset('images/icons/upcoming-mentorship.svg') }}" alt="" class="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true">
                 <span>Mentorship Today</span>
             </h2>
+            {{-- gateOnExactTime omitted (defaults to day-based isJoinable()):
+                 already the meeting's day, so "Join" shows early to let hosts
+                 get in before the exact start time. --}}
             @include('admin.roadblocks._mentorship-table', ['rows' => $scheduledToday])
         </div>
 
