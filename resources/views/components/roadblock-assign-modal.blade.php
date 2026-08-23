@@ -380,7 +380,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                     <button type="button" @click="deleteAssignmentOpen = true"
                         class="order-3 h-10 w-full rounded-md bg-gradient-to-r from-rose-900 to-rose-950 text-sm font-bold text-white transition hover:opacity-95 sm:order-none sm:flex-1">
-                        Delete Assignment
+                        Delete Roadblock
                     </button>
                     @endif
 
@@ -419,11 +419,12 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         </div>
 
                         <h2 class="mt-2.5 bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-base font-bold text-transparent sm:text-lg">
-                            Delete Mentor Assignment
+                            Delete Roadblock
                         </h2>
 
                         <p class="mt-1.5 text-xs leading-5 text-gray-600">
-                            Are you sure you want to delete this assigned Mentor?<br>
+                            Are you sure you want to delete this roadblock? This also removes its
+                            assigned Mentor/Coordinator and meeting schedule.<br>
                             This action is permanent and cannot be undone.
                         </p>
 

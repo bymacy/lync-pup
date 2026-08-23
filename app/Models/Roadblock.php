@@ -94,13 +94,15 @@ class Roadblock extends Model
     /**
      * The attributes that put a roadblock back into its clean, unassigned
      * "Pending" state — clearing out whichever mentor/coordinator and
-     * meeting details it had. Shared by RoadblockController::unassign()
-     * (the "Delete Assignment" button) and by Mentor/Coordinator deletion:
-     * deleting a mentor or coordinator only nulls mentor_id/coordinator_id
-     * at the database level (an ON DELETE SET NULL foreign key) — it
-     * doesn't know to also reset status/meeting fields, which otherwise
-     * left roadblocks stuck as "Scheduled" with a blank assignee column
-     * instead of reappearing in the Pending list.
+     * meeting details it had. Used when a Mentor/Coordinator is deleted:
+     * that only nulls mentor_id/coordinator_id at the database level (an ON
+     * DELETE SET NULL foreign key) — it doesn't know to also reset
+     * status/meeting fields, which otherwise left roadblocks stuck as
+     * "Scheduled" with a blank assignee column instead of reappearing in
+     * the Pending list.
+     *
+     * NOT used by RoadblockController::unassign() (the "Delete Assignment"
+     * button) — that permanently deletes the roadblock instead.
      */
     public static function pendingResetAttributes(): array
     {

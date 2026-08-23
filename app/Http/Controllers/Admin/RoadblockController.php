@@ -95,12 +95,17 @@ class RoadblockController extends Controller
     public function unassign(Roadblock $roadblock)
     {
         if ($roadblock->status !== 'Scheduled') {
-            return back()->with('error', 'Only a scheduled roadblock can have its assignment removed.');
+            return back()->with('error', 'Only a scheduled roadblock can be deleted this way.');
         }
 
-        $roadblock->update(Roadblock::pendingResetAttributes());
+        // "Delete Assignment" on an already-scheduled roadblock permanently
+        // deletes the roadblock/submission itself — it does NOT send it back
+        // to the Pending list. (It used to reset it back to Pending, but
+        // testers found that confusing: a deleted mentorship reappearing in
+        // Pending looked like it hadn't actually been deleted.)
+        $roadblock->delete();
 
-        return back()->with('status', 'Assignment removed.');
+        return back()->with('status', 'Roadblock deleted.');
     }
 
     public function resolve(Roadblock $roadblock)

@@ -71,13 +71,14 @@ class RoadblockTest extends TestCase
     }
 
     /**
-     * Locks in RoadblockController::unassign() (the "Delete Assignment"
-     * button in the Edit modal): it must fully clear the mentor/coordinator
-     * and meeting details and send the roadblock back to Pending, so it
-     * reappears in the Pending Roadblock list rather than lingering as a
-     * "Scheduled" roadblock with no one assigned.
+     * Locks in RoadblockController::unassign() (the "Delete Roadblock"
+     * button in the Edit modal, formerly "Delete Assignment"): testers
+     * found the old "reset to Pending" behavior confusing — a deleted
+     * mentorship reappearing in the Pending list looked like it hadn't
+     * actually been deleted. It now permanently deletes the roadblock
+     * itself instead.
      */
-    public function test_delete_assignment_reverts_the_roadblock_to_pending(): void
+    public function test_delete_assignment_permanently_deletes_the_roadblock(): void
     {
         $admin = $this->adminUser();
         $roadblock = $this->pendingRoadblock();
@@ -96,16 +97,8 @@ class RoadblockTest extends TestCase
         $response = $this->actingAs($admin)->delete(route('admin.roadblocks.unassign', $roadblock));
 
         $response->assertRedirect();
-        $this->assertDatabaseHas('roadblocks', [
+        $this->assertDatabaseMissing('roadblocks', [
             'roadblock_id' => $roadblock->roadblock_id,
-            'status' => 'Pending',
-            'mentor_id' => null,
-            'coordinator_id' => null,
-            'meeting_date' => null,
-            'meeting_start_time' => null,
-            'meeting_end_time' => null,
-            'meeting_platform' => null,
-            'meeting_link' => null,
         ]);
     }
 
