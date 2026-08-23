@@ -3,15 +3,7 @@
 @php
 $formId = 'roadblock-assign-form-'.$roadblock->roadblock_id;
 
-// This component is rendered once PER roadblock on pages that list many of
-// them (Pending cards, the Upcoming Mentorship table, etc). old()/$errors
-// are both global to the whole request, not scoped to a single form — so
-// without this check, a validation failure on roadblock #5's modal used to
-// bleed its stale old-input values (and error messages) into every OTHER
-// roadblock's modal too, since they all share the same field names. Only
-// apply old()/$errors when the failed submission was actually for *this*
-// roadblock (its hidden roadblock_id input is what old('roadblock_id')
-// reflects back).
+
 $isErroredRoadblock = $errors->any() && (int) old('roadblock_id') === $roadblock->roadblock_id;
 $oldFor = fn (string $field, $default) => $isErroredRoadblock ? old($field, $default) : $default;
 
@@ -20,20 +12,7 @@ $originalAssignee = $roadblock->coordinator_id
 : ($roadblock->mentor_id ? 'mentor-'.$roadblock->mentor_id : '');
 $selectedAssignee = $oldFor('assignee', $originalAssignee);
 
-// Without page reload, this modal is just an Alpine x-show toggle over
-// server-rendered HTML — closing it doesn't actually change anything, so
-// reopening it (e.g. after failing THIS roadblock, then failing a
-// different one, which resets $isErroredRoadblock to false here on the
-// next page load) still showed the stale error/draft in the meantime if
-// reopened before that next submission happened. showFailedState lets
-// Clear Form / the header close button explicitly wipe that stale
-// client-side state on demand instead of only ever clearing on the next
-// full page load.
-//
-// Assign mode uses this blank-everything version, since a brand-new
-// assignment's "pristine" state really is blank. Edit/Reschedule use
-// $revertFormJs below instead — they pre-fill from the roadblock's own
-// saved values, so closing them should restore those, not wipe them.
+
 $resetFormJs = "
     const f = document.getElementById('{$formId}');
     f.querySelectorAll('input, select, textarea').forEach(el => {
@@ -44,12 +23,6 @@ $resetFormJs = "
     showFailedState = false;
 ";
 
-// Edit/Reschedule's version of the same fix: instead of blanking every
-// field (which would make a real, already-assigned roadblock look
-// unassigned if reopened), each field with a data-original attribute
-// (set below, to the roadblock's actual saved value) gets reverted back
-// to it — undoing whatever was typed, and hiding any leftover error
-// state, without an actual page reload.
 $revertFormJs = "
     const f = document.getElementById('{$formId}');
     f.querySelectorAll('[data-original]').forEach(el => { el.value = el.dataset.original; });

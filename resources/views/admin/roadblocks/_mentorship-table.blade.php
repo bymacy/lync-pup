@@ -24,26 +24,31 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         $lbl = 'mb-1 block text-xs text-gray-500';
         $pill = 'rounded bg-gray-100 px-3 py-2 text-sm text-gray-800';
 
-        // Columns that fold away on narrow screens. Their content is repeated
-        // inside the Startup cell so nothing is actually lost on a phone.
-        $foldCol = 'hidden lg:table-cell';
+        // Every column stays in the table at all widths — the wrapper scrolls
+        // horizontally instead of hiding cells, so nothing can go missing on a
+        // narrow window. min-w below is the floor that forces that scroll.
+
+        // Opt-in filtering. Only Upcoming Mentorship passes filterKey; Scheduled
+        // Today renders the same markup with none of the filter attributes, so
+        // its rows are never hidden or reordered by the parent's filter state.
+        $filterKey = $filterKey ?? null;
         @endphp
 
         <div class="mb-10 overflow-hidden rounded-xl border border-gray-200">
             <div class="overflow-x-auto">
                 {{-- Narrower floor on phones since two columns fold away below lg --}}
-                <table class="w-full min-w-[520px] text-sm lg:min-w-[860px]">
+                <table class="w-full min-w-[920px] text-sm">
                     <thead>
                         <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-left text-white">
                             <th class="px-3 py-3 font-semibold sm:px-4">Startup</th>
-                            <th class="{{ $foldCol }} px-4 py-3 font-semibold">Roadblock</th>
+                            <th class="px-4 py-3 font-semibold">Roadblock</th>
                             <th class="px-3 py-3 font-semibold sm:px-4">Status</th>
                             <th class="px-3 py-3 font-semibold sm:px-4">Meeting Schedule</th>
-                            <th class="{{ $foldCol }} px-4 py-3 font-semibold">Mentor / Coordinator</th>
+                            <th class="px-4 py-3 font-semibold">Mentor / Coordinator</th>
                             <th class="px-3 py-3 font-semibold sm:px-4">Action</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody @if ($filterKey) id="{{ $filterKey }}-rows" @endif>
                         @php
                         $erroredRoadblockId = $errors->any() ? (int) old('roadblock_id') : null;
 
@@ -90,13 +95,13 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                         // Upcoming Mentorship and Scheduled Today share this partial but
                         // intentionally gate the Join/Edit swap differently:
-                        //   - Upcoming Mentorship ($gateOnExactTime = true): stays editable
-                        //     right up until the meeting's actual start time, since these
-                        //     rows can be hours (or days) away — swapping to "Join" early
-                        //     would be misleading.
-                        //   - Scheduled Today (default/false): swaps to "Join" as soon as
-                        //     it's the meeting's day, even before its start time, so hosts
-                        //     can get in early to set up.
+                        // - Upcoming Mentorship ($gateOnExactTime = true): stays editable
+                        // right up until the meeting's actual start time, since these
+                        // rows can be hours (or days) away — swapping to "Join" early
+                        // would be misleading.
+                        // - Scheduled Today (default/false): swaps to "Join" as soon as
+                        // it's the meeting's day, even before its start time, so hosts
+                        // can get in early to set up.
                         $canJoinNow = (isset($gateOnExactTime) && $gateOnExactTime)
                         ? $roadblock->isLive()
                         : $roadblock->isJoinable();
@@ -111,6 +116,11 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         }
                         @endphp
                         <tr class="border-b border-gray-100 last:border-0 {{ $rowTint }}"
+                            @if ($filterKey)
+                            data-row
+                            data-ts="{{ $roadblock->meeting_date?->timestamp ?? 0 }}"
+                            x-show="matchesUpcoming(@js(['name' => $roadblock->startup->company_name, 'category' => $roadblock->display_category]))"
+                            @endif
                             x-data="{ viewOpen: false, editOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
 
                             <td class="px-3 py-3 align-middle sm:px-4">
@@ -126,17 +136,11 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                                     <div class="min-w-0">
                                         <span class="font-medium text-gray-900">{{ $roadblock->startup->company_name }}</span>
-
-                                        {{-- Folded columns reappear here below lg --}}
-                                        <p class="mt-0.5 text-xs text-gray-500 lg:hidden">{{ $roadblock->display_category }}</p>
-                                        @if ($roadblock->assignee)
-                                        <p class="text-xs text-gray-500 lg:hidden">{{ $roadblock->assignee->display_name }}</p>
-                                        @endif
                                     </div>
                                 </div>
                             </td>
 
-                            <td class="{{ $foldCol }} px-4 py-3 align-middle">{{ $roadblock->display_category }}</td>
+                            <td class="px-4 py-3 align-middle">{{ $roadblock->display_category }}</td>
 
                             <td class="px-3 py-3 align-middle sm:px-4">
                                 <p class="font-semibold text-gray-900">{{ $statusMain }}</p>
@@ -192,7 +196,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 </div>
                             </td>
 
-                            <td class="{{ $foldCol }} px-4 py-3 align-middle">{{ $roadblock->assignee?->display_name }}</td>
+                            <td class="px-4 py-3 align-middle">{{ $roadblock->assignee?->display_name }}</td>
 
                             <td class="px-3 py-3 align-middle sm:px-4">
                                 {{-- Stacked on phones: two buttons side by side squeeze the column --}}
@@ -218,8 +222,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                                     <div class="flex min-h-full items-center justify-center">
                                         <div
-                                            class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-hidden rounded-xl bg-white text-left shadow-2xl"
-                                            >
+                                            class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-hidden rounded-xl bg-white text-left shadow-2xl">
 
                                             {{-- STANDARD header --}}
                                             <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-4 text-white sm:px-8 sm:py-5">
@@ -390,8 +393,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                                     <div class="flex min-h-full items-center justify-center">
                                         <div
-                                            class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-y-auto rounded-xl bg-white text-left shadow-2xl"
-                                            >
+                                            class="relative flex max-h-[90vh] w-[880px] max-w-full flex-col overflow-y-auto rounded-xl bg-white text-left shadow-2xl">
 
                                             <x-roadblock-assign-modal
                                                 mode="edit"
@@ -409,6 +411,19 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             <td colspan="6" class="px-4 py-6 text-center text-gray-500">Nothing scheduled.</td>
                         </tr>
                         @endforelse
+
+                        @if ($filterKey && $rows->isNotEmpty())
+                        {{-- Distinct from "nothing scheduled" so an over-narrow filter is obvious --}}
+                        <tr x-show="upcomingVisible === 0" x-cloak>
+                            <td colspan="6" class="px-4 py-6 text-center text-gray-500">
+                                No mentorships match these filters.
+                                <button type="button" @click="clearUpcomingFilters()"
+                                    class="ml-1 text-xs font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
+                                    Clear filters
+                                </button>
+                            </td>
+                        </tr>
+                        @endif
                     </tbody>
                 </table>
             </div>

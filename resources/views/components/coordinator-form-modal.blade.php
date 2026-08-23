@@ -35,224 +35,530 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         $chevron = 'pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500';
         $err = 'mt-1 text-xs text-red-600';
 
-        // old()/$errors are global to the whole request, not scoped to this
-        // particular modal instance. Without this guard, a failed
-        // submission for ONE coordinator (or the Add modal) would leak its
-        // typed values — and its error messages — into every OTHER
-        // coordinator's Edit modal too, since they're all rendered from
-        // this same component in the same page response and all share the
-        // same field names. Only apply old()/@error() when this is
-        // genuinely the record that failed (matched via the hidden
-        // _coordinator_id field submitted with the form, empty string for
-        // the Add modal).
-        $isErroredRecord = $errors->any() && (string) old('_coordinator_id', '') === (string) ($coordinator?->coordinator_id ?? '');
-        $oldFor = fn (string $field, $default = null) => $isErroredRecord ? old($field, $default) : $default;
-        @endphp
+        // Shared popup + option styling for the custom listbox. A native <select>
+            // paints its own OS-blue highlight that CSS can't touch, which is why the
+            // Honorifics dropdown below is hand-rolled — same pattern as Mentor.
+            $listPopup = 'absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-md border border-gray-200 bg-white py-1 shadow-lg';
+            $listOption = 'w-full px-3 py-2 text-left text-sm transition-colors';
 
-        {{-- Header --}}
-        <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-8 py-5 text-white">
-            <div class="flex min-w-0 items-center gap-3">
-                <span class="flex-shrink-0 text-white">
-                    {!! $icon('upcoming-mentorship.svg', 'w-6 h-6') !!}
-                </span>
+            // old()/$errors are global to the whole request, not scoped to this
+            // particular modal instance. Without this guard, a failed
+            // submission for ONE coordinator (or the Add modal) would leak its
+            // typed values — and its error messages — into every OTHER
+            // coordinator's Edit modal too, since they're all rendered from
+            // this same component in the same page response and all share the
+            // same field names. Only apply old()/@error() when this is
+            // genuinely the record that failed (matched via the hidden
+            // _coordinator_id field submitted with the form, empty string for
+            // the Add modal).
+            $isErroredRecord = $errors->any() && (string) old('_coordinator_id', '') === (string) ($coordinator?->coordinator_id ?? '');
+            $oldFor = fn (string $field, $default = null) => $isErroredRecord ? old($field, $default) : $default;
 
-                <h3 class="truncate text-base font-bold">
-                    {{ $mode === 'edit' ? 'Edit Portfolio Coordinator' : 'Add Portfolio Coordinator' }}
-                </h3>
+            $honorifics = ['Sir', "Ma'am", 'Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Atty.', 'Engr.'];
+
+            // Closing the modal has to wipe the fields. After a failed submit the
+            // markup carries old() values, and hiding the modal doesn't unrender
+            // them — reopening would show the abandoned attempt. Each instance
+            // dispatches its own event name so one modal's reset can't clear the
+            // others rendered in the same response.
+            $resetEvent = 'coordinator-form-reset-'.($coordinator?->coordinator_id ?? 'new');
+            $openVar = $mode === 'edit' ? 'editOpen' : 'open';
+
+            // Reset targets: model values in Edit, blank in Add. Deliberately NOT
+            // old(), which is the whole point.
+            $textDefaults = [
+            'first_name' => $coordinator?->first_name ?? '',
+            'last_name' => $coordinator?->last_name ?? '',
+            'email' => $coordinator?->email ?? '',
+            'phone' => $coordinator?->phone ?? '',
+            ];
+            $photoDefault = $coordinator?->coordinator_photo_path ? Storage::url($coordinator->coordinator_photo_path) : '';
+            @endphp
+
+            {{-- Header --}}
+            <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-8 py-5 text-white">
+                <div class="flex min-w-0 items-center gap-3">
+                    <span class="flex-shrink-0 text-white">
+                        {!! $icon('upcoming-mentorship.svg', 'w-6 h-6') !!}
+                    </span>
+
+                    <h3 class="truncate text-base font-bold">
+                        {{ $mode === 'edit' ? 'Edit Portfolio Coordinator' : 'Add Portfolio Coordinator' }}
+                    </h3>
+                </div>
+
+                <button
+                    type="button"
+                    @click="{{ $openVar }} = false"
+                    class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                    aria-label="Close">
+                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
 
-            <button
-                type="button"
-                @click="{{ $mode === 'edit' ? 'editOpen = false' : 'open = false' }}"
-                class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                aria-label="Close">
-                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
-
-        <form method="POST" action="{{ $action }}" enctype="multipart/form-data"
-            class="flex flex-1 flex-col space-y-3 px-8 pb-6 pt-1">
-            @csrf
-            @if ($mode === 'edit')
-            @method('PUT')
-            @endif
-
-            <input type="hidden" name="_coordinator_id" value="{{ $coordinator?->coordinator_id }}">
-
-            {{-- Row 1: First Name / Last Name / Honorifics --}}
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-x-6">
-                <div>
-                    <label class="{{ $label }}">First Name</label>
-
-                    <div class="{{ $group }}">
-                        <span class="{{ $slot_ }}">
-                            {!! $icon('upcoming-mentorship.svg', 'w-4 h-4') !!}
-                        </span>
-
-                        <input type="text" name="first_name" value="{{ $oldFor('first_name', $coordinator?->first_name) }}"
-                            placeholder="Coordinator First Name" class="{{ $field }}">
-                    </div>
-
-                    @if ($isErroredRecord) @error('first_name') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
-                </div>
-
-                <div>
-                    <label class="{{ $label }}">Last Name</label>
-
-                    <input type="text" name="last_name" value="{{ $oldFor('last_name', $coordinator?->last_name) }}"
-                        placeholder="Coordinator Last Name" class="{{ $plain }}">
-
-                    @if ($isErroredRecord) @error('last_name') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
-                </div>
-
-                <div>
-                    <label class="{{ $label }}">Honorifics</label>
-
-                    <div class="relative">
-                        <select name="honorific" class="{{ $plain }} appearance-none bg-white pr-9">
-                            {{-- disabled + hidden: a placeholder prompt, not a real
-                                 selectable choice — it isn't a valid honorific and
-                                 was previously left pickable, which just meant
-                                 "honorific" failed validation with a confusing
-                                 error if a user selected it and moved on. --}}
-                            <option value="" disabled hidden @selected(! $oldFor('honorific', $coordinator?->honorific))>Coordinator Honorifics</option>
-                            @foreach (['Sir', 'Ma\'am', 'Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Atty.', 'Engr.'] as $h)
-                            <option value="{{ $h }}" @selected($oldFor('honorific', $coordinator?->honorific) === $h)>{{ $h }}</option>
-                            @endforeach
-                        </select>
-
-                        <svg class="{{ $chevron }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </div>
-
-                    @if ($isErroredRecord) @error('honorific') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
-                </div>
-            </div>
-
-            {{-- Email / Phone --}}
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-6">
-                <div>
-                    <label class="{{ $label }}">Email</label>
-
-                    <div class="{{ $group }}">
-                        <span class="{{ $slot_ }}">
-                            {!! $icon('mail.svg', 'w-4 h-4') !!}
-                        </span>
-
-                        <input type="email" name="email" value="{{ $oldFor('email', $coordinator?->email) }}"
-                            placeholder="example@email.com" class="{{ $field }}">
-                    </div>
-
-                    @if ($isErroredRecord) @error('email') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
-                </div>
-
-                <div>
-                    <label class="{{ $label }}">Phone Number</label>
-
-                    <div class="{{ $group }}">
-                        <span class="{{ $slot_ }}">
-                            {!! $icon('phone.svg', 'w-4 h-4') !!}
-                        </span>
-
-                        <input type="text" name="phone" value="{{ $oldFor('phone', $coordinator?->phone) }}"
-                            placeholder="09XX-XXX-XXXX" inputmode="numeric" maxlength="11"
-                            oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)"
-                            class="{{ $field }}">
-                    </div>
-
-                    @if ($isErroredRecord) @error('phone') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
-                </div>
-            </div>
-
-            {{-- Profile Photo: half width --}}
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-6">
-                <div x-data="{ photoPreview: '{{ $coordinator?->coordinator_photo_path ? Storage::url($coordinator->coordinator_photo_path) : '' }}' }">
-                    <label class="{{ $label }}">Profile Photo</label>
-
-                    <div class="flex items-stretch overflow-hidden rounded-md border {{ $edge }} bg-white"
-                        @dragover.prevent
-                        @drop.prevent="
-                    const file = $event.dataTransfer.files[0];
-                    if (file) {
-                        $refs.photoInput.files = $event.dataTransfer.files;
-                        photoPreview = URL.createObjectURL(file);
-                    }
-                ">
-
-                        <span class="{{ $slot_ }}">
-                            {!! $icon('camera.svg', 'w-4 h-4') !!}
-                        </span>
-
-                        {{-- No border-l: the slot's border-r already draws that divider --}}
-                        <div class="min-w-0 flex-1 bg-[#FDF2F5]">
-
-                            {{-- Preview --}}
-                            <div x-show="photoPreview" x-cloak class="relative">
-                                <img :src="photoPreview" class="h-20 w-full object-cover">
-
-                                <button type="button"
-                                    @click="photoPreview = ''; $refs.photoInput.value = ''"
-                                    class="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white transition hover:bg-black/80">
-                                    &times;
-                                </button>
-
-                                <label for="{{ $photoInputId }}"
-                                    class="absolute bottom-2 right-2 cursor-pointer rounded bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-2.5 py-1 text-[11px] font-semibold text-white">
-                                    Change Photo
-                                </label>
-                            </div>
-
-                            {{-- Empty state --}}
-                            <div x-show="!photoPreview" class="flex h-20 flex-col items-center justify-center px-4">
-                                <svg class="h-5 w-5 text-[#9F1239]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
-                                </svg>
-
-                                <p class="mt-0.5 text-[13px] text-gray-500">Drag-and-drop</p>
-
-                                <label for="{{ $photoInputId }}"
-                                    class="mt-1 inline-block cursor-pointer rounded bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-3 py-1 text-[11px] font-bold text-white">
-                                    Browse Files
-                                </label>
-                            </div>
-
-                            <input type="file" x-ref="photoInput" id="{{ $photoInputId }}" name="coordinator_photo" accept="image/*" class="hidden"
-                                @change="
-                            const file = $event.target.files[0];
-                            if (file) { photoPreview = URL.createObjectURL(file); }
-                        ">
-                        </div>
-                    </div>
-
-                    @if ($isErroredRecord) @error('coordinator_photo') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
-                </div>
-            </div>
-
-            {{-- Actions: full width, split evenly between the two buttons --}}
-            <div class="flex flex-col gap-4 pt-4 sm:flex-row">
+            {{-- Watching the parent's open flag catches every way out — the X, Escape,
+             clicking the backdrop — instead of only the close button. --}}
+            <form method="POST" action="{{ $action }}" enctype="multipart/form-data"
+                class="flex flex-1 flex-col space-y-3 px-8 pb-6 pt-1"
+                x-init="$watch('{{ $openVar }}', value => { if (! value) $dispatch('{{ $resetEvent }}') })"
+                x-on:{{ $resetEvent }}.window="
+                Object.entries(@js($textDefaults)).forEach(([name, value]) => {
+                    const control = $el.elements[name];
+                    if (control) control.value = value ?? '';
+                });
+                $el.querySelectorAll('[data-error]').forEach(node => node.remove());
+            ">
+                @csrf
                 @if ($mode === 'edit')
-                <button type="button" @click="editOpen = false"
-                    class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:flex-1">
-                    Cancel
-                </button>
-
-                <button type="submit"
-                    class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:flex-1">
-                    Save Changes
-                </button>
-                @else
-                <button type="reset"
-                    class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:flex-1">
-                    Clear Form
-                </button>
-
-                <button type="submit"
-                    class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:flex-1">
-                    Add Coordinator
-                </button>
+                @method('PUT')
                 @endif
-            </div>
-        </form>
+
+                <input type="hidden" name="_coordinator_id" value="{{ $coordinator?->coordinator_id }}">
+
+                {{-- Row 1: First Name / Last Name / Honorifics --}}
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-x-6">
+                    <div>
+                        <label class="{{ $label }}">First Name</label>
+
+                        <div class="{{ $group }}">
+                            <span class="{{ $slot_ }}">
+                                {!! $icon('upcoming-mentorship.svg', 'w-4 h-4') !!}
+                            </span>
+
+                            <input type="text" name="first_name" value="{{ $oldFor('first_name', $coordinator?->first_name) }}"
+                                placeholder="Coordinator First Name"
+                                oninput="this.value = this.value.replace(/[^\p{L}\s'.-]/gu, '')" class="{{ $field }}">
+                        </div>
+
+                        @if ($isErroredRecord) @error('first_name') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
+                    </div>
+
+                    <div>
+                        <label class="{{ $label }}">Last Name</label>
+
+                        <input type="text" name="last_name" value="{{ $oldFor('last_name', $coordinator?->last_name) }}"
+                            placeholder="Coordinator Last Name"
+                            oninput="this.value = this.value.replace(/[^\p{L}\s'.-]/gu, '')" class="{{ $plain }}">
+
+                        @if ($isErroredRecord) @error('last_name') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
+                    </div>
+
+                    <div>
+                        <label class="{{ $label }}">Honorifics</label>
+
+                        {{-- Custom listbox: the placeholder is trigger text rather than a
+                         disabled <option>, so there's nothing invalid to pick, and the
+                         highlight can carry the brand gradient. --}}
+                        <div class="relative"
+                            x-data="{
+                            open: false,
+                            selected: @js((string) ($oldFor('honorific', $coordinator?->honorific) ?? '')),
+                            highlighted: -1,
+                            options: @js($honorifics),
+
+                            toggle() {
+                                this.open = !this.open;
+                                this.highlighted = this.open ? this.options.indexOf(this.selected) : -1;
+                            },
+
+                            choose(option) {
+                                this.selected = option;
+                                this.open = false;
+                                this.$refs.trigger.focus();
+                            },
+
+                            move(step) {
+                                if (!this.open) { this.toggle(); return; }
+                                const count = this.options.length;
+                                this.highlighted = (this.highlighted + step + count) % count;
+                            },
+                        }"
+                            @click.outside="open = false"
+                            @keydown.escape="open = false"
+                            x-on:{{ $resetEvent }}.window="selected = @js((string) ($coordinator?->honorific ?? '')); open = false">
+
+                            <input type="hidden" name="honorific" :value="selected">
+
+                            <button type="button"
+                                x-ref="trigger"
+                                @click="toggle()"
+                                @keydown.arrow-down.prevent="move(1)"
+                                @keydown.arrow-up.prevent="move(-1)"
+                                @keydown.enter.prevent="open && highlighted > -1 ? choose(options[highlighted]) : toggle()"
+                                :aria-expanded="open"
+                                aria-haspopup="listbox"
+                                class="{{ $plain }} flex items-center pr-9 text-left"
+                                :class="open ? 'border-[#9F1239] ring-2 ring-[#9F1239]/12' : ''">
+                                <span class="truncate" :class="selected ? 'text-gray-800' : 'text-gray-400'"
+                                    x-text="selected || 'Coordinator Honorifics'"></span>
+                            </button>
+
+                            <svg class="{{ $chevron }} transition-transform" :class="open && 'rotate-180'"
+                                fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+
+                            <div x-show="open" x-cloak
+                                x-transition:enter="transition ease-out duration-100"
+                                x-transition:enter-start="opacity-0 -translate-y-1"
+                                x-transition:enter-end="opacity-100 translate-y-0"
+                                role="listbox"
+                                class="{{ $listPopup }} max-h-48 overflow-y-auto">
+
+                                <template x-for="(option, index) in options" :key="option">
+                                    <button type="button"
+                                        role="option"
+                                        :aria-selected="selected === option"
+                                        @click="choose(option)"
+                                        @mouseenter="highlighted = index"
+                                        class="{{ $listOption }}"
+                                        :class="highlighted === index
+                                        ? 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white'
+                                        : (selected === option ? 'bg-[#FDF2F5] font-medium text-[#9F1239]' : 'text-gray-700')"
+                                        x-text="option"></button>
+                                </template>
+                            </div>
+                        </div>
+
+                        @if ($isErroredRecord) @error('honorific') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
+                    </div>
+                </div>
+
+                {{-- Email / Phone --}}
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-6">
+                    <div>
+                        <label class="{{ $label }}">Email</label>
+
+                        <div class="{{ $group }}">
+                            <span class="{{ $slot_ }}">
+                                {!! $icon('mail.svg', 'w-4 h-4') !!}
+                            </span>
+
+                            <input type="email" name="email" value="{{ $oldFor('email', $coordinator?->email) }}"
+                                placeholder="example@email.com" class="{{ $field }}">
+                        </div>
+
+                        @if ($isErroredRecord) @error('email') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
+                    </div>
+
+                    <div>
+                        <label class="{{ $label }}">Phone Number</label>
+
+                        <div class="{{ $group }}">
+                            <span class="{{ $slot_ }}">
+                                {!! $icon('phone.svg', 'w-4 h-4') !!}
+                            </span>
+
+                            <input type="text" name="phone" value="{{ $oldFor('phone', $coordinator?->phone) }}"
+                                placeholder="09XX-XXX-XXXX" inputmode="numeric" maxlength="11"
+                                oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)"
+                                class="{{ $field }}">
+                        </div>
+
+                        @if ($isErroredRecord) @error('phone') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
+                    </div>
+                </div>
+
+                {{-- Profile Photo: half width --}}
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-6">
+                    {{-- Cropper: picking a file opens a 3:4 framing step and what gets
+                     submitted is the cropped canvas output, not the original file.
+                     Drag to pan, slider to zoom; offsets are clamped so the frame
+                     is always fully covered. --}}
+                    <div x-data="{
+                        photoPreview: @js($photoDefault),
+                        photoData: @js((string) ($oldFor('coordinator_photo_data', '') ?? '')),
+                        cropOpen: false,
+                        cropSrc: '',
+                        natural: { w: 0, h: 0 },
+                        frame: { w: 240, h: 320 },
+                        scale: 1,
+                        offsetX: 0,
+                        offsetY: 0,
+                        drag: null,
+                        croppedFile: null,
+
+                        /* A file input can't be refilled by the server, so a failed
+                           save would otherwise drop the photo while every text field
+                           came back via old(). The cropped JPEG rides along as a
+                           hidden base64 field, and on reload we turn it back into a
+                           real File so the next submit carries it. */
+                        init() {
+                            if (this.photoData.startsWith('data:image/')) {
+                                this.photoPreview = this.photoData;
+                                this.hydrateInput(this.photoData);
+                            }
+                        },
+
+                        async hydrateInput(dataUrl) {
+                            try {
+                                const blob = await (await fetch(dataUrl)).blob();
+                                const file = new File([blob], 'coordinator-photo.jpg', { type: 'image/jpeg' });
+                                const transfer = new DataTransfer();
+                                transfer.items.add(file);
+
+                                this.croppedFile = file;
+                                this.$refs.photoInput.files = transfer.files;
+                            } catch (e) {
+                                /* preview still shows; user can re-pick if needed */
+                            }
+                        },
+
+                        openCropper(file) {
+                            if (!file || !file.type.startsWith('image/')) return;
+                            this.releaseSrc();
+                            this.cropSrc = URL.createObjectURL(file);
+                            this.scale = 1;
+                            this.offsetX = 0;
+                            this.offsetY = 0;
+                            this.cropOpen = true;
+                        },
+
+                        imageLoaded(event) {
+                            this.natural = { w: event.target.naturalWidth, h: event.target.naturalHeight };
+                            this.clamp();
+                        },
+
+                        /* Scale that makes the image just cover the frame — the floor
+                           the zoom slider multiplies from, so gaps are impossible. */
+                        get coverScale() {
+                            if (!this.natural.w || !this.natural.h) return 1;
+                            return Math.max(this.frame.w / this.natural.w, this.frame.h / this.natural.h);
+                        },
+                        get shownW() { return this.natural.w * this.coverScale * this.scale; },
+                        get shownH() { return this.natural.h * this.coverScale * this.scale; },
+                        get imageLeft() { return (this.frame.w - this.shownW) / 2 + this.offsetX; },
+                        get imageTop() { return (this.frame.h - this.shownH) / 2 + this.offsetY; },
+
+                        clamp() {
+                            const maxX = Math.max(0, (this.shownW - this.frame.w) / 2);
+                            const maxY = Math.max(0, (this.shownH - this.frame.h) / 2);
+                            this.offsetX = Math.min(maxX, Math.max(-maxX, this.offsetX));
+                            this.offsetY = Math.min(maxY, Math.max(-maxY, this.offsetY));
+                        },
+
+                        startDrag(event) {
+                            this.drag = { x: event.clientX, y: event.clientY };
+                            event.currentTarget.setPointerCapture(event.pointerId);
+                        },
+                        onDrag(event) {
+                            if (!this.drag) return;
+                            this.offsetX += event.clientX - this.drag.x;
+                            this.offsetY += event.clientY - this.drag.y;
+                            this.drag = { x: event.clientX, y: event.clientY };
+                            this.clamp();
+                        },
+                        endDrag() { this.drag = null; },
+
+                        applyCrop() {
+                            const image = this.$refs.cropImage;
+                            if (!image || !this.natural.w) return;
+
+                            const density = 3; // 720x960 output
+                            const canvas = document.createElement('canvas');
+                            canvas.width = this.frame.w * density;
+                            canvas.height = this.frame.h * density;
+
+                            const ctx = canvas.getContext('2d');
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(
+                                image,
+                                this.imageLeft * density,
+                                this.imageTop * density,
+                                this.shownW * density,
+                                this.shownH * density
+                            );
+
+                            canvas.toBlob(blob => {
+                                if (!blob) return;
+
+                                const file = new File([blob], 'coordinator-photo.jpg', { type: 'image/jpeg' });
+                                const transfer = new DataTransfer();
+                                transfer.items.add(file);
+
+                                this.croppedFile = file;
+                                this.$refs.photoInput.files = transfer.files;
+                                this.photoData = canvas.toDataURL('image/jpeg', 0.9);
+                                this.photoPreview = this.photoData;
+                                this.closeCropper();
+                            }, 'image/jpeg', 0.9);
+                        },
+
+                        /* Cancelling must not leave the raw uncropped pick sitting in
+                           the input — restore the last crop, or empty it. */
+                        cancelCrop() {
+                            if (this.croppedFile) {
+                                const transfer = new DataTransfer();
+                                transfer.items.add(this.croppedFile);
+                                this.$refs.photoInput.files = transfer.files;
+                            } else {
+                                this.$refs.photoInput.value = '';
+                            }
+                            this.closeCropper();
+                        },
+
+                        closeCropper() {
+                            this.cropOpen = false;
+                            this.releaseSrc();
+                        },
+
+                        releaseSrc() {
+                            if (this.cropSrc) URL.revokeObjectURL(this.cropSrc);
+                            this.cropSrc = '';
+                        },
+
+                        clearPhoto() {
+                            this.photoPreview = '';
+                            this.photoData = '';
+                            this.croppedFile = null;
+                            this.$refs.photoInput.value = '';
+                        },
+
+                        /* Back to the stored photo (Edit) or nothing (Add) */
+                        resetPhoto() {
+                            this.clearPhoto();
+                            this.photoPreview = @js($photoDefault);
+                            this.closeCropper();
+                        },
+                    }"
+                        x-on:{{ $resetEvent }}.window="resetPhoto()">
+                        <label class="{{ $label }}">Profile Photo</label>
+
+                        <div class="flex items-stretch overflow-hidden rounded-md border {{ $edge }} bg-white"
+                            @dragover.prevent
+                            @drop.prevent="openCropper($event.dataTransfer.files[0])">
+
+                            <span class="{{ $slot_ }}">
+                                {!! $icon('camera.svg', 'w-4 h-4') !!}
+                            </span>
+
+                            {{-- No border-l: the slot's border-r already draws that divider --}}
+                            <div class="min-w-0 flex-1 bg-[#FDF2F5]">
+
+                                {{-- Preview --}}
+                                <div x-show="photoPreview" x-cloak class="relative">
+                                    <img :src="photoPreview" class="h-28 w-full object-cover">
+
+                                    <button type="button"
+                                        @click="clearPhoto()"
+                                        class="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80"
+                                        aria-label="Remove photo">
+                                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M18 6L6 18M6 6l12 12" />
+                                        </svg>
+                                    </button>
+
+                                    <label for="{{ $photoInputId }}"
+                                        class="absolute bottom-2 right-2 cursor-pointer rounded bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-2.5 py-1 text-[11px] font-semibold text-white">
+                                        Change Photo
+                                    </label>
+                                </div>
+
+                                {{-- Empty state --}}
+                                <div x-show="!photoPreview" class="flex h-28 flex-col items-center justify-center px-4 py-3">
+                                    <svg class="h-5 w-5 text-[#9F1239]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                                    </svg>
+
+                                    <p class="mt-1 text-[13px] text-gray-500">Drag-and-drop</p>
+
+                                    <label for="{{ $photoInputId }}"
+                                        class="mt-2 inline-block cursor-pointer rounded bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-3 py-1.5 text-[11px] font-bold text-white">
+                                        Browse Files
+                                    </label>
+                                </div>
+
+                                {{-- value='' on click so re-picking the same file still fires change --}}
+                                <input type="file" x-ref="photoInput" id="{{ $photoInputId }}" name="coordinator_photo" accept="image/*" class="hidden"
+                                    @click="$event.target.value = ''"
+                                    @change="openCropper($event.target.files[0])">
+
+                                {{-- Survives a validation bounce; old() refills it, init() turns it back into the upload --}}
+                                <input type="hidden" name="coordinator_photo_data" :value="photoData">
+                            </div>
+                        </div>
+
+                        @if ($isErroredRecord) @error('coordinator_photo') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
+
+                        {{-- Crop step. Teleported to <body> so it clears the parent
+                         modal's own stacking context and scroll container. --}}
+                        <template x-teleport="body">
+                            <div x-show="cropOpen" x-cloak x-transition.opacity
+                                class="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-4"
+                                style="display:none;">
+
+                                <div class="w-full max-w-xs rounded-xl bg-white p-5 text-center shadow-2xl">
+                                    <h4 class="text-sm font-bold text-gray-900">Crop Photo</h4>
+                                    <p class="mt-1 text-xs text-gray-500">Drag to reposition, slide to zoom.</p>
+
+                                    <div class="mx-auto mt-3 touch-none select-none overflow-hidden rounded-lg bg-gray-900"
+                                        :style="`width:${frame.w}px;height:${frame.h}px`"
+                                        :class="drag ? 'cursor-grabbing' : 'cursor-grab'"
+                                        @pointerdown.prevent="startDrag($event)"
+                                        @pointermove="onDrag($event)"
+                                        @pointerup="endDrag()"
+                                        @pointercancel="endDrag()">
+
+                                        <div class="relative h-full w-full">
+                                            <img x-ref="cropImage" :src="cropSrc" @load="imageLoaded($event)"
+                                                alt="" draggable="false" class="absolute max-w-none"
+                                                :style="`left:${imageLeft}px;top:${imageTop}px;width:${shownW}px;height:${shownH}px`">
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3 flex items-center gap-2">
+                                        <span class="text-xs text-gray-400">−</span>
+                                        <input type="range" min="1" max="3" step="0.01"
+                                            x-model.number="scale" @input="clamp()"
+                                            class="h-1 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-[#9F1239]">
+                                        <span class="text-xs text-gray-400">+</span>
+                                    </div>
+
+                                    <div class="mt-4 grid grid-cols-2 gap-3">
+                                        <button type="button" @click="cancelCrop()"
+                                            class="h-9 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50">
+                                            Cancel
+                                        </button>
+
+                                        <button type="button" @click="applyCrop()"
+                                            class="h-9 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95">
+                                            Apply
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                {{-- Actions: full width, split evenly between the two buttons --}}
+                <div class="flex flex-col gap-4 pt-4 sm:flex-row">
+                    @if ($mode === 'edit')
+                    <button type="button" @click="editOpen = false"
+                        class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:flex-1">
+                        Cancel
+                    </button>
+
+                    <button type="submit"
+                        class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:flex-1">
+                        Save Changes
+                    </button>
+                    @else
+                    {{-- type=button + explicit dispatch: native reset() restores the HTML
+                     value attributes, which after a failed submit ARE the old() values --}}
+                    <button type="button" @click="$dispatch('{{ $resetEvent }}')"
+                        class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:flex-1">
+                        Clear Form
+                    </button>
+
+                    <button type="submit"
+                        class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:flex-1">
+                        Add Coordinator
+                    </button>
+                    @endif
+                </div>
+            </form>
