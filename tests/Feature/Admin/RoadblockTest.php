@@ -515,6 +515,46 @@ class RoadblockTest extends TestCase
     }
 
     /**
+     * Regression test: a Location (in-person) roadblock has no online link,
+     * so it normally falls back to showing "Edit" instead of "Join". But
+     * once its meeting is actually live, editing an in-progress meeting
+     * doesn't make sense either — testers flagged a live Location row still
+     * showing a clickable Edit button. That slot should now be empty
+     * (View only) for the duration of the live meeting.
+     */
+    public function test_a_live_location_meeting_shows_only_view_with_no_edit_or_join(): void
+    {
+        Carbon::setTestNow(Carbon::parse('today 10:00'));
+
+        $admin = $this->adminUser();
+        $mentor = Mentor::factory()->create();
+
+        $roadblock = $this->pendingRoadblock();
+        $roadblock->update([
+            'status' => 'Scheduled',
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_date' => now()->toDateString(),
+            'meeting_start_time' => '09:00',
+            'meeting_end_time' => '11:00',
+            'meeting_platform' => 'Location',
+            'meeting_link' => 'TBIDO Office, 3rd Floor',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.roadblocks.index'));
+        $response->assertOk();
+
+        $html = $response->getContent();
+        $todayStart = strpos($html, 'Mentorship Today');
+        $this->assertNotFalse($todayStart);
+
+        $todaySection = substr($html, $todayStart);
+
+        $this->assertStringContainsString('>View<', $todaySection);
+        $this->assertStringNotContainsString('>Edit<', $todaySection);
+        $this->assertStringNotContainsString('>Join<', $todaySection);
+    }
+
+    /**
      * Regression test: editing an already-Scheduled roadblock (e.g. just to
      * swap the platform) without touching its date/time used to get
      * rejected as "in the past" the moment real time moved past the

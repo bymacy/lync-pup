@@ -207,7 +207,11 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     @if ($canJoinNow && ! $isLocation)
                                     <a href="{{ $roadblock->meeting_link }}" target="_blank"
                                         class="whitespace-nowrap rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-3 py-1.5 text-center text-white transition hover:opacity-95">Join</a>
-                                    @else
+                                    @elseif (! ($canJoinNow && $isLocation))
+                                    {{-- Location has no online link to join, so it normally falls
+                                    back to Edit here — except once its meeting is actually live,
+                                    editing an in-progress meeting doesn't make sense either, so
+                                    this slot is simply left empty (View only) for that window. --}}
                                     <button type="button" @click="editOpen = true"
                                         class="whitespace-nowrap rounded-lg border border-[#6D0D23] px-3 py-1.5 text-[#6D0D23] hover:bg-[#6D0D23]/5">Edit</button>
                                     @endif
