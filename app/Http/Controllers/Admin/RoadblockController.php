@@ -98,16 +98,7 @@ class RoadblockController extends Controller
             return back()->with('error', 'Only a scheduled roadblock can have its assignment removed.');
         }
 
-        $roadblock->update([
-            'mentor_id' => null,
-            'coordinator_id' => null,
-            'meeting_date' => null,
-            'meeting_start_time' => null,
-            'meeting_end_time' => null,
-            'meeting_platform' => null,
-            'meeting_link' => null,
-            'status' => 'Pending',
-        ]);
+        $roadblock->update(Roadblock::pendingResetAttributes());
 
         return back()->with('status', 'Assignment removed.');
     }

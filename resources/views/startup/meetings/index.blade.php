@@ -17,7 +17,7 @@
             return $svg;
             };
 
-            // Logo file for each meeting platform. Anything not in this map (i.e. "Other")
+            // Logo file for each meeting platform. Anything not in this map (i.e. "Custom Link")
             // falls back to the camera icon below.
             $platformIcons = [
             'Google Meet' => 'gmeet.png',
@@ -118,8 +118,8 @@
                         </div>
 
                         {{-- Platform: real logo for the three known platforms, camera for
-                             "Other" (an unbranded video call), or a building + address for
-                             an in-person "Location" meeting. --}}
+                             "Custom Link" (an unbranded video call), or a building + address
+                             for an in-person "Location" meeting. --}}
                         @if (($meeting['platform'] ?? null) === 'Location')
                         <div class="{{ $row }}">
                             <svg xmlns="http://www.w3.org/2000/svg" class="{{ $rowIcon }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

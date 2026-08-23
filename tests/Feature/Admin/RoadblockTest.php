@@ -70,6 +70,45 @@ class RoadblockTest extends TestCase
         ]);
     }
 
+    /**
+     * Locks in RoadblockController::unassign() (the "Delete Assignment"
+     * button in the Edit modal): it must fully clear the mentor/coordinator
+     * and meeting details and send the roadblock back to Pending, so it
+     * reappears in the Pending Roadblock list rather than lingering as a
+     * "Scheduled" roadblock with no one assigned.
+     */
+    public function test_delete_assignment_reverts_the_roadblock_to_pending(): void
+    {
+        $admin = $this->adminUser();
+        $roadblock = $this->pendingRoadblock();
+        $mentor = Mentor::factory()->create();
+
+        $roadblock->update([
+            'status' => 'Scheduled',
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_date' => now()->addDay()->toDateString(),
+            'meeting_start_time' => '09:00',
+            'meeting_end_time' => '10:00',
+            'meeting_platform' => 'Google Meet',
+            'meeting_link' => 'https://meet.google.com/abc',
+        ]);
+
+        $response = $this->actingAs($admin)->delete(route('admin.roadblocks.unassign', $roadblock));
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('roadblocks', [
+            'roadblock_id' => $roadblock->roadblock_id,
+            'status' => 'Pending',
+            'mentor_id' => null,
+            'coordinator_id' => null,
+            'meeting_date' => null,
+            'meeting_start_time' => null,
+            'meeting_end_time' => null,
+            'meeting_platform' => null,
+            'meeting_link' => null,
+        ]);
+    }
+
     public function test_scheduled_roadblock_moves_to_assessment_after_meeting_passes(): void
     {
         $roadblock = $this->pendingRoadblock();
@@ -539,6 +578,42 @@ class RoadblockTest extends TestCase
     }
 
     /**
+     * The unbranded/unlisted video-platform option was renamed from
+     * "Other" to "Custom Link" (clearer for testers than a bare "Other").
+     * Locks in that "Custom Link" is now the accepted value and the old
+     * "Other" value is rejected, so a stale option list in the UI can't
+     * silently start submitting an invalid value again.
+     */
+    public function test_meeting_platform_accepts_custom_link_and_no_longer_accepts_other(): void
+    {
+        $admin = $this->adminUser();
+        $roadblock = $this->pendingRoadblock();
+        $mentor = Mentor::factory()->create();
+
+        $response = $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->assignPayload([
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_platform' => 'Custom Link',
+            'meeting_link' => 'https://example.com/my-meeting-room',
+        ]));
+
+        $response->assertSessionDoesntHaveErrors();
+        $this->assertDatabaseHas('roadblocks', [
+            'roadblock_id' => $roadblock->roadblock_id,
+            'meeting_platform' => 'Custom Link',
+        ]);
+
+        $otherRoadblock = $this->pendingRoadblock();
+        $otherMentor = Mentor::factory()->create();
+
+        $rejected = $this->actingAs($admin)->put(route('admin.roadblocks.assign', $otherRoadblock), $this->assignPayload([
+            'mentor_id' => $otherMentor->mentor_id,
+            'meeting_platform' => 'Other',
+        ]));
+
+        $rejected->assertSessionHasErrors('meeting_platform');
+    }
+
+    /**
      * Regression test: old()/$errors are global to the request, not scoped
      * per roadblock. A validation failure on one roadblock's Assign &
      * Schedule modal used to bleed its stale submitted values into every
@@ -553,8 +628,13 @@ class RoadblockTest extends TestCase
 
         $distinctiveLink = 'https://leak-check.example.com/should-only-appear-once';
 
+        // roadblock_id must be submitted explicitly here — in the real form
+        // it's a hidden input, but a raw test PUT has to include it itself,
+        // since that's what old('roadblock_id') (and therefore
+        // $isErroredRoadblock in the modal) actually keys off of.
         // Missing mentor/coordinator entirely — fails required_without.
         $this->actingAs($admin)->put(route('admin.roadblocks.assign', $target), $this->assignPayload([
+            'roadblock_id' => $target->roadblock_id,
             'meeting_platform' => 'Google Meet',
             'meeting_link' => $distinctiveLink,
         ]));
@@ -563,6 +643,99 @@ class RoadblockTest extends TestCase
 
         $response->assertOk();
         $this->assertSame(1, substr_count($response->getContent(), $distinctiveLink));
+    }
+
+    /**
+     * Regression test: the Assign Mentor modal is just an Alpine x-show
+     * toggle over already-rendered HTML — closing it (or clicking Clear
+     * Form) doesn't trigger a page reload, so without an explicit
+     * client-side reset, a failed submission's error messages and drafted
+     * values kept showing if the modal was reopened before a *different*
+     * roadblock's submission finally caused a fresh page load to clear
+     * them. Locks in that the wiring needed to reset that state on close
+     * (the `showFailedState` flag, seeded from whether this roadblock is
+     * the one that actually failed) is present in the rendered markup.
+     */
+    public function test_a_failed_assignment_can_have_its_error_state_reset_client_side_on_close(): void
+    {
+        $admin = $this->adminUser();
+        $roadblock = $this->pendingRoadblock();
+
+        // roadblock_id must be submitted explicitly — see comment in the
+        // "leak" test above for why.
+        // Missing mentor/coordinator entirely — fails required_without, so
+        // this roadblock's modal comes back errored.
+        $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->assignPayload([
+            'roadblock_id' => $roadblock->roadblock_id,
+        ]));
+
+        $response = $this->actingAs($admin)->get(route('admin.roadblocks.index'));
+        $response->assertOk();
+
+        $html = $response->getContent();
+
+        // The errored roadblock's modal must seed showFailedState as true...
+        $this->assertMatchesRegularExpression(
+            '/showFailedState:\s*true/',
+            $html
+        );
+
+        // ...and both the header close button and Clear Form must be wired
+        // to flip it back to false, so reopening the modal without a fresh
+        // page load no longer shows the stale error/draft.
+        $this->assertSame(2, substr_count($html, 'showFailedState = false'));
+    }
+
+    /**
+     * Same requirement as Assign, but for the Edit modal on an
+     * already-Scheduled roadblock: closing it (or Clear Form) must reset
+     * the stale error/draft state client-side too, but by REVERTING each
+     * field to its real saved value (via data-original) rather than
+     * blanking it — an existing assignment shouldn't look unassigned just
+     * because its edit modal was closed.
+     */
+    public function test_a_failed_edit_can_have_its_error_state_reverted_client_side_on_close(): void
+    {
+        $admin = $this->adminUser();
+        $roadblock = $this->pendingRoadblock();
+        $mentor = Mentor::factory()->create();
+
+        // Scheduled for tomorrow (not today) so it only renders once on the
+        // page — via "Upcoming Mentorship" — rather than also showing up in
+        // "Scheduled Today", which would double every count below.
+        $roadblock->update([
+            'status' => 'Scheduled',
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_date' => now()->addDay()->toDateString(),
+            'meeting_start_time' => '09:00',
+            'meeting_end_time' => '10:00',
+            'meeting_platform' => 'Google Meet',
+            'meeting_link' => 'https://meet.google.com/original',
+        ]);
+
+        // End time not after start time — fails validation without
+        // touching mentor_id/meeting_date, so this is unambiguously an
+        // edit-mode failure for this exact roadblock.
+        $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->assignPayload([
+            'roadblock_id' => $roadblock->roadblock_id,
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_date' => now()->addDay()->toDateString(),
+            'meeting_start_time' => '09:00',
+            'meeting_end_time' => '09:00',
+        ]));
+
+        $response = $this->actingAs($admin)->get(route('admin.roadblocks.index'));
+        $response->assertOk();
+
+        $html = $response->getContent();
+
+        $this->assertMatchesRegularExpression('/showFailedState:\s*true/', $html);
+        // Close button's revert script + Clear Form's own reset, both flip
+        // the flag back off.
+        $this->assertSame(2, substr_count($html, 'showFailedState = false'));
+        // One data-original attribute per revertible field: assignee,
+        // meeting_date, start time, end time, platform, link.
+        $this->assertSame(6, substr_count($html, 'data-original='));
     }
 
     /**
@@ -638,5 +811,128 @@ class RoadblockTest extends TestCase
         ]));
 
         $response->assertSessionHasErrors(['meeting_link' => 'meeting link / location']);
+    }
+
+    /**
+     * Platform-specific meeting_link validation: each platform expects its
+     * own link/address shape, so a Zoom link submitted under "Google Meet"
+     * (or vice versa) must be rejected even though it's a well-formed URL.
+     */
+    public function test_google_meet_rejects_a_link_that_is_not_a_google_domain(): void
+    {
+        $admin = $this->adminUser();
+        $roadblock = $this->pendingRoadblock();
+        $mentor = Mentor::factory()->create();
+
+        $response = $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->assignPayload([
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_platform' => 'Google Meet',
+            'meeting_link' => 'https://zoom.us/j/123456',
+        ]));
+
+        $response->assertSessionHasErrors('meeting_link');
+    }
+
+    public function test_google_meet_accepts_a_meet_google_com_subdomain_link(): void
+    {
+        $admin = $this->adminUser();
+        $roadblock = $this->pendingRoadblock();
+        $mentor = Mentor::factory()->create();
+
+        $response = $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->assignPayload([
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_platform' => 'Google Meet',
+            'meeting_link' => 'https://meet.google.com/abc-defg-hij',
+        ]));
+
+        $response->assertSessionDoesntHaveErrors('meeting_link');
+    }
+
+    public function test_zoom_rejects_a_link_missing_the_meeting_path(): void
+    {
+        $admin = $this->adminUser();
+        $roadblock = $this->pendingRoadblock();
+        $mentor = Mentor::factory()->create();
+
+        $response = $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->assignPayload([
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_platform' => 'Zoom',
+            // A bare zoom.us link with no /j/ or /my/ path isn't an actual
+            // joinable meeting link.
+            'meeting_link' => 'https://zoom.us',
+        ]));
+
+        $response->assertSessionHasErrors('meeting_link');
+    }
+
+    public function test_microsoft_teams_accepts_either_its_microsoft_com_or_live_com_link(): void
+    {
+        $admin = $this->adminUser();
+        $roadblockA = $this->pendingRoadblock();
+        $mentorA = Mentor::factory()->create();
+
+        $responseA = $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblockA), $this->assignPayload([
+            'mentor_id' => $mentorA->mentor_id,
+            'meeting_platform' => 'Microsoft Teams',
+            'meeting_link' => 'https://teams.microsoft.com/l/meetup-join/abc',
+        ]));
+
+        $responseA->assertSessionDoesntHaveErrors('meeting_link');
+
+        $roadblockB = $this->pendingRoadblock();
+        $mentorB = Mentor::factory()->create();
+
+        $responseB = $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblockB), $this->assignPayload([
+            'mentor_id' => $mentorB->mentor_id,
+            'meeting_platform' => 'Microsoft Teams',
+            'meeting_link' => 'https://teams.live.com/meet/abc',
+        ]));
+
+        $responseB->assertSessionDoesntHaveErrors('meeting_link');
+    }
+
+    public function test_microsoft_teams_rejects_an_unrelated_link(): void
+    {
+        $admin = $this->adminUser();
+        $roadblock = $this->pendingRoadblock();
+        $mentor = Mentor::factory()->create();
+
+        $response = $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->assignPayload([
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_platform' => 'Microsoft Teams',
+            'meeting_link' => 'https://meet.google.com/abc-defg-hij',
+        ]));
+
+        $response->assertSessionHasErrors('meeting_link');
+    }
+
+    public function test_location_rejects_an_address_that_is_too_short(): void
+    {
+        $admin = $this->adminUser();
+        $roadblock = $this->pendingRoadblock();
+        $mentor = Mentor::factory()->create();
+
+        $response = $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->assignPayload([
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_platform' => 'Location',
+            'meeting_link' => 'Here',
+        ]));
+
+        $response->assertSessionHasErrors('meeting_link');
+    }
+
+    public function test_custom_link_rejects_a_value_that_is_not_a_url(): void
+    {
+        $admin = $this->adminUser();
+        $roadblock = $this->pendingRoadblock();
+        $mentor = Mentor::factory()->create();
+
+        $response = $this->actingAs($admin)->put(route('admin.roadblocks.assign', $roadblock), $this->assignPayload([
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_platform' => 'Custom Link',
+            'meeting_link' => 'just some text, not a link',
+        ]));
+
+        $response->assertSessionHasErrors('meeting_link');
     }
 }

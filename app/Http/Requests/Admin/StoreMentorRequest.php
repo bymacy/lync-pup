@@ -15,12 +15,29 @@ class StoreMentorRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'honorific' => ['required', 'string', 'in:Mr.,Ms.,Mrs.,Dr.,Prof.,Atty.,Engr.'],
+            // Ordered to match the form's top-to-bottom field layout: when
+            // multiple required fields are blank, Laravel's validator (and
+            // therefore $errors->first(), which the shared toast banner in
+            // admin.blade.php uses) surfaces whichever field was validated
+            // first — so this order must mirror the visual order, not just
+            // be grouped by "identity fields first", or a lower field's
+            // error (e.g. Honorifics) wins the toast even though First Name
+            // is what the user actually sees blank at the top of the form.
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
+            'honorific' => ['required', 'string', 'in:Mr.,Ms.,Mrs.,Dr.,Prof.,Atty.,Engr.'],
             'specialization' => ['required', 'string', 'in:Engineering,Business,Marketing,Legal,Finance,Technology'],
-            'contact_email' => ['nullable', 'email', 'max:150'],
-            'contact_number' => ['nullable', 'digits:11'],
+            // 'email' alone (Laravel's default RFC validation) still lets
+            // through addresses with no real domain/TLD at all, like
+            // "name@host" — the regex enforces the actual baseline shape we
+            // want: something@something.tld, matching the field's
+            // "example@email.com" placeholder.
+            'contact_email' => ['nullable', 'email', 'max:150', 'regex:/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/'],
+            // Matches the "09XX-XXX-XXXX" placeholder: exactly 11 digits,
+            // starting with 09 (PH mobile format). Replaces the old bare
+            // 'digits:11', which would have accepted any 11-digit string
+            // (e.g. one starting with 00) with no real format guarantee.
+            'contact_number' => ['nullable', 'regex:/^09\d{9}$/'],
             'mentor_photo' => [
                 'nullable',
                 'image',
@@ -44,7 +61,9 @@ class StoreMentorRequest extends FormRequest
         return [
             'honorific.required' => 'Please select an honorific.',
             'specialization.required' => 'Please select an expertise.',
-            'contact_number.digits' => 'Phone number must be exactly 11 digits (numbers only).',
+            'contact_email.email' => 'Please enter a valid email address, e.g. example@email.com.',
+            'contact_email.regex' => 'Please enter a valid email address, e.g. example@email.com.',
+            'contact_number.regex' => 'Please enter a valid mobile number in the format 09XX-XXX-XXXX.',
             'mentor_photo.image' => 'That file is not a supported image format (JPG, PNG, GIF, or WEBP).',
             'mentor_photo.max' => 'Photo must be 20MB or smaller.',
         ];

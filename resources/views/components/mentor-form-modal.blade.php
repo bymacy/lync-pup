@@ -29,6 +29,18 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         $label = 'block text-[13px] font-semibold text-gray-800 mb-1.5';
         $chevron = 'pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500';
         $err = 'mt-1 text-xs text-red-600';
+
+        // old()/$errors are global to the whole request, not scoped to this
+        // particular modal instance. Without this guard, a failed
+        // submission for ONE mentor (or the Add modal) would leak its typed
+        // values — and its error messages — into every OTHER mentor's Edit
+        // modal too, since they're all rendered from this same component in
+        // the same page response and all share the same field names. Only
+        // apply old()/@error() when this is genuinely the record that
+        // failed (matched via the hidden _mentor_id field submitted with
+        // the form, empty string for the Add modal).
+        $isErroredRecord = $errors->any() && (string) old('_mentor_id', '') === (string) ($mentor?->mentor_id ?? '');
+        $oldFor = fn (string $field, $default = null) => $isErroredRecord ? old($field, $default) : $default;
         @endphp
 
         {{-- Header --}}
@@ -73,20 +85,20 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             {!! $icon('upcoming-mentorship.svg', 'w-4 h-4') !!}
                         </span>
 
-                        <input type="text" name="first_name" value="{{ old('first_name', $mentor?->first_name) }}"
+                        <input type="text" name="first_name" value="{{ $oldFor('first_name', $mentor?->first_name) }}"
                             placeholder="Mentor First Name" class="{{ $field }}">
                     </div>
 
-                    @error('first_name') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                    @if ($isErroredRecord) @error('first_name') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
                 </div>
 
                 <div>
                     <label class="{{ $label }}">Last Name</label>
 
-                    <input type="text" name="last_name" value="{{ old('last_name', $mentor?->last_name) }}"
+                    <input type="text" name="last_name" value="{{ $oldFor('last_name', $mentor?->last_name) }}"
                         placeholder="Mentor Last Name" class="{{ $plain }}">
 
-                    @error('last_name') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                    @if ($isErroredRecord) @error('last_name') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
                 </div>
 
                 <div>
@@ -94,9 +106,12 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                     <div class="relative">
                         <select name="honorific" class="{{ $plain }} appearance-none bg-white pr-9">
-                            <option value="">Mentor Honorifics</option>
+                            {{-- disabled + hidden: a placeholder prompt, not a real
+                                 selectable choice — same fix as Coordinator's
+                                 honorific field. --}}
+                            <option value="" disabled hidden @selected(! $oldFor('honorific', $mentor?->honorific))>Mentor Honorifics</option>
                             @foreach (['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Atty.', 'Engr.'] as $h)
-                            <option value="{{ $h }}" @selected(old('honorific', $mentor?->honorific) === $h)>{{ $h }}</option>
+                            <option value="{{ $h }}" @selected($oldFor('honorific', $mentor?->honorific) === $h)>{{ $h }}</option>
                             @endforeach
                         </select>
 
@@ -105,7 +120,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         </svg>
                     </div>
 
-                    @error('honorific') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                    @if ($isErroredRecord) @error('honorific') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
                 </div>
             </div>
 
@@ -122,12 +137,12 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         <select name="specialization" class="{{ $field }} appearance-none pr-9">
                             <option value="">Select Expertise</option>
                             @foreach (['Engineering', 'Business', 'Marketing', 'Legal', 'Finance', 'Technology'] as $exp)
-                            <option value="{{ $exp }}" @selected(old('specialization', $mentor?->specialization) === $exp)>{{ $exp }}</option>
+                            <option value="{{ $exp }}" @selected($oldFor('specialization', $mentor?->specialization) === $exp)>{{ $exp }}</option>
                             @endforeach
                         </select>
                     </div>
 
-                    @error('specialization') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                    @if ($isErroredRecord) @error('specialization') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
                 </div>
             </div>
 
@@ -141,11 +156,11 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             {!! $icon('mail.svg', 'w-4 h-4') !!}
                         </span>
 
-                        <input type="email" name="contact_email" value="{{ old('contact_email', $mentor?->contact_email) }}"
-                            placeholder="Email Address" class="{{ $field }}">
+                        <input type="email" name="contact_email" value="{{ $oldFor('contact_email', $mentor?->contact_email) }}"
+                            placeholder="example@email.com" class="{{ $field }}">
                     </div>
 
-                    @error('contact_email') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                    @if ($isErroredRecord) @error('contact_email') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
                 </div>
 
                 <div>
@@ -156,13 +171,13 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             {!! $icon('phone.svg', 'w-4 h-4') !!}
                         </span>
 
-                        <input type="text" name="contact_number" value="{{ old('contact_number', $mentor?->contact_number) }}"
-                            placeholder="Phone Number" inputmode="numeric" maxlength="11"
+                        <input type="text" name="contact_number" value="{{ $oldFor('contact_number', $mentor?->contact_number) }}"
+                            placeholder="09XX-XXX-XXXX" inputmode="numeric" maxlength="11"
                             oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)"
                             class="{{ $field }}">
                     </div>
 
-                    @error('contact_number') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                    @if ($isErroredRecord) @error('contact_number') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
                 </div>
             </div>
 
@@ -226,7 +241,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         </div>
                     </div>
 
-                    @error('mentor_photo') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                    @if ($isErroredRecord) @error('mentor_photo') <p class="{{ $err }}">{{ $message }}</p> @enderror @endif
                 </div>
             </div>
 

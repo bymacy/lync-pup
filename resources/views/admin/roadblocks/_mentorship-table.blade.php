@@ -83,9 +83,9 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         // "Location" is a physical meetup — there's nothing to join online,
                         // so it shows a building icon and the typed address instead of a
                         // "Join meeting" link. Everything else (the three known platforms,
-                        // plus "Other" — an unbranded/unlisted video platform) is joinable
-                        // via its link; "Other" used to be lumped in with "Location" here,
-                        // which incorrectly hid its join link.
+                        // plus "Custom Link" — an unbranded/unlisted video platform) is
+                        // joinable via its link; "Custom Link" used to be lumped in with
+                        // "Location" here, which incorrectly hid its join link.
                         $isLocation = $roadblock->meeting_platform === 'Location';
 
                         // Upcoming Mentorship and Scheduled Today share this partial but
@@ -171,7 +171,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <img src="{{ asset('images/icons/' . $platformIcon) }}" alt=""
                                         class="h-3.5 w-3.5 flex-shrink-0">
                                     @else
-                                    {{-- "Other": no logo on file — generic camera icon instead. --}}
+                                    {{-- "Custom Link": no logo on file — generic camera icon instead. --}}
                                     <span class="flex-shrink-0 text-[#6C0E24]">{!! $icon('camera.svg', 'w-3.5 h-3.5') !!}</span>
                                     @endif
 

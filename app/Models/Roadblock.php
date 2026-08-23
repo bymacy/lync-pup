@@ -20,6 +20,7 @@ class Roadblock extends Model
         'status',
         'mentor_id',
         'coordinator_id',
+        'assignee_name_snapshot',
         'meeting_date',
         'meeting_start_time',
         'meeting_end_time',
@@ -66,10 +67,63 @@ class Roadblock extends Model
         return $this->coordinator_id ? $this->coordinator : $this->mentor;
     }
 
+    /**
+     * Display-safe version of the assignee's name for views (the Archive
+     * tables in particular): falls back to the name captured in
+     * assignee_name_snapshot — tagged "(Deleted)" — once the actual
+     * Mentor/Coordinator row is gone, instead of just rendering nothing.
+     * See MentorController::destroy()/CoordinatorProfileController::destroy()
+     * for where that snapshot gets written.
+     */
+    public function getAssigneeDisplayNameAttribute(): ?string
+    {
+        if ($this->assignee) {
+            return $this->assignee->display_name;
+        }
+
+        return $this->assignee_name_snapshot
+            ? "{$this->assignee_name_snapshot} (Deleted)"
+            : null;
+    }
+
     public function isResolved(): bool
     {
         return $this->status === 'Resolved';
     }
+
+    /**
+     * The attributes that put a roadblock back into its clean, unassigned
+     * "Pending" state — clearing out whichever mentor/coordinator and
+     * meeting details it had. Shared by RoadblockController::unassign()
+     * (the "Delete Assignment" button) and by Mentor/Coordinator deletion:
+     * deleting a mentor or coordinator only nulls mentor_id/coordinator_id
+     * at the database level (an ON DELETE SET NULL foreign key) — it
+     * doesn't know to also reset status/meeting fields, which otherwise
+     * left roadblocks stuck as "Scheduled" with a blank assignee column
+     * instead of reappearing in the Pending list.
+     */
+    public static function pendingResetAttributes(): array
+    {
+        return [
+            'mentor_id' => null,
+            'coordinator_id' => null,
+            'meeting_date' => null,
+            'meeting_start_time' => null,
+            'meeting_end_time' => null,
+            'meeting_platform' => null,
+            'meeting_link' => null,
+            'status' => 'Pending',
+        ];
+    }
+
+    /**
+     * Statuses where a roadblock is still actively assigned — not yet
+     * closed out with a final Resolved/Failed outcome. Used to decide
+     * which of a deleted mentor/coordinator's roadblocks should be sent
+     * back to Pending; already-closed ones are left alone since reopening
+     * a resolved/failed case would erase real history.
+     */
+    public const ACTIVE_STATUSES = ['Scheduled', 'Pending Review'];
 
     public function getDisplayCategoryAttribute(): string
     {
@@ -173,8 +227,23 @@ class Roadblock extends Model
             return 'Soon (Tomorrow)';
         }
 
-        if ($this->meeting_date->diffInDays(now()) <= 7) {
+        // Normalize both sides to midnight before diffing so this is a
+        // clean calendar-day count regardless of what time "now" happens
+        // to be — diffing meeting_date (already midnight, via its 'date'
+        // cast) directly against now() would otherwise undercount by a day
+        // whenever "now" is later in the day than midnight.
+        $daysOut = now()->startOfDay()->diffInDays($this->meeting_date);
+
+        if ($daysOut <= 6) {
+            return 'Soon (This Week)';
+        }
+
+        if ($daysOut <= 13) {
             return 'Upcoming (Next Week)';
+        }
+
+        if ($daysOut <= 30) {
+            return 'Upcoming (Next Month)';
         }
 
         return 'Upcoming (' . $this->meeting_date->format('M j') . ')';

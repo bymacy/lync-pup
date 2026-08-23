@@ -15,9 +15,48 @@ $formId = 'roadblock-assign-form-'.$roadblock->roadblock_id;
 $isErroredRoadblock = $errors->any() && (int) old('roadblock_id') === $roadblock->roadblock_id;
 $oldFor = fn (string $field, $default) => $isErroredRoadblock ? old($field, $default) : $default;
 
-$selectedAssignee = $oldFor('assignee', $roadblock->coordinator_id
+$originalAssignee = $roadblock->coordinator_id
 ? 'coordinator-'.$roadblock->coordinator_id
-: ($roadblock->mentor_id ? 'mentor-'.$roadblock->mentor_id : ''));
+: ($roadblock->mentor_id ? 'mentor-'.$roadblock->mentor_id : '');
+$selectedAssignee = $oldFor('assignee', $originalAssignee);
+
+// Without page reload, this modal is just an Alpine x-show toggle over
+// server-rendered HTML — closing it doesn't actually change anything, so
+// reopening it (e.g. after failing THIS roadblock, then failing a
+// different one, which resets $isErroredRoadblock to false here on the
+// next page load) still showed the stale error/draft in the meantime if
+// reopened before that next submission happened. showFailedState lets
+// Clear Form / the header close button explicitly wipe that stale
+// client-side state on demand instead of only ever clearing on the next
+// full page load.
+//
+// Assign mode uses this blank-everything version, since a brand-new
+// assignment's "pristine" state really is blank. Edit/Reschedule use
+// $revertFormJs below instead — they pre-fill from the roadblock's own
+// saved values, so closing them should restore those, not wipe them.
+$resetFormJs = "
+    const f = document.getElementById('{$formId}');
+    f.querySelectorAll('input, select, textarea').forEach(el => {
+        if (el.type === 'hidden') return;
+        el.value = '';
+    });
+    window.dispatchEvent(new CustomEvent('form-cleared', { detail: '{$formId}' }));
+    showFailedState = false;
+";
+
+// Edit/Reschedule's version of the same fix: instead of blanking every
+// field (which would make a real, already-assigned roadblock look
+// unassigned if reopened), each field with a data-original attribute
+// (set below, to the roadblock's actual saved value) gets reverted back
+// to it — undoing whatever was typed, and hiding any leftover error
+// state, without an actual page reload.
+$revertFormJs = "
+    const f = document.getElementById('{$formId}');
+    f.querySelectorAll('[data-original]').forEach(el => { el.value = el.dataset.original; });
+    const dateEl = f.querySelector('[name=meeting_date]');
+    window.dispatchEvent(new CustomEvent('form-reverted', { detail: { id: '{$formId}', date: dateEl ? dateEl.dataset.original : '' } }));
+    showFailedState = false;
+";
 
 // Same helper as the layout — component scope doesn't inherit it.
 $icon = function (string $name, string $class = 'w-4 h-4') {
@@ -61,7 +100,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         $lblCls = 'block text-xs text-gray-500 mb-1';
         @endphp
 
-        <div class="contents" x-data="{ deleteAssignmentOpen: false }">
+        <div class="contents" x-data="{ deleteAssignmentOpen: false, showFailedState: @js($isErroredRoadblock) }">
 
             <div class="relative flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-4 text-white sm:px-8 sm:py-5">
                 <div class="flex min-w-0 items-center gap-2.5 sm:gap-3">
@@ -78,7 +117,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                 </div>
 
                 <button type="button"
-                    @click="{{ $mode === 'edit' ? 'editOpen = false' : ($mode === 'reschedule' ? 'rescheduleOpen = false' : 'assignOpen = false') }}"
+                    @click="{{ $mode === 'edit' ? $revertFormJs.' editOpen = false;' : ($mode === 'reschedule' ? $revertFormJs.' rescheduleOpen = false;' : $resetFormJs.' assignOpen = false;') }}"
                     class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                     aria-label="Close">
                     <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -97,7 +136,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
                         <div class="relative rounded-xl border p-3 sm:p-4" x-data="{ previewId: null }">
                             <p class="mb-3 text-sm font-medium sm:text-base">1. Assign Mentor or Coordinator</p>
-                            <select name="assignee" autocomplete="off" class="{{ $fieldCls }} mb-4">
+                            <select name="assignee" autocomplete="off" data-original="{{ $originalAssignee }}" class="{{ $fieldCls }} mb-4">
                                 <option value="" disabled hidden @selected($selectedAssignee === '')>Select Mentor or Coordinator</option>
                                 @if ($mentors->isNotEmpty())
                                 <option disabled>── Mentors ──</option>
@@ -117,7 +156,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 @endif
                             </select>
                             @if ($isErroredRoadblock && ($errors->has('assignee') || $errors->has('mentor_id') || $errors->has('coordinator_id')))
-                            <p class="mb-3 text-xs text-red-600">
+                            <p class="mb-3 text-xs text-red-600" x-show="showFailedState">
                                 {{ $errors->first('assignee') ?: ($errors->first('mentor_id') ?: $errors->first('coordinator_id')) }}
                             </p>
                             @endif
@@ -260,11 +299,20 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         $enforceFutureOnly = $mode === 'assign';
                         @endphp
                         <div class="rounded-xl border p-3 sm:p-4"
-                            @form-cleared.window="if ($event.detail === '{{ $formId }}') meetingDate = ''"
+                            @form-cleared.window="if ($event.detail === '{{ $formId }}') { meetingDate = ''; platform = $el.querySelector('[name=meeting_platform]').value; }"
+                            @form-reverted.window="if ($event.detail.id === '{{ $formId }}') { meetingDate = $event.detail.date; platform = $el.querySelector('[name=meeting_platform]').value; }"
                             x-data="{
                     meetingDate: @js($oldFor('meeting_date', $roadblock->meeting_date?->format('Y-m-d'))),
                     todayStr: @js(now()->format('Y-m-d')),
                     nowTime: @js(now()->format('H:i')),
+                    platform: @js($oldFor('meeting_platform', $roadblock->meeting_platform)),
+                    linkPlaceholders: {
+                        'Google Meet': 'e.g., https://google.com',
+                        'Zoom': 'e.g., https://zoom.us',
+                        'Microsoft Teams': 'e.g., Paste Microsoft Teams invitation link here',
+                        'Location': 'e.g., 123 Main Street, Suite 400, New York, NY',
+                        'Custom Link': 'e.g., https://your-conferencing-app.com',
+                    },
                 }">
                             <p class="mb-3 text-sm font-medium sm:text-base">2. Set a Meeting</p>
 
@@ -272,8 +320,9 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             <input type="date" name="meeting_date" autocomplete="off" x-model="meetingDate"
                                 @if ($enforceFutureOnly) :min="todayStr" @endif
                                 value="{{ $oldFor('meeting_date', $roadblock->meeting_date?->format('Y-m-d')) }}"
+                                data-original="{{ $roadblock->meeting_date?->format('Y-m-d') }}"
                                 class="{{ $fieldCls }} mb-3">
-                            @if ($isErroredRoadblock) @error('meeting_date') <p class="mb-3 text-xs text-red-600">{{ $message }}</p> @enderror @endif
+                            @if ($isErroredRoadblock) @error('meeting_date') <p class="mb-3 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
 
                             <div class="mb-3 grid grid-cols-2 gap-3">
                                 <div>
@@ -281,31 +330,35 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <input type="time" name="meeting_start_time" autocomplete="off"
                                         @if ($enforceFutureOnly) :min="meetingDate === todayStr ? nowTime : null" @endif
                                         value="{{ $oldFor('meeting_start_time', $asTime($roadblock->meeting_start_time)) }}"
+                                        data-original="{{ $asTime($roadblock->meeting_start_time) }}"
                                         class="{{ $fieldCls }}">
-                                    @if ($isErroredRoadblock) @error('meeting_start_time') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror @endif
+                                    @if ($isErroredRoadblock) @error('meeting_start_time') <p class="mt-1 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
                                 </div>
                                 <div>
                                     <label class="{{ $lblCls }}">End Time</label>
                                     <input type="time" name="meeting_end_time" autocomplete="off"
                                         value="{{ $oldFor('meeting_end_time', $asTime($roadblock->meeting_end_time)) }}"
+                                        data-original="{{ $asTime($roadblock->meeting_end_time) }}"
                                         class="{{ $fieldCls }}">
-                                    @if ($isErroredRoadblock) @error('meeting_end_time') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror @endif
+                                    @if ($isErroredRoadblock) @error('meeting_end_time') <p class="mt-1 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
                                 </div>
                             </div>
 
                             <label class="{{ $lblCls }}">Platform</label>
-                            <select name="meeting_platform" autocomplete="off" class="{{ $fieldCls }} mb-3">
+                            <select name="meeting_platform" autocomplete="off" x-model="platform" data-original="{{ $roadblock->meeting_platform }}" class="{{ $fieldCls }} mb-3">
                                 <option value="" disabled hidden @selected(! $oldFor('meeting_platform', $roadblock->meeting_platform))>Select Platform</option>
-                                @foreach (['Google Meet', 'Zoom', 'Microsoft Teams', 'Location', 'Other'] as $platform)
+                                @foreach (['Google Meet', 'Zoom', 'Microsoft Teams', 'Location', 'Custom Link'] as $platform)
                                 <option value="{{ $platform }}" @selected($oldFor('meeting_platform', $roadblock->meeting_platform) === $platform)>{{ $platform }}</option>
                                 @endforeach
                             </select>
-                            @if ($isErroredRoadblock) @error('meeting_platform') <p class="mb-3 text-xs text-red-600">{{ $message }}</p> @enderror @endif
+                            @if ($isErroredRoadblock) @error('meeting_platform') <p class="mb-3 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
 
                             <label class="{{ $lblCls }}">Meeting Link / Location</label>
-                            <textarea name="meeting_link" autocomplete="off" rows="3" placeholder="Input Meeting Link / Address"
+                            <textarea name="meeting_link" autocomplete="off" rows="3"
+                                :placeholder="linkPlaceholders[platform] || 'Input Meeting Link / Address'"
+                                data-original="{{ $roadblock->meeting_link }}"
                                 class="{{ $fieldCls }}">{{ $oldFor('meeting_link', $roadblock->meeting_link) }}</textarea>
-                            @if ($isErroredRoadblock) @error('meeting_link') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror @endif
+                            @if ($isErroredRoadblock) @error('meeting_link') <p class="mt-1 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
                         </div>
                     </div>
                 </form>
@@ -314,7 +367,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                      the primary action isn't buried under two secondary ones. --}}
                 <div class="flex flex-col gap-3 pt-5 sm:flex-row sm:pt-6">
                     @if ($mode === 'reschedule')
-                    <button type="button" @click="rescheduleOpen = false"
+                    <button type="button" @click="{{ $revertFormJs }} rescheduleOpen = false;"
                         class="order-2 h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:order-none sm:flex-1">
                         Cancel
                     </button>
@@ -336,6 +389,10 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         // would silently write its still-stale meetingDate right back into
         // the date field on its next reactive tick, undoing the clear.
         window.dispatchEvent(new CustomEvent('form-cleared', { detail: '{{ $formId }}' }));
+        // Also hide any leftover error messages from a previous failed
+        // submission — otherwise Clear Form wiped the values but left the
+        // old validation errors sitting there looking unresolved.
+        showFailedState = false;
     "
                         class="order-2 h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:order-none sm:flex-1">
                         Clear Form

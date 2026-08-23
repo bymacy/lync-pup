@@ -393,15 +393,15 @@
                                             <div class="min-w-0">
                                                 <span class="font-medium text-gray-900">{{ $roadblock->startup->company_name }}</span>
                                                 <p class="mt-0.5 text-xs text-gray-500 lg:hidden">{{ $roadblock->display_category }}</p>
-                                                @if ($roadblock->assignee)
-                                                <p class="text-xs text-gray-500 lg:hidden">{{ $roadblock->assignee->display_name }}</p>
+                                                @if ($roadblock->assignee_display_name)
+                                                <p class="text-xs text-gray-500 lg:hidden">{{ $roadblock->assignee_display_name }}</p>
                                                 @endif
                                             </div>
                                         </div>
                                     </td>
                                     <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->display_category }}</td>
                                     <td class="whitespace-nowrap px-3 py-3 align-top sm:px-4">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
-                                    <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->assignee?->display_name }}</td>
+                                    <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->assignee_display_name }}</td>
                                     <td class="px-3 py-3 align-top sm:px-4">
                                         <div class="flex flex-col gap-2 sm:flex-row">
                                             <form method="POST" action="{{ route('admin.roadblocks.fail', $roadblock) }}">
@@ -461,15 +461,15 @@
                                             <div class="min-w-0">
                                                 <span class="font-medium text-gray-900">{{ $roadblock->startup->company_name }}</span>
                                                 <p class="mt-0.5 text-xs text-gray-500 lg:hidden">{{ $roadblock->display_category }}</p>
-                                                @if ($roadblock->assignee)
-                                                <p class="text-xs text-gray-500 lg:hidden">{{ $roadblock->assignee->display_name }}</p>
+                                                @if ($roadblock->assignee_display_name)
+                                                <p class="text-xs text-gray-500 lg:hidden">{{ $roadblock->assignee_display_name }}</p>
                                                 @endif
                                             </div>
                                         </div>
                                     </td>
                                     <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->display_category }}</td>
                                     <td class="whitespace-nowrap px-3 py-3 align-top sm:px-4">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
-                                    <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->assignee?->display_name }}</td>
+                                    <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->assignee_display_name }}</td>
                                     <td class="px-3 py-3 align-top sm:px-4">
                                         <form method="POST" action="{{ route('admin.roadblocks.recover', $roadblock) }}">
                                             @csrf
@@ -523,15 +523,15 @@
                                             <div class="min-w-0">
                                                 <span class="font-medium text-gray-900">{{ $roadblock->startup->company_name }}</span>
                                                 <p class="mt-0.5 text-xs text-gray-500 lg:hidden">{{ $roadblock->display_category }}</p>
-                                                @if ($roadblock->assignee)
-                                                <p class="text-xs text-gray-500 lg:hidden">{{ $roadblock->assignee->display_name }}</p>
+                                                @if ($roadblock->assignee_display_name)
+                                                <p class="text-xs text-gray-500 lg:hidden">{{ $roadblock->assignee_display_name }}</p>
                                                 @endif
                                             </div>
                                         </div>
                                     </td>
                                     <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->display_category }}</td>
                                     <td class="whitespace-nowrap px-3 py-3 align-top sm:px-4">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
-                                    <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->assignee?->display_name }}</td>
+                                    <td class="{{ $foldCol }} px-4 py-3 align-top">{{ $roadblock->assignee_display_name }}</td>
                                     <td class="px-3 py-3 align-top sm:px-4">
                                         <div class="flex flex-col gap-2 sm:flex-row">
                                             <button type="button" @click="deleteOpen = true" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">Delete</button>

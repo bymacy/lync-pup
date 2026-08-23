@@ -147,9 +147,61 @@ class AssignRoadblockRequest extends FormRequest
                     }
                 },
             ],
-            'meeting_platform' => ['required', 'in:Google Meet,Zoom,Microsoft Teams,Location,Other'],
-            'meeting_link' => ['required', 'string', 'max:255'],
+            'meeting_platform' => ['required', 'in:Google Meet,Zoom,Microsoft Teams,Location,Custom Link'],
+            // Beyond the generic "is this filled in" check, what actually
+            // counts as a valid value here depends on which platform was
+            // picked — a Zoom link and a physical address look nothing
+            // alike. See platformLinkValidator() for the per-platform rules.
+            'meeting_link' => ['required', 'string', 'max:255', $this->platformLinkValidator()],
         ];
+    }
+
+    /**
+     * Per-platform validation for meeting_link, matching each platform's
+     * expected link/address shape:
+     *   - Google Meet: must be a google.com (sub)domain link.
+     *   - Zoom: must contain a zoom.us "/j/" or "/my/" meeting path.
+     *   - Microsoft Teams: loose check for a microsoft.com or live.com link
+     *     (Teams links are served from either domain depending on account
+     *     type).
+     *   - Location: just a minimum-length sanity check — actually verifying
+     *     a string "looks like" a real address is unreliable, so this only
+     *     guards against obviously-too-short input.
+     *   - Custom Link: generic check that it's at least a well-formed
+     *     http(s) URL, since it could point anywhere.
+     */
+    protected function platformLinkValidator(): \Closure
+    {
+        return function (string $attribute, $value, \Closure $fail): void {
+            if (blank($value)) {
+                return;
+            }
+
+            $platform = $this->input('meeting_platform');
+            $normalized = strtolower(trim($value));
+
+            $isValid = match ($platform) {
+                'Google Meet' => (bool) preg_match('/:\/\/([a-z0-9-]+\.)*google\.com(\/|$)/i', $value),
+                'Zoom' => str_contains($normalized, 'zoom.us/j/') || str_contains($normalized, 'zoom.us/my/'),
+                'Microsoft Teams' => str_contains($normalized, 'microsoft.com') || str_contains($normalized, 'live.com'),
+                'Location' => mb_strlen(trim($value)) >= 8,
+                'Custom Link' => (bool) preg_match('/^https?:\/\//i', trim($value)),
+                default => true,
+            };
+
+            if ($isValid) {
+                return;
+            }
+
+            $fail(match ($platform) {
+                'Google Meet' => 'Please enter a valid Google Meet link (e.g. https://meet.google.com/xxx-xxxx-xxx).',
+                'Zoom' => 'Please enter a valid Zoom link (must include zoom.us/j/ or zoom.us/my/).',
+                'Microsoft Teams' => 'Please enter a valid Microsoft Teams link.',
+                'Location' => 'Please enter a more complete address.',
+                'Custom Link' => 'Please enter a valid link starting with http:// or https://.',
+                default => 'Please enter a valid meeting link or location.',
+            });
+        };
     }
 
     public function messages(): array

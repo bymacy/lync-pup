@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreMentorRequest;
 use App\Http\Requests\Admin\UpdateMentorRequest;
 use App\Models\Mentor;
+use App\Models\Roadblock;
 use App\Traits\CompressesImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
@@ -64,6 +65,26 @@ class MentorController extends Controller
 
     public function destroy(Mentor $mentor): RedirectResponse
     {
+        // The mentor_id FK is ON DELETE SET NULL, so deleting this mentor
+        // would otherwise leave any roadblock still assigned to them stuck
+        // as "Scheduled"/"Pending Review" with a blank assignee column
+        // instead of reappearing in the Pending list — send those back to
+        // Pending explicitly first. Already-Resolved/Failed roadblocks are
+        // left untouched; they're closed out and losing the mentor_id
+        // column there doesn't need to reopen them.
+        $mentor->roadblocks()
+            ->whereIn('status', Roadblock::ACTIVE_STATUSES)
+            ->get()
+            ->each(fn (Roadblock $roadblock) => $roadblock->update(Roadblock::pendingResetAttributes()));
+
+        // Those closed-out roadblocks keep their status, but the FK is
+        // about to null mentor_id out from under them regardless — capture
+        // the name now so Archive can still say who it was, tagged as
+        // deleted, instead of showing a blank Mentor column.
+        $mentor->roadblocks()
+            ->whereIn('status', ['Resolved', 'Failed'])
+            ->update(['assignee_name_snapshot' => $mentor->display_name]);
+
         if ($mentor->mentor_photo_path) {
             Storage::disk('public')->delete($mentor->mentor_photo_path);
         }
