@@ -513,7 +513,11 @@ class RoadblockTest extends TestCase
      * once its meeting is actually live, editing an in-progress meeting
      * doesn't make sense either — testers flagged a live Location row still
      * showing a clickable Edit button. That slot should now be empty
-     * (View only) for the duration of the live meeting.
+     * (View only) for the duration of the live meeting. This must hold in
+     * BOTH "Upcoming Mentorship" (gated on isLive() directly) and
+     * "Mentorship Today" (gated on isJoinable(), which is also true once
+     * live) — checked separately below since they're two independently
+     * rendered sections on the same page.
      */
     public function test_a_live_location_meeting_shows_only_view_with_no_edit_or_join(): void
     {
@@ -529,6 +533,60 @@ class RoadblockTest extends TestCase
             'meeting_date' => now()->toDateString(),
             'meeting_start_time' => '09:00',
             'meeting_end_time' => '11:00',
+            'meeting_platform' => 'Location',
+            'meeting_link' => 'TBIDO Office, 3rd Floor',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.roadblocks.index'));
+        $response->assertOk();
+
+        $html = $response->getContent();
+        $upcomingStart = strpos($html, 'Upcoming Mentorship');
+        $todayStart = strpos($html, 'Mentorship Today');
+
+        $this->assertNotFalse($upcomingStart);
+        $this->assertNotFalse($todayStart);
+
+        $upcomingSection = substr($html, $upcomingStart, $todayStart - $upcomingStart);
+        $todaySection = substr($html, $todayStart);
+
+        // "Upcoming Mentorship": gated on isLive() directly — must hide Edit
+        // the moment the meeting's start time is reached.
+        $this->assertStringContainsString('>View<', $upcomingSection);
+        $this->assertStringNotContainsString('>Edit<', $upcomingSection);
+        $this->assertStringNotContainsString('>Join<', $upcomingSection);
+
+        // "Mentorship Today": gated on isJoinable() (any time on the
+        // meeting's day) — also true once live, so Edit must be hidden here
+        // too.
+        $this->assertStringContainsString('>View<', $todaySection);
+        $this->assertStringNotContainsString('>Edit<', $todaySection);
+        $this->assertStringNotContainsString('>Join<', $todaySection);
+    }
+
+    /**
+     * Regression test: "Mentorship Today" gates on isJoinable(), which is
+     * true for the ENTIRE day a meeting is scheduled — not just from its
+     * start time onward. That means a Location roadblock scheduled for
+     * later today must already show View only (no Edit) even before its
+     * start time, not just once it goes live. Testers asked for this
+     * explicitly: Location has no Join button, so its Today row should
+     * stay View-only all day, start to finish.
+     */
+    public function test_a_location_meeting_later_today_shows_only_view_before_it_even_starts(): void
+    {
+        Carbon::setTestNow(Carbon::parse('today 08:00'));
+
+        $admin = $this->adminUser();
+        $mentor = Mentor::factory()->create();
+
+        $roadblock = $this->pendingRoadblock();
+        $roadblock->update([
+            'status' => 'Scheduled',
+            'mentor_id' => $mentor->mentor_id,
+            'meeting_date' => now()->toDateString(),
+            'meeting_start_time' => '15:00',
+            'meeting_end_time' => '16:00',
             'meeting_platform' => 'Location',
             'meeting_link' => 'TBIDO Office, 3rd Floor',
         ]);
