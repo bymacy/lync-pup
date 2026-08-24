@@ -26,11 +26,11 @@ class MeetingController extends Controller
             ->map(function (Roadblock $roadblock) {
                 return [
                     'type' => 'mentorship',
-                    'sort_key' => $roadblock->meeting_date->format('Y-m-d').' '.$roadblock->meeting_start_time,
+                    'sort_key' => $roadblock->meeting_date->format('Y-m-d') . ' ' . $roadblock->meeting_start_time,
                     'date_label' => $roadblock->meeting_date->format('l, F j, Y'),
                     'time_label' => Carbon::parse($roadblock->meeting_start_time)->format('g:i A')
-                        .' - '.Carbon::parse($roadblock->meeting_end_time)->format('g:i A'),
-                    'status_label' => $this->dayLabel($roadblock->meeting_date),
+                        . ' - ' . Carbon::parse($roadblock->meeting_end_time)->format('g:i A'),
+                    'status_label' => $roadblock->meeting_status_label,
                     'roadblock_category' => $roadblock->display_category,
                     // Mentor and Coordinator are the same shape here (both expose
                     // honorific/last_name/display_name), so this works for either.
@@ -50,7 +50,7 @@ class MeetingController extends Controller
             ->map(function (EvaluationSchedule $schedule) {
                 return [
                     'type' => 'evaluation',
-                    'sort_key' => $schedule->evaluation_date->format('Y-m-d').' '.$schedule->start_time,
+                    'sort_key' => $schedule->evaluation_date->format('Y-m-d') . ' ' . $schedule->start_time,
                     'date_label' => $schedule->evaluation_date->format('l, F j, Y'),
                     'time_label' => $schedule->time_range_label,
                     'status_label' => $this->dayLabel($schedule->evaluation_date),
@@ -62,6 +62,11 @@ class MeetingController extends Controller
         return view('startup.meetings.index', compact('meetings'));
     }
 
+    /**
+     * Evaluation schedules only — EvaluationSchedule has no equivalent of
+     * Roadblock::meeting_status_label, so this coarser Today/Tomorrow/
+     * Upcoming label is still used for the $evaluations row above.
+     */
     private function dayLabel(Carbon $date): string
     {
         if ($date->isToday()) {
