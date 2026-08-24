@@ -15,6 +15,7 @@ use App\Http\Controllers\Startup\StartupProfileController as FounderProfileContr
 use App\Http\Controllers\Startup\InformationSheetController as FounderInfoSheetController;
 use App\Http\Controllers\Startup\MeetingController as FounderMeetingController;
 use App\Http\Controllers\Admin\RoadblockController as AdminRoadblockController;
+use App\Http\Controllers\Admin\AssessmentController;
 use App\Http\Controllers\Admin\AssessmentHubController;
 use App\Http\Controllers\Admin\EvaluationScheduleController;
 use App\Http\Controllers\Admin\FounderApplicationController;
@@ -139,6 +140,8 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/assessment-hub/evaluations', [EvaluationScheduleController::class, 'store'])->name('assessment-hub.evaluations.store');
     Route::put('/assessment-hub/evaluations/{evaluationSchedule}', [EvaluationScheduleController::class, 'update'])->name('assessment-hub.evaluations.update');
     Route::delete('/assessment-hub/evaluations/{evaluationSchedule}', [EvaluationScheduleController::class, 'destroy'])->name('assessment-hub.evaluations.destroy');
+    Route::put('/assessment-hub/assessments/{startup}', [AssessmentController::class, 'update'])->name('assessment-hub.assessments.update');
+    Route::put('/assessment-hub/assessments/{startup}/documents', [AssessmentController::class, 'updateDocuments'])->name('assessment-hub.assessments.update-documents');
 
     Route::get('/founder-applications', [FounderApplicationController::class, 'index'])->name('founder-applications.index');
     Route::post('/founder-applications/{startup}/approve', [FounderApplicationController::class, 'approve'])->name('founder-applications.approve');

@@ -24,7 +24,11 @@ class StorageFallbackTest extends TestCase
         $response = $this->get('/storage/mentors/sample.jpg');
 
         $response->assertOk();
-        $response->assertSee('fake-image-bytes', false);
+        // Storage::disk(...)->response() returns a StreamedResponse, whose
+        // content is only ever produced via its output callback — Symfony
+        // deliberately leaves getContent() (what assertSee() reads) empty
+        // for these, so the stream has to be captured explicitly instead.
+        $this->assertStringContainsString('fake-image-bytes', $response->streamedContent());
     }
 
     public function test_a_missing_file_returns_a_404(): void

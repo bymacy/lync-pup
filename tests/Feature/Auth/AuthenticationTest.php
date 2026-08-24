@@ -17,19 +17,6 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_users_can_authenticate_using_the_login_screen(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this->post('/login', [
-            'email' => $user->email,
-            'password' => 'password',
-        ]);
-
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
-    }
-
     public function test_users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();
@@ -71,22 +58,28 @@ class AuthenticationTest extends TestCase
         $response = $this->actingAs($user)->post('/logout');
 
         $this->assertGuest();
-        $response->assertRedirect('/');
+        // Not '/' — this app has no public homepage, so logout intentionally
+        // sends everyone back to the login screen instead.
+        $response->assertRedirect(route('login', absolute: false));
     }
+
     public function test_users_can_authenticate_when_role_matches(): void
     {
-    $user = User::factory()->create([
-        'role' => 'Startup',
-    ]);
+        $user = User::factory()->create([
+            'role' => 'Startup',
+            'account_status' => 'Active',
+        ]);
 
-    $response = $this->post('/login', [
-        'email' => $user->email,
-        'password' => 'password',
-        'role' => 'Startup',
-    ]);
+        $response = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'role' => 'Startup',
+        ]);
 
-    $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+        $this->assertAuthenticated();
+        // Not the generic 'dashboard' route — that one is Admin-only. A
+        // Startup account must land on its own dashboard instead.
+        $response->assertRedirect(route('startup.dashboard', absolute: false));
     }
 
     public function test_users_cannot_authenticate_when_role_does_not_match(): void

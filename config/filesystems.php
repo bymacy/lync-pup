@@ -33,7 +33,16 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Laravel's own auto-registered signed-URL serving route for
+            // this disk would otherwise claim the exact same "/storage/
+            // {path}" URI as this app's custom fallback route below (see
+            // StorageController) — 'serve' => true (the framework's default
+            // stub value) makes it intercept those requests first and 403
+            // anything without a valid signature, since nothing here ever
+            // generates one. Nothing in the app uses the 'local' disk's
+            // serving feature, so it's turned off to leave that URI to the
+            // app's own controller.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

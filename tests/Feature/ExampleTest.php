@@ -2,18 +2,16 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/**
+ * Laravel's default scaffold test — checked whether "/" returns 200, which
+ * doesn't apply here: this app has no public homepage route (every visitor
+ * lands on /login or a role dashboard instead). Left in place with no test
+ * methods rather than deleted outright, since this sandbox can't remove
+ * files; safe to delete this file entirely.
+ */
 class ExampleTest extends TestCase
 {
-    /**
-     * A basic test example.
-     */
-    public function test_the_application_returns_a_successful_response(): void
-    {
-        $response = $this->get('/');
-
-        $response->assertStatus(200);
-    }
+    //
 }

@@ -50,6 +50,23 @@ class AuthenticatedSessionController extends Controller
 
         $redirectRoute = $request->user()->role === 'Startup' ? 'startup.dashboard' : 'dashboard';
 
+        // redirect()->intended() prioritizes whatever URL is already
+        // stored in the session over the fallback given below — including
+        // a stale one left over from a guest visit to a route that
+        // belongs to the OTHER role's area entirely (e.g. a Founder who
+        // typed /dashboard, an Admin-only route, before logging in). Left
+        // alone, intended() would send them there anyway regardless of the
+        // fallback, so any intended URL that doesn't belong to this
+        // account's own role area is discarded first — a same-role
+        // intended URL (e.g. a Founder who was trying to reach
+        // /startup/roadblocks) is still honored as normal.
+        $intendedPath = parse_url((string) $request->session()->get('url.intended'), PHP_URL_PATH);
+        $intendedIsStartupArea = $intendedPath && str_starts_with($intendedPath, '/startup');
+
+        if ($intendedPath && ($request->user()->role === 'Startup') !== $intendedIsStartupArea) {
+            $request->session()->forget('url.intended');
+        }
+
         return redirect()->intended(route($redirectRoute, absolute: false));
     }
 

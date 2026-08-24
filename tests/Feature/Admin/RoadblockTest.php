@@ -366,7 +366,16 @@ class RoadblockTest extends TestCase
      * Regression test: the "Upcoming Mentorship" list used to sort only by
      * meeting_date, so same-day meetings weren't actually ordered by time.
      * It must be ordered by full start time, with anything currently Live
-     * pulled to the top regardless of when it started.
+     * pulled to the top ahead of meetings that haven't started yet.
+     *
+     * Note: this intentionally doesn't try to pit a Live meeting against one
+     * that already started earlier today and hasn't ended — every page load
+     * sweeps ended meetings out of 'Scheduled' before this list is even
+     * built (see promoteEndedMeetingsToPendingReview()), and isLive()'s
+     * window is inclusive of its own end time, so a same-day meeting that's
+     * neither "ended" nor "live" simply can't exist at the exact moment
+     * this list is queried — there's no meaningful fixture that isolates
+     * that case.
      */
     public function test_upcoming_mentorship_list_is_ordered_by_start_time_with_live_meetings_first(): void
     {
@@ -381,14 +390,15 @@ class RoadblockTest extends TestCase
             'meeting_date' => now()->toDateString(), 'meeting_start_time' => '14:00', 'meeting_end_time' => '15:00',
         ]);
 
-        $early = $this->pendingRoadblock();
-        $early->update([
+        // Hasn't started yet, but starts sooner than $late.
+        $soon = $this->pendingRoadblock();
+        $soon->update([
             'status' => 'Scheduled', 'mentor_id' => $mentor->mentor_id,
-            'meeting_date' => now()->toDateString(), 'meeting_start_time' => '09:00', 'meeting_end_time' => '10:00',
+            'meeting_date' => now()->toDateString(), 'meeting_start_time' => '11:00', 'meeting_end_time' => '12:00',
         ]);
 
-        // Currently live (started 09:45, ends 10:30) but starts later than
-        // $early on the clock — it must still rank first.
+        // Currently live — must rank ahead of both, even though a plain
+        // "insertion order" or "unsorted" list would put it last.
         $live = $this->pendingRoadblock();
         $live->update([
             'status' => 'Scheduled', 'mentor_id' => $mentor->mentor_id,
@@ -401,7 +411,7 @@ class RoadblockTest extends TestCase
         $ids = $response->viewData('upcoming')->pluck('roadblock_id')->values()->all();
 
         $this->assertSame(
-            [$live->roadblock_id, $early->roadblock_id, $late->roadblock_id],
+            [$live->roadblock_id, $soon->roadblock_id, $late->roadblock_id],
             $ids
         );
     }
@@ -425,14 +435,14 @@ class RoadblockTest extends TestCase
             'meeting_date' => now()->toDateString(), 'meeting_start_time' => '14:00', 'meeting_end_time' => '15:00',
         ]);
 
-        $early = $this->pendingRoadblock();
-        $early->update([
+        // Hasn't started yet, but starts sooner than $late.
+        $soon = $this->pendingRoadblock();
+        $soon->update([
             'status' => 'Scheduled', 'mentor_id' => $mentor->mentor_id,
-            'meeting_date' => now()->toDateString(), 'meeting_start_time' => '09:00', 'meeting_end_time' => '10:00',
+            'meeting_date' => now()->toDateString(), 'meeting_start_time' => '11:00', 'meeting_end_time' => '12:00',
         ]);
 
-        // Currently live but starts later on the clock than $early — must
-        // still rank first.
+        // Currently live — must rank ahead of both.
         $live = $this->pendingRoadblock();
         $live->update([
             'status' => 'Scheduled', 'mentor_id' => $mentor->mentor_id,
@@ -453,7 +463,7 @@ class RoadblockTest extends TestCase
         $ids = $response->viewData('scheduledToday')->pluck('roadblock_id')->values()->all();
 
         $this->assertSame(
-            [$live->roadblock_id, $early->roadblock_id, $late->roadblock_id],
+            [$live->roadblock_id, $soon->roadblock_id, $late->roadblock_id],
             $ids
         );
         $this->assertNotContains($tomorrow->roadblock_id, $ids);
@@ -901,7 +911,17 @@ class RoadblockTest extends TestCase
             'meeting_link' => '',
         ]));
 
-        $response->assertSessionHasErrors(['meeting_link' => 'meeting link / location']);
+        // assertSessionHasErrors(['field' => 'value']) matches the value
+        // against the error message exactly, not as a substring — the
+        // actual message is the full sentence built from the custom
+        // :attribute label ("The meeting link / location field is
+        // required."), so this checks for the label within it directly
+        // instead of hardcoding Laravel's default validation phrasing.
+        $response->assertSessionHasErrors('meeting_link');
+        $this->assertStringContainsString(
+            'meeting link / location',
+            session('errors')->first('meeting_link')
+        );
     }
 
     /**

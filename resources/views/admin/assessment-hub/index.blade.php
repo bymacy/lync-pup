@@ -75,9 +75,7 @@
         </div>
 
         <div x-show="mainTab === 'assessment'" x-cloak>
-            <div class="border border-dashed rounded-xl p-12 text-center text-gray-400">
-                Assessment scoring (TRL / MRL / TMRL / SRL) is coming in a future update.
-            </div>
+            @include('admin.assessment-hub._assessment')
         </div>
     </div>
 </x-layouts.admin>

@@ -14,7 +14,15 @@ class StartupProfileTest extends TestCase
 
     protected function makeFounderWithStartup(): array
     {
-        $user = User::factory()->create(['role' => 'Startup']);
+        // account_status must be set explicitly here, not left to the
+        // database column's own 'Active' default: actingAs() keeps using
+        // this exact in-memory model for every request in the test, and
+        // Eloquent never re-fetches a model after create() to learn what
+        // default a column got at the database level — so an omitted
+        // account_status reads back as null in PHP even though the row
+        // itself says 'Active', which the 'approved' middleware then
+        // treats as not approved and redirects to /login.
+        $user = User::factory()->create(['role' => 'Startup', 'account_status' => 'Active']);
         $startup = Startup::factory()->create(['user_id' => $user->id]);
 
         return [$user, $startup];
