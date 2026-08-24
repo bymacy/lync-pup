@@ -50,7 +50,7 @@
             @endphp
 
             <div
-                class="h-screen flex overflow-hidden"
+                class="relative h-screen flex overflow-hidden"
                 x-data="{ sidebarOpen: false }"
                 @keydown.escape.window="sidebarOpen = false">
 
