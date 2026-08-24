@@ -8,8 +8,9 @@ use Tests\TestCase;
 
 /**
  * Coverage for Roadblock::getMeetingStatusLabelAttribute()'s day-out
- * buckets: Soon (Tomorrow) -> Soon (This Week) -> Upcoming (Next Week) ->
- * Upcoming (Next Month) -> an exact date beyond that.
+ * buckets: Soon (Tomorrow) -> Soon (In N Days) -> Upcoming (In N Days)
+ * [7-13 and 14-30 day ranges both use this same "In N Days" wording] -> an
+ * exact date beyond that.
  */
 class RoadblockMeetingStatusLabelTest extends TestCase
 {
@@ -36,28 +37,28 @@ class RoadblockMeetingStatusLabelTest extends TestCase
         $this->assertSame('Soon (Tomorrow)', $this->roadblockDaysOut(1)->meeting_status_label);
     }
 
-    public function test_two_to_six_days_out_is_soon_this_week(): void
+    public function test_two_to_six_days_out_is_soon_in_n_days(): void
     {
         Carbon::setTestNow(Carbon::parse('today 10:00'));
 
-        $this->assertSame('Soon (This Week)', $this->roadblockDaysOut(2)->meeting_status_label);
-        $this->assertSame('Soon (This Week)', $this->roadblockDaysOut(6)->meeting_status_label);
+        $this->assertSame('Soon (In 2 Days)', $this->roadblockDaysOut(2)->meeting_status_label);
+        $this->assertSame('Soon (In 6 Days)', $this->roadblockDaysOut(6)->meeting_status_label);
     }
 
-    public function test_seven_to_thirteen_days_out_is_upcoming_next_week(): void
+    public function test_seven_to_thirteen_days_out_is_upcoming_in_n_days(): void
     {
         Carbon::setTestNow(Carbon::parse('today 10:00'));
 
-        $this->assertSame('Upcoming (Next Week)', $this->roadblockDaysOut(7)->meeting_status_label);
-        $this->assertSame('Upcoming (Next Week)', $this->roadblockDaysOut(13)->meeting_status_label);
+        $this->assertSame('Upcoming (In 7 Days)', $this->roadblockDaysOut(7)->meeting_status_label);
+        $this->assertSame('Upcoming (In 13 Days)', $this->roadblockDaysOut(13)->meeting_status_label);
     }
 
-    public function test_fourteen_to_thirty_days_out_is_upcoming_next_month(): void
+    public function test_fourteen_to_thirty_days_out_is_upcoming_in_n_days(): void
     {
         Carbon::setTestNow(Carbon::parse('today 10:00'));
 
-        $this->assertSame('Upcoming (Next Month)', $this->roadblockDaysOut(14)->meeting_status_label);
-        $this->assertSame('Upcoming (Next Month)', $this->roadblockDaysOut(30)->meeting_status_label);
+        $this->assertSame('Upcoming (In 14 Days)', $this->roadblockDaysOut(14)->meeting_status_label);
+        $this->assertSame('Upcoming (In 30 Days)', $this->roadblockDaysOut(30)->meeting_status_label);
     }
 
     public function test_beyond_thirty_days_out_shows_the_exact_date(): void
@@ -78,7 +79,7 @@ class RoadblockMeetingStatusLabelTest extends TestCase
     {
         Carbon::setTestNow(Carbon::parse('today 23:30'));
 
-        $this->assertSame('Soon (This Week)', $this->roadblockDaysOut(2)->meeting_status_label);
-        $this->assertSame('Upcoming (Next Week)', $this->roadblockDaysOut(7)->meeting_status_label);
+        $this->assertSame('Soon (In 2 Days)', $this->roadblockDaysOut(2)->meeting_status_label);
+        $this->assertSame('Upcoming (In 7 Days)', $this->roadblockDaysOut(7)->meeting_status_label);
     }
 }

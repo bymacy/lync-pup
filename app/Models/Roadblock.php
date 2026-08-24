@@ -237,15 +237,15 @@ class Roadblock extends Model
         $daysOut = now()->startOfDay()->diffInDays($this->meeting_date);
 
         if ($daysOut <= 6) {
-            return 'Soon (This Week)';
+            return 'Soon (In ' . $daysOut . ' Days)';
         }
 
         if ($daysOut <= 13) {
-            return 'Upcoming (Next Week)';
+            return 'Upcoming (In ' . $daysOut . ' Days)';
         }
 
         if ($daysOut <= 30) {
-            return 'Upcoming (Next Month)';
+            return 'Upcoming (In ' . $daysOut . ' Days)';
         }
 
         return 'Upcoming (' . $this->meeting_date->format('M j') . ')';
