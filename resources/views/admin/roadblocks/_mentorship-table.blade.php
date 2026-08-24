@@ -34,18 +34,23 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         $filterKey = $filterKey ?? null;
         @endphp
 
-        <div class="mb-10 overflow-hidden rounded-xl border border-gray-200">
-            <div class="overflow-x-auto">
+        {{-- min-w-0 keeps the scroll inside this box. Without it a flex ancestor
+             refuses to shrink below the table's min-width and the whole page
+             (header included) ends up scrolling sideways instead. --}}
+        <div class="mb-10 min-w-0 max-w-full overflow-hidden rounded-xl border border-gray-200">
+            <div class="min-w-0 overflow-x-auto">
                 {{-- Narrower floor on phones since two columns fold away below lg --}}
                 <table class="w-full min-w-[920px] text-sm">
                     <thead>
-                        <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-left text-white">
-                            <th class="px-3 py-3 font-semibold sm:px-4">Startup</th>
-                            <th class="px-4 py-3 font-semibold">Roadblock</th>
-                            <th class="px-3 py-3 font-semibold sm:px-4">Status</th>
-                            <th class="px-3 py-3 font-semibold sm:px-4">Meeting Schedule</th>
-                            <th class="px-4 py-3 font-semibold">Mentor / Coordinator</th>
-                            <th class="px-3 py-3 font-semibold sm:px-4">Action</th>
+                        {{-- Every column is centred as a block, not as text: each cell's content sits
+                             in a fixed-width box so icons and avatars still line up row to row. --}}
+                        <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white">
+                            <th class="px-3 py-3 text-center font-semibold sm:px-4">Startup</th>
+                            <th class="px-4 py-3 text-center font-semibold">Roadblock</th>
+                            <th class="px-3 py-3 text-center font-semibold sm:px-4">Status</th>
+                            <th class="px-3 py-3 text-center font-semibold sm:px-4">Meeting Schedule</th>
+                            <th class="px-4 py-3 text-center font-semibold">Mentor / Coordinator</th>
+                            <th class="px-3 py-3 text-center font-semibold sm:px-4">Action</th>
                         </tr>
                     </thead>
                     <tbody @if ($filterKey) id="{{ $filterKey }}-rows" @endif>
@@ -85,29 +90,15 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         $platformIcon = $platformIcons[$roadblock->meeting_platform] ?? null;
                         $platformLabel = $platformLabels[$roadblock->meeting_platform] ?? $roadblock->meeting_platform;
 
-                        // "Location" is a physical meetup — there's nothing to join online,
-                        // so it shows a building icon and the typed address instead of a
-                        // "Join meeting" link. Everything else (the three known platforms,
-                        // plus "Custom Link" — an unbranded/unlisted video platform) is
-                        // joinable via its link; "Custom Link" used to be lumped in with
-                        // "Location" here, which incorrectly hid its join link.
+
                         $isLocation = $roadblock->meeting_platform === 'Location';
 
-                        // Upcoming Mentorship and Scheduled Today share this partial but
-                        // intentionally gate the Join/Edit swap differently:
-                        // - Upcoming Mentorship ($gateOnExactTime = true): stays editable
-                        // right up until the meeting's actual start time, since these
-                        // rows can be hours (or days) away — swapping to "Join" early
-                        // would be misleading.
-                        // - Scheduled Today (default/false): swaps to "Join" as soon as
-                        // it's the meeting's day, even before its start time, so hosts
-                        // can get in early to set up.
+
                         $canJoinNow = (isset($gateOnExactTime) && $gateOnExactTime)
                         ? $roadblock->isLive()
                         : $roadblock->isJoinable();
 
-                        // Split "Live (In-Session)" into a bold main word and a lighter sub-label
-                        // so the status column renders on two lines, as in the design.
+
                         $statusMain = $roadblock->meeting_status_label;
                         $statusSub = null;
                         if (preg_match('/^(.*?)\s*(\(.*\))$/', $roadblock->meeting_status_label, $statusParts)) {
@@ -124,7 +115,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             x-data="{ viewOpen: false, editOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
 
                             <td class="px-3 py-3 align-middle sm:px-4">
-                                <div class="flex items-center gap-2.5 sm:gap-3">
+                                <div class="mx-auto flex w-[13rem] items-center gap-2.5 sm:gap-3">
                                     @if ($roadblock->startup->startup_photo_url)
                                     <img src="{{ $roadblock->startup->startup_photo_url }}" alt=""
                                         class="h-7 w-7 flex-shrink-0 rounded-full object-cover sm:h-8 sm:w-8">
@@ -140,67 +131,73 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3 align-middle">{{ $roadblock->display_category }}</td>
+                            <td class="px-4 py-3 text-center align-middle">{{ $roadblock->display_category }}</td>
 
-                            <td class="px-3 py-3 align-middle sm:px-4">
+                            <td class="px-3 py-3 text-center align-middle sm:px-4">
                                 <p class="font-semibold text-gray-900">{{ $statusMain }}</p>
                                 @if ($statusSub)
                                 <p class="text-xs text-gray-500">{{ $statusSub }}</p>
                                 @endif
                             </td>
 
-                            <td class="px-3 py-3 align-middle sm:px-4">
-                                <div class="flex items-center gap-1.5 text-gray-700">
-                                    <span class="flex-shrink-0 text-[#6C0E24]">{!! $icon('cal.svg', 'w-3.5 h-3.5') !!}</span>
-                                    <span class="whitespace-nowrap">{{ $roadblock->meeting_date?->format('M j, Y') }}</span>
-                                </div>
+                            <td class="px-3 py-3 text-center align-middle sm:px-4">
+                                {{-- inline-block shrinks to the content width so the whole stack can
+                                     be centred, while text-left keeps the icons in a clean column. --}}
+                                <div class="inline-block w-[13rem] text-left">
+                                    <div class="flex items-center gap-1.5 text-gray-700">
+                                        <span class="flex-shrink-0 text-[#6C0E24]">{!! $icon('cal.svg', 'w-3.5 h-3.5') !!}</span>
+                                        <span class="whitespace-nowrap">{{ $roadblock->meeting_date?->format('M j, Y') }}</span>
+                                    </div>
 
-                                <div class="mt-1 flex items-center gap-1.5 text-gray-700">
-                                    <span class="flex-shrink-0 text-[#6C0E24]">{!! $icon('clock.svg', 'w-3.5 h-3.5') !!}</span>
-                                    <span class="whitespace-nowrap">{{ $roadblock->meeting_time_range_label }}</span>
-                                </div>
+                                    <div class="mt-1 flex items-center gap-1.5 text-gray-700">
+                                        <span class="flex-shrink-0 text-[#6C0E24]">{!! $icon('clock.svg', 'w-3.5 h-3.5') !!}</span>
+                                        <span class="whitespace-nowrap">{{ $roadblock->meeting_time_range_label }}</span>
+                                    </div>
 
-                                {{-- Wraps to a second line rather than forcing the column wider --}}
-                                <div class="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                                    @if ($isLocation)
-                                    {{-- Physical meetup: building icon, address text, no join link. --}}
-                                    <span class="flex-shrink-0 text-[#6C0E24]">{!! $icon('building.svg', 'w-3.5 h-3.5') !!}</span>
-                                    <span class="text-gray-700">Location</span>
-                                    <span class="hidden text-gray-300 sm:inline">&bull;</span>
-                                    <span class="max-w-[12rem] text-gray-700 sm:max-w-[16rem]">
-                                        {{ $roadblock->meeting_link ?? '—' }}
-                                    </span>
-                                    @else
-                                    @if ($platformIcon)
-                                    <img src="{{ asset('images/icons/' . $platformIcon) }}" alt=""
-                                        class="h-3.5 w-3.5 flex-shrink-0">
-                                    @else
-                                    {{-- "Custom Link": no logo on file — generic camera icon instead. --}}
-                                    <span class="flex-shrink-0 text-[#6C0E24]">{!! $icon('camera.svg', 'w-3.5 h-3.5') !!}</span>
-                                    @endif
-
-                                    <span class="text-gray-700">{{ $platformLabel }}</span>
-
-                                    @if ($roadblock->meeting_link)
-                                    <span class="hidden text-gray-300 sm:inline">&bull;</span>
-
-                                    <a href="{{ $roadblock->meeting_link }}" target="_blank" rel="noopener"
-                                        class="inline-flex items-center gap-1 whitespace-nowrap text-blue-600 hover:underline">
-                                        Join meeting
-                                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 7L7 17M17 7H9M17 7v8" />
+                                    {{-- Wraps to a second line rather than forcing the column wider --}}
+                                    <div class="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                        @if ($isLocation)
+                                        {{-- Physical meetup: building icon, address text, no join link. --}}
+                                        <span class="flex-shrink-0 text-[#6C0E24]">{!! $icon('building.svg', 'w-3.5 h-3.5') !!}</span>
+                                        <span class="text-gray-700">Location</span>
+                                        <span class="hidden text-gray-300 sm:inline">&bull;</span>
+                                        <span class="max-w-[12rem] text-gray-700 sm:max-w-[16rem]">
+                                            {{ $roadblock->meeting_link ?? '—' }}
+                                        </span>
+                                        @else
+                                        @if ($platformIcon)
+                                        <img src="{{ asset('images/icons/' . $platformIcon) }}" alt=""
+                                            class="h-3.5 w-3.5 flex-shrink-0 object-contain">
+                                        @else
+                                        {{-- "Custom Link": no logo on file — video-camera icon instead. --}}
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 text-[#6C0E24]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
                                         </svg>
-                                    </a>
-                                    @endif
-                                    @endif
+                                        @endif
+
+                                        <span class="text-gray-700">{{ $platformLabel }}</span>
+
+                                        @if ($roadblock->meeting_link)
+                                        <span class="hidden text-gray-300 sm:inline">&bull;</span>
+
+                                        <a href="{{ $roadblock->meeting_link }}" target="_blank" rel="noopener"
+                                            class="inline-flex items-center gap-1 whitespace-nowrap text-blue-600 hover:underline">
+                                            Join meeting
+                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 7L7 17M17 7H9M17 7v8" />
+                                            </svg>
+                                        </a>
+                                        @endif
+                                        @endif
+                                    </div>
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3 align-middle">{{ $roadblock->assignee?->display_name }}</td>
+                            <td class="px-4 py-3 text-center align-middle">{{ $roadblock->assignee?->display_name }}</td>
 
                             <td class="px-3 py-3 align-middle sm:px-4">
                                 {{-- Stacked on phones: two buttons side by side squeeze the column --}}
-                                <div class="flex flex-col gap-2 sm:flex-row">
+                                <div class="flex flex-col gap-2 sm:flex-row sm:justify-center">
                                     <button type="button" @click="viewOpen = true"
                                         class="whitespace-nowrap rounded-lg border border-[#6D0D23] px-3 py-1.5 text-[#6D0D23] hover:bg-[#6D0D23]/5">View</button>
 
@@ -208,10 +205,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <a href="{{ $roadblock->meeting_link }}" target="_blank"
                                         class="whitespace-nowrap rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-3 py-1.5 text-center text-white transition hover:opacity-95">Join</a>
                                     @elseif (! ($canJoinNow && $isLocation))
-                                    {{-- Location has no online link to join, so it normally falls
-                                    back to Edit here — except once its meeting is actually live,
-                                    editing an in-progress meeting doesn't make sense either, so
-                                    this slot is simply left empty (View only) for that window. --}}
+
                                     <button type="button" @click="editOpen = true"
                                         class="whitespace-nowrap rounded-lg border border-[#6D0D23] px-3 py-1.5 text-[#6D0D23] hover:bg-[#6D0D23]/5">Edit</button>
                                     @endif

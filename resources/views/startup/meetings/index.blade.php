@@ -63,7 +63,7 @@
                         <div class="min-w-0">
                             <p class="text-sm font-bold leading-tight sm:text-base 2xl:text-lg">Mentorship</p>
                             <p class="hidden text-[11px] text-white/70 sm:block xl:mt-3 xl:text-xs">Roadblock:</p>
-                            <p class="truncate text-[11px] text-white/90 xl:whitespace-normal xl:text-xs">{{ $meeting['roadblock_category'] }}</p>
+                            <p class="truncate text-[11px] text-white/90 xl:text-xs" title="{{ $meeting['roadblock_category'] }}">{{ $meeting['roadblock_category'] }}</p>
                         </div>
                         @else
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 flex-shrink-0 sm:h-7 sm:w-7 xl:mb-3 xl:h-8 xl:w-8 2xl:h-9 2xl:w-9" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -75,14 +75,14 @@
                     </div>
 
                     {{-- Info rows --}}
-                    <div class="min-w-0 flex-1 divide-y px-3 py-3 sm:px-4 sm:py-4 xl:px-5 xl:py-5">
+                    <div class="min-w-0 flex-1 divide-y px-3 py-2 sm:px-4 sm:py-3 xl:px-5 xl:py-3">
                         <div class="flex items-center gap-2 pb-2 sm:gap-3">
                             <svg xmlns="http://www.w3.org/2000/svg" class="{{ $rowIcon }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                             </svg>
                             <div class="min-w-0">
                                 <p class="text-xs font-semibold text-gray-900 sm:text-sm">Date</p>
-                                <p class="text-xs text-gray-600 sm:text-sm">{{ $meeting['date_label'] }}</p>
+                                <p class="truncate text-xs text-gray-600 sm:text-sm" title="{{ $meeting['date_label'] }}">{{ $meeting['date_label'] }}</p>
                             </div>
                         </div>
 
@@ -92,7 +92,7 @@
                             </svg>
                             <div class="min-w-0">
                                 <p class="text-xs font-semibold text-gray-900 sm:text-sm">Time</p>
-                                <p class="text-xs text-gray-600 sm:text-sm">{{ $meeting['time_label'] }}</p>
+                                <p class="truncate text-xs text-gray-600 sm:text-sm" title="{{ $meeting['time_label'] }}">{{ $meeting['time_label'] }}</p>
                             </div>
                         </div>
 
@@ -102,7 +102,7 @@
                             </span>
                             <div class="min-w-0">
                                 <p class="text-xs font-semibold text-gray-900 sm:text-sm">Status</p>
-                                <p class="text-xs text-gray-600 sm:text-sm">{{ $meeting['status_label'] }}</p>
+                                <p class="truncate text-xs text-gray-600 sm:text-sm" title="{{ $meeting['status_label'] }}">{{ $meeting['status_label'] }}</p>
                             </div>
                         </div>
 
@@ -136,9 +136,9 @@
                             <img src="{{ asset('images/icons/' . $platformLogo) }}" alt=""
                                 class="h-5 w-5 flex-shrink-0 object-contain">
                             @else
-                            <span class="flex-shrink-0 text-[#6D0D23]">
-                                {!! $icon('camera.svg', 'w-5 h-5') !!}
-                            </span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="{{ $rowIcon }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+                            </svg>
                             @endif
                             <div class="min-w-0">
                                 <p class="text-xs font-semibold text-gray-900 sm:text-sm">Platform</p>
@@ -153,7 +153,7 @@
                             </svg>
                             <div class="min-w-0">
                                 <p class="text-xs font-semibold text-gray-900 sm:text-sm">Evaluator</p>
-                                <p class="text-xs text-gray-600 sm:text-sm">TBIDO</p>
+                                <p class="truncate text-xs text-gray-600 sm:text-sm">TBIDO</p>
                             </div>
                         </div>
 
@@ -164,7 +164,7 @@
                             </svg>
                             <div class="min-w-0">
                                 <p class="text-xs font-semibold text-gray-900 sm:text-sm">Location</p>
-                                <p class="text-xs text-gray-600 sm:text-sm">TBIDO Office</p>
+                                <p class="truncate text-xs text-gray-600 sm:text-sm">TBIDO Office</p>
                             </div>
                         </div>
                         @endif
