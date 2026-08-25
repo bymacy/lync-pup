@@ -86,18 +86,18 @@ return [
     </div>
     <table class="w-full text-sm border rounded-xl overflow-hidden">
         <thead>
-            <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-left">
-                <th class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider">Startup</th>
-                <th class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider">Approved Date</th>
-                <th class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider">Category</th>
-                <th class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider">Action</th>
+            <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-center">
+                <th class="px-4 py-3 text-sm font-semibold tracking-wider">Startup</th>
+                <th class="px-4 py-3 text-sm font-semibold tracking-wider">Approved Date</th>
+                <th class="px-4 py-3 text-sm font-semibold tracking-wider">Category</th>
+                <th class="px-4 py-3 text-sm font-semibold tracking-wider">Action</th>
             </tr>
         </thead>
         <tbody>
             <template x-for="s in paged" :key="s.id">
                 <tr class="border-b">
-                    <td class="px-4 py-3">
-                        <div class="flex items-center gap-3">
+                    <td class="px-4 py-3 text-center">
+                        <div class="flex items-center justify-center gap-3">
                             <div class="h-9 w-9 rounded-full overflow-hidden bg-gradient-to-br from-rose-900 to-blue-950 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
                                 <template x-if="s.photo_url">
                                     <img :src="s.photo_url" class="h-full w-full object-cover">
@@ -109,11 +109,11 @@ return [
                             <span x-text="s.name"></span>
                         </div>
                     </td>
-                    <td class="px-4 py-3" x-text="s.approved_date"></td>
-                    <td class="px-4 py-3" x-text="s.category"></td>
-                    <td class="px-4 py-3">
+                    <td class="px-4 py-3 text-center" x-text="s.approved_date"></td>
+                    <td class="px-4 py-3 text-center" x-text="s.category"></td>
+                    <td class="px-4 py-3 text-center">
                         <a :href="s.view_url"
-                            class="border border-rose-900 text-rose-900 text-xs font-medium rounded-lg px-3 py-2 inline-block">
+                            class="inline-flex items-center justify-center whitespace-nowrap rounded-md border border-[#6D0D23] px-4 py-1 text-sm font-semibold text-[#6D0D23] transition hover:bg-[#6D0D23]/5">
                             View
                         </a>
                     </td>

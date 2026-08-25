@@ -25,7 +25,13 @@
     return Route::has($name) ? route($name, $params) : null;
     };
 
-    $backUrl = $url('admin.startups.index') ?? url()->previous();
+    $backUrl = request('from') === 'assessment-hub'
+        ? route('admin.assessment-hub.index', array_filter([
+            'main' => 'information-sheet',
+            'tab' => request('tab'),
+            'stage' => request('stage'),
+        ]))
+        : ($url('admin.startups.index') ?? url()->previous());
     $sheetUpdateUrl = $url('admin.information-sheet.update', $startup);
     $approveUrl = $url('admin.information-sheet.approve', $startup);
 

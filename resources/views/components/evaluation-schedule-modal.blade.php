@@ -15,7 +15,7 @@ $isReadOnly = $mode === 'view';
 
 $title = match ($mode) {
 'add' => 'Add Evaluation Schedule',
-'edit' => 'Edit Evaluation Schedule',
+'edit' => 'Schedule',
 'reschedule' => 'Select Your Reschedule Evaluation',
 default => 'Schedule',
 };
@@ -72,14 +72,16 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
     }"
     x-init="if (!{{ $isReadOnly ? 'true' : 'false' }} && (isPastSlot(startTime) || isSlotBooked(startTime))) { const f = slots.find(t => !isPastSlot(t) && !isSlotBooked(t)); if (f) startTime = f; }">
     <div class="shrink-0 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-6 py-4 flex items-center justify-between">
-        <h3 class="font-bold flex items-center gap-2">
-            <img src="{{ asset('images/icons/calendar.svg') }}" alt="" class="h-5 w-5 brightness-0 invert" aria-hidden="true">
+        <h3 class="text-sm font-bold flex items-center gap-3">
+            <img src="{{ asset('images/icons/cal.svg') }}" alt="" class="h-6 w-6 brightness-0 invert" aria-hidden="true">
             <span>{{ $title }}</span>
         </h3>
-        <button type="button" @click="{{ $close }}"
-            class="flex h-8 w-8 items-center justify-center rounded-full text-3xl text-white/70 transition hover:bg-white/10 hover:text-white"
+        <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); {{ $close }}"
+            class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             aria-label="Close">
-            <span class="-mt-2">&times;</span>
+            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+            </svg>
         </button>
     </div>
 
@@ -117,7 +119,7 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <p class="font-medium mb-3">{{ $isReadOnly ? 'Date' : '1. Pick a Date' }}</p>
+                    <p class="font-medium mb-3 text-left">{{ $isReadOnly ? 'Date' : '1. Pick a Date' }}</p>
                     <div class="border rounded-xl p-4">
                         <div class="flex items-center justify-between mb-4">
                             <button type="button" @click="prevMonth()" class="px-2 text-gray-500 hover:text-gray-900" @if($isReadOnly) x-show="false" @endif>&lt;</button>
@@ -142,7 +144,7 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
                                     @click="{{ $isReadOnly ? '' : "if (!isPastDay(day)) pick(day)" }}"
                                     :disabled="{{ $isReadOnly ? 'true' : 'isPastDay(day)' }}"
                                     :class="{
-                                    'bg-rose-950 text-white rounded-lg font-bold': isSelected(day),
+                                    'bg-[#6C0E24] text-white rounded-lg font-bold': isSelected(day),
                                     'text-gray-300 cursor-not-allowed': isPastDay(day) && !isSelected(day),
                                     'hover:bg-gray-100 rounded-lg cursor-pointer': !isPastDay(day) && !isSelected(day) && !{{ $isReadOnly ? 'true' : 'false' }},
                                 }"
@@ -153,7 +155,7 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
                 </div>
 
                 <div>
-                    <p class="font-medium mb-3">{{ $isReadOnly ? 'Time' : '2. Choose an Available Time' }}</p>
+                    <p class="font-medium mb-3 text-left">{{ $isReadOnly ? 'Time' : '2. Choose an Available Time' }}</p>
                     <div class="space-y-2">
                         @foreach ($timeSlots as [$start, $end])
                         @if (! $isReadOnly || $start === $initialStart)
@@ -161,9 +163,9 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
                             @click="{{ $isReadOnly ? '' : "if (!isSlotBooked('{$start}') && !isPastSlot('{$start}')) startTime = '{$start}'" }}"
                             :disabled="{{ $isReadOnly ? 'true' : "isSlotBooked('{$start}') || isPastSlot('{$start}')" }}"
                             :class="{
-                                    'bg-rose-950 text-white border-rose-950': startTime === '{{ $start }}',
+                                    'bg-[#6C0E24] text-white border-[#6C0E24]': startTime === '{{ $start }}',
                                     'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed': (isSlotBooked('{{ $start }}') || isPastSlot('{{ $start }}')) && startTime !== '{{ $start }}',
-                                    'border-rose-900 text-gray-900 hover:bg-rose-50': !isSlotBooked('{{ $start }}') && !isPastSlot('{{ $start }}') && startTime !== '{{ $start }}' && !{{ $isReadOnly ? 'true' : 'false' }},
+                                    'border-[#6C0E24] text-gray-900 hover:bg-[#6C0E24]/5': !isSlotBooked('{{ $start }}') && !isPastSlot('{{ $start }}') && startTime !== '{{ $start }}' && !{{ $isReadOnly ? 'true' : 'false' }},
                                 }"
                             class="w-full text-left border rounded-lg px-4 py-3 text-sm flex items-center gap-2">
                             <span x-show="startTime === '{{ $start }}'" class="text-white">&#10003;</span>
@@ -204,13 +206,15 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
     {{-- pinned footer — sibling of the body, NOT inside it --}}
     <div class="shrink-0 border-t border-gray-200 bg-white px-6 py-4">
         <div class="flex gap-3">
-            <button type="button" @click="{{ $close }}" class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition hover:bg-gray-50">
+            @if ($mode !== 'edit')
+            <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); {{ $close }}" class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition hover:bg-gray-50">
                 {{ $isReadOnly ? 'Close' : 'Cancel' }}
             </button>
+            @endif
 
             @if ($mode === 'edit' && $deleteTrigger)
             <button type="button" @click="{{ $deleteTrigger }}"
-                class="flex-1 rounded-lg bg-gradient-to-r from-rose-900 to-rose-950 py-2.5 text-sm font-medium text-white transition hover:opacity-90">
+                class="flex-1 rounded-lg bg-[#6C0E24] py-2.5 text-sm font-medium text-white transition hover:opacity-90">
                 Delete
             </button>
             @endif

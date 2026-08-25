@@ -6,10 +6,10 @@ $isPaginated = $pendingStartups instanceof \Illuminate\Contracts\Pagination\Leng
 
 // avatar renderer — falls back to an initial if there's no logo
 $avatar = function ($startup) {
-$path = $startup->logo_path ?? $startup->company_logo ?? null;
+$url = $startup->startup_photo_url ?? null;
 $name = $startup->company_name ?? '?';
-return $path
-? '<img src="'.e(\Illuminate\Support\Facades\Storage::url($path)).'" alt="" class="h-full w-full object-cover">'
+return $url
+? '<img src="'.e($url).'" alt="" class="h-full w-full object-cover">'
 : '<span class="text-[10px] font-bold text-gray-500">'.e(mb_strtoupper(mb_substr($name, 0, 1))).'</span>';
 };
 @endphp
@@ -19,8 +19,8 @@ return $path
     {{-- ==================== LEFT: EVALUATION DAY ==================== --}}
     <div class="xl:col-span-8">
         <div class="flex items-center gap-2 mb-2.5">
-            <img src="{{ asset('images/icons/calendar.svg') }}" alt="" class="h-4 w-4" aria-hidden="true">
-            <h2 class="text-sm font-bold text-gray-900">Awaiting Schedule</h2>
+            <img src="{{ asset('images/icons/calendar.svg') }}" alt="" class="h-8 w-8" aria-hidden="true">
+            <h2 class="text-md font-bold text-gray-900">Evaluation Day</h2>
         </div>
 
         <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">
@@ -28,37 +28,37 @@ return $path
                 <table class="w-full min-w-[560px] text-sm">
                     <thead>
                         <tr class="{{ $gradient }} text-white text-center">
-                            <th class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider">Startup</th>
-                            <th class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider">Registration Date</th>
-                            <th class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider">Cohort</th>
-                            <th class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider">Action</th>
+                            <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Startup</th>
+                            <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Registration Date</th>
+                            <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Cohort</th>
+                            <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($pendingStartups as $startup)
                         <tr x-data="{ scheduleOpen: false }" class="border-b border-gray-100 last:border-0">
-                            <td class="px-3 py-2">
-                                <div class="flex items-center gap-2">
+                            <td class="px-3 py-2 text-center">
+                                <div class="flex items-center justify-center gap-2">
                                     <span class="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
                                         {!! $avatar($startup) !!}
                                     </span>
                                     <span class="text-xs font-medium text-gray-900">{{ $startup->company_name }}</span>
                                 </div>
                             </td>
-                            <td class="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                            <td class="px-3 py-2 whitespace-nowrap text-center text-xs text-gray-600">
                                 {{ optional($startup->informationSheet?->submission_date ?? $startup->created_at)->format('M d, Y') ?? '—' }}
                             </td>
-                            <td class="px-3 py-2 text-xs text-gray-600">{{ $startup->cohort_number ?? '—' }}</td>
+                            <td class="px-3 py-2 text-center text-xs text-gray-600">{{ $startup->cohort_number ?? '—' }}</td>
 
-                            <td class="px-3 py-2">
+                            <td class="px-3 py-2 text-center">
                                 <button type="button" @click="scheduleOpen = true"
-                                    class="inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition {{ $gradient }} text-white hover:opacity-90">
-                                    <img src="{{ asset('images/icons/calendar.svg') }}" alt="" class="h-3.5 w-3.5 brightness-0 invert" aria-hidden="true">
+                                    class="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-md text-[11px] font-semibold whitespace-nowrap transition bg-[#6C0E24] text-white hover:opacity-90">
+                                    <img src="{{ asset('images/icons/cal.svg') }}" alt="" class="h-3.5 w-3.5 brightness-0 invert" aria-hidden="true">
                                     <span>Set Evaluation</span>
                                 </button>
 
                                 <div x-show="scheduleOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;">
-                                    <div class="w-full max-w-3xl overflow-hidden rounded-xl bg-white text-center" @click.outside="scheduleOpen = false">
+                                    <div class="w-full max-w-3xl overflow-hidden rounded-xl bg-white text-center">
                                         <x-evaluation-schedule-modal mode="add"
                                             :startup="$startup"
                                             close="scheduleOpen = false"
@@ -125,20 +125,20 @@ return $path
                 <div class="max-h-80 overflow-y-auto overflow-x-auto">
                     <table class="w-full min-w-[300px] text-sm">
                         <thead class="sticky top-0">
-                            <tr class="{{ $gradient }} text-white text-left">
-                                <th class="px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider">Time</th>
-                                <th class="px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider">Startup</th>
-                                <th class="px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider">Action</th>
+                            <tr class="{{ $gradient }} text-white text-center">
+                                <th class="px-2.5 py-2 text-[10px] font-semibold tracking-wider">Time</th>
+                                <th class="px-2.5 py-2 text-[10px] font-semibold tracking-wider">Startup</th>
+                                <th class="px-2.5 py-2 text-[10px] font-semibold tracking-wider">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse ($scheduledToday as $item)
                             <tr class="border-b border-gray-100 last:border-0">
-                                <td class="px-2.5 py-1.5 whitespace-nowrap text-xs text-gray-600">
+                                <td class="px-2.5 py-1.5 whitespace-nowrap text-center text-xs text-gray-600">
                                     {{ $item->time_range_label ?? '—' }}
                                 </td>
-                                <td class="px-2.5 py-1.5">
-                                    <div class="flex items-center gap-1.5">
+                                <td class="px-2.5 py-1.5 text-center">
+                                    <div class="flex items-center justify-center gap-1.5">
                                         <span class="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
                                             {!! $item->startup ? $avatar($item->startup) : '' !!}
                                         </span>
@@ -147,9 +147,9 @@ return $path
                                         </span>
                                     </div>
                                 </td>
-                                <td class="px-2.5 py-1.5">
+                                <td class="px-2.5 py-1.5 text-center">
                                     <a href="{{ $item->startup ? route('admin.information-sheet.show', ['startup' => $item->startup, 'from' => 'assessment-hub', 'tab' => 'schedule']) : '#' }}"
-                                        class="inline-flex h-6 items-center whitespace-nowrap rounded-lg bg-[#6D0D23] px-2 text-[10px] font-semibold text-white transition hover:bg-[#58091b]">
+                                        class="inline-flex h-6 items-center justify-center whitespace-nowrap rounded-lg bg-[#6C0E24] px-2 text-[10px] font-semibold text-white transition hover:opacity-90">
                                         Start Evaluation
                                     </a>
                                 </td>
