@@ -3,20 +3,31 @@
     @php
         // Overall Risk Register donut, built as a CSS conic-gradient — no
         // chart.js elsewhere in this app, so hand-rolled to match convention.
+        // Zero-count levels are skipped entirely (a real chart wouldn't draw
+        // an empty slice), and a small white gap is inserted between each
+        // present slice so the ring reads as distinct segments rather than
+        // one smooth blended gradient.
         $donutOrder = ['Critical', 'High', 'Moderate', 'Low', 'None'];
         $total = max($totalStartups, 1);
-        $cumulative = 0;
+        $activeLevels = collect($donutOrder)->filter(fn ($level) => ($levelCounts[$level] ?? 0) > 0)->values();
+        $gapDeg = $activeLevels->count() > 1 ? 5 : 0;
+        $availableDeg = 360 - ($gapDeg * $activeLevels->count());
+        $cursor = 0;
         $segments = [];
-        foreach ($donutOrder as $level) {
+        foreach ($activeLevels as $level) {
             $count = $levelCounts[$level] ?? 0;
-            $pct = $count / $total * 100;
-            $start = $cumulative;
-            $cumulative += $pct;
-            $segments[] = "{$levelColors[$level]} {$start}% {$cumulative}%";
+            $sliceDeg = ($count / $total) * $availableDeg;
+            $start = $cursor;
+            $end = $start + $sliceDeg;
+            $segments[] = "{$levelColors[$level]} {$start}deg {$end}deg";
+            $segments[] = "white {$end}deg " . ($end + $gapDeg) . 'deg';
+            $cursor = $end + $gapDeg;
         }
-        $gradient = 'conic-gradient(' . implode(', ', $segments) . ')';
+        $gradient = $segments ? 'conic-gradient(' . implode(', ', $segments) . ')' : '#E5E7EB';
 
-        $atRisk = $totalStartups - ($levelCounts['None'] ?? 0);
+        // Rotating avatar palette for startups without a photo — hashed off
+        // startup_id so each one gets a stable color across page loads.
+        $avatarPalette = ['#6D28D9', '#2563EB', '#059669', '#DB2777', '#D97706', '#0891B2', '#DC2626'];
 
         // Flattened for Alpine — the detail modal reads from this rather than
         // re-querying the server. @js() handles escaping for the HTML
@@ -36,134 +47,163 @@
 
     <div class="mb-6">
         <h1 class="text-3xl font-bold text-gray-900">Risk Monitoring</h1>
-        <p class="text-gray-500 mt-1">Spot startups drifting off-track before it becomes unrecoverable.</p>
+        <p class="text-gray-500 mt-1">Overview of risk register, top risk categories, and risk indicator.</p>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        <div class="rounded-xl border border-gray-200 bg-white p-5">
-            <p class="text-gray-600 text-sm">Total Startups</p>
-            <p class="text-4xl font-bold mt-1">{{ $totalStartups }}</p>
-        </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-5">
-            <p class="text-gray-600 text-sm">At Risk</p>
-            <p class="text-4xl font-bold mt-1">{{ $atRisk }}</p>
-        </div>
-        <div class="rounded-xl border bg-white p-5" style="border-color: {{ $levelColors['Critical'] }}">
-            <p class="text-gray-600 text-sm">Critical</p>
-            <p class="text-4xl font-bold mt-1" style="color: {{ $levelColors['Critical'] }}">{{ $levelCounts['Critical'] ?? 0 }}</p>
-        </div>
-        <div class="rounded-xl border bg-white p-5" style="border-color: {{ $levelColors['High'] }}">
-            <p class="text-gray-600 text-sm">High</p>
-            <p class="text-4xl font-bold mt-1" style="color: {{ $levelColors['High'] }}">{{ $levelCounts['High'] ?? 0 }}</p>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 items-stretch">
         {{-- Risk Register --}}
-        <div class="rounded-xl border border-gray-200 bg-white p-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Risk Register</h2>
-            <div class="flex items-center gap-8">
-                <div class="relative h-48 w-48 shrink-0 rounded-full" style="background: {{ $gradient }};">
-                    <div class="absolute inset-7 rounded-full bg-white flex flex-col items-center justify-center">
+        <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
+            <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4">
+                <h2 class="text-white font-semibold text-lg">Risk Register</h2>
+            </div>
+            <div class="p-6 flex items-center gap-8">
+                {{-- Sized via inline styles rather than Tailwind's h-*/inset-* utilities:
+                     this project's compiled CSS only includes the specific
+                     scale values already used elsewhere in the app, and
+                     larger heights/insets like h-44 or inset-6 silently
+                     resolve to 0 instead of erroring, collapsing the ring. --}}
+                <div class="relative shrink-0 rounded-full" style="width: 176px; height: 176px; background: {{ $gradient }};">
+                    <div class="absolute rounded-full bg-white flex flex-col items-center justify-center"
+                        style="top: 24px; right: 24px; bottom: 24px; left: 24px;">
                         <span class="text-3xl font-bold text-gray-800">{{ $totalStartups }}</span>
-                        <span class="text-xs text-gray-500">Startups</span>
+                        <span class="text-xs text-gray-500">Total Startups</span>
                     </div>
                 </div>
-                <ul class="space-y-2 text-sm w-full">
-                    @foreach ($donutOrder as $level)
-                        <li class="flex items-center justify-between gap-4">
-                            <span class="flex items-center gap-2 text-gray-700">
-                                <span class="h-3 w-3 rounded-full shrink-0" style="background: {{ $levelColors[$level] }}"></span>
-                                {{ $level }}
-                            </span>
-                            <span class="text-gray-500">
-                                {{ $levelCounts[$level] ?? 0 }}
-                                ({{ $totalStartups ? round((($levelCounts[$level] ?? 0) / $totalStartups) * 100) : 0 }}%)
-                            </span>
-                        </li>
-                    @endforeach
-                </ul>
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-gray-500 border-b border-gray-200">
+                            <th class="py-2 pr-2 font-medium">Risk Level</th>
+                            <th class="py-2 px-2 font-medium text-center">Count</th>
+                            <th class="py-2 pl-2 font-medium text-right">Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($donutOrder as $level)
+                            <tr class="border-b border-gray-100 last:border-0">
+                                <td class="py-2.5 pr-2">
+                                    <span class="flex items-center gap-2 text-gray-700 font-medium">
+                                        <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background: {{ $levelColors[$level] }}"></span>
+                                        {{ $level }}
+                                    </span>
+                                </td>
+                                <td class="py-2.5 px-2 text-center text-gray-700">{{ $levelCounts[$level] ?? 0 }}</td>
+                                <td class="py-2.5 pl-2 text-right text-gray-500">
+                                    {{ $totalStartups ? round((($levelCounts[$level] ?? 0) / $totalStartups) * 100) : 0 }}%
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
 
         {{-- Top Risk Categories --}}
-        <div class="rounded-xl border border-gray-200 bg-white p-6 overflow-x-auto">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Top Risk Categories</h2>
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="text-left text-gray-500 border-b border-gray-200">
-                        <th class="py-2 pr-4 font-medium">Category</th>
-                        <th class="py-2 px-2 font-medium text-center">Risk Count</th>
-                        <th class="py-2 px-2 font-medium text-center">Critical</th>
-                        <th class="py-2 px-2 font-medium text-center">High</th>
-                        <th class="py-2 px-2 font-medium text-center">Moderate</th>
-                        <th class="py-2 px-2 font-medium text-center">Low</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($categoryBreakdown as $row)
-                        <tr class="border-b border-gray-100 last:border-0">
-                            <td class="py-3 pr-4 font-medium text-gray-800">{{ $row['category'] }}</td>
-                            <td class="py-3 px-2 text-center">{{ $row['count'] }}</td>
-                            <td class="py-3 px-2 text-center">{{ $row['by_level']['Critical'] }}</td>
-                            <td class="py-3 px-2 text-center">{{ $row['by_level']['High'] }}</td>
-                            <td class="py-3 px-2 text-center">{{ $row['by_level']['Moderate'] }}</td>
-                            <td class="py-3 px-2 text-center">{{ $row['by_level']['Low'] }}</td>
+        <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
+            <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4">
+                <h2 class="text-white font-semibold text-lg">Top Risk Categories</h2>
+            </div>
+            <div class="p-6 overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-gray-500 border-b border-gray-200">
+                            <th class="py-2 font-medium" style="padding-right: 16px;">Category</th>
+                            <th class="py-2 px-2 font-medium text-center">Risk Count</th>
+                            <th class="py-2 px-2 font-medium text-center">Critical</th>
+                            <th class="py-2 px-2 font-medium text-center">High</th>
+                            <th class="py-2 px-2 font-medium text-center">Moderate</th>
+                            <th class="py-2 px-2 font-medium text-center">Low</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($categoryBreakdown as $row)
+                            <tr class="border-b border-gray-100 last:border-0">
+                                <td class="py-3 font-medium text-gray-800" style="padding-right: 16px;">{{ $row['category'] }}</td>
+                                <td class="py-3 px-2 text-center">{{ $row['count'] }}</td>
+                                <td class="py-3 px-2 text-center">{{ $row['by_level']['Critical'] }}</td>
+                                <td class="py-3 px-2 text-center">{{ $row['by_level']['High'] }}</td>
+                                <td class="py-3 px-2 text-center">{{ $row['by_level']['Moderate'] }}</td>
+                                <td class="py-3 px-2 text-center">{{ $row['by_level']['Low'] }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    {{-- Risk Indicator table --}}
-    <div x-data="{ selected: null, rows: @js($modalRows) }" class="rounded-xl border border-gray-200 bg-white p-6 overflow-x-auto">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">Risk Indicator</h2>
+    {{-- Risk Indicator --}}
+    <h2 class="text-xl font-bold text-gray-900 mb-4">Risk Indicator</h2>
 
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="text-left text-gray-500 border-b border-gray-200">
-                    <th class="py-2 pr-4 font-medium">Startup</th>
-                    <th class="py-2 px-2 font-medium">Risk Level</th>
-                    <th class="py-2 px-2 font-medium text-center">Score</th>
-                    <th class="py-2 px-2 font-medium">Indicators</th>
-                    <th class="py-2 pl-2 font-medium text-right">&nbsp;</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($riskRows as $i => $row)
-                    <tr class="border-b border-gray-100 last:border-0 align-top">
-                        <td class="py-3 pr-4 font-medium text-gray-800 whitespace-nowrap">{{ $row['startup']->company_name }}</td>
-                        <td class="py-3 px-2">
-                            <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
-                                style="background: {{ $levelColors[$row['assessment']['level']] }}">
-                                {{ $row['assessment']['level'] }}
-                            </span>
-                        </td>
-                        <td class="py-3 px-2 text-center font-semibold text-gray-800">{{ $row['assessment']['score'] }}</td>
-                        <td class="py-3 px-2">
-                            <div class="flex flex-wrap gap-1">
-                                @foreach ($row['assessment']['indicators'] as $indicator)
-                                    <span class="rounded-full border px-2 py-0.5 text-xs"
-                                        style="border-color: {{ $severityColors[$indicator['severity']] }}; color: {{ $severityColors[$indicator['severity']] }}">
-                                        {{ $indicator['label'] }}
-                                    </span>
-                                @endforeach
-                            </div>
-                        </td>
-                        <td class="py-3 pl-2 text-right whitespace-nowrap">
-                            <button type="button" class="text-sm font-medium text-[#6D0D23] hover:underline" @click="selected = {{ $i }}">
-                                View
-                            </button>
-                        </td>
+    <div x-data="{ selected: null, rows: @js($modalRows) }" class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-left text-white text-xs uppercase tracking-wide">
+                        <th class="py-3 pr-2 font-semibold" style="padding-left: 24px;">#</th>
+                        <th class="py-3 px-2 font-semibold">Startup</th>
+                        <th class="py-3 px-2 font-semibold">Risk Level</th>
+                        <th class="py-3 px-2 font-semibold">Risk Score</th>
+                        <th class="py-3 px-2 font-semibold">Risk Indicator</th>
+                        <th class="py-3 pr-6 font-semibold text-right" style="padding-left: 8px;">&nbsp;</th>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="5" class="py-8 text-center text-gray-400">No startups currently have an active risk indicator.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @forelse ($riskRows as $i => $row)
+                        @php
+                            $avatarColor = $avatarPalette[$row['startup']->startup_id % count($avatarPalette)];
+                        @endphp
+                        <tr class="border-b border-gray-100 last:border-0 align-top">
+                            <td class="py-4 pr-2 text-gray-500" style="padding-left: 24px;">{{ $i + 1 }}</td>
+                            <td class="py-4 px-2">
+                                <div class="flex items-center gap-3">
+                                    @if ($row['startup']->startup_photo_url)
+                                        <img src="{{ $row['startup']->startup_photo_url }}" alt="" class="h-9 w-9 rounded-full object-cover shrink-0">
+                                    @else
+                                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+                                            style="background: {{ $avatarColor }}">
+                                            {{ strtoupper(substr($row['startup']->company_name, 0, 1)) }}
+                                        </span>
+                                    @endif
+                                    <span class="font-medium text-gray-800 whitespace-nowrap">{{ $row['startup']->company_name }}</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-2 whitespace-nowrap">
+                                <span class="inline-flex items-center gap-2 font-semibold" style="color: {{ $levelColors[$row['assessment']['level']] }}">
+                                    <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background: {{ $levelColors[$row['assessment']['level']] }}"></span>
+                                    {{ $row['assessment']['level'] }}
+                                </span>
+                            </td>
+                            <td class="py-4 px-2 font-semibold text-gray-800">{{ $row['assessment']['score'] }}</td>
+                            <td class="py-4 px-2">
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach ($row['assessment']['indicators'] as $indicator)
+                                        @php $sevColor = $severityColors[$indicator['severity']]; @endphp
+                                        <span class="inline-flex items-center gap-1.5 rounded-full border bg-white px-2.5 py-1 text-xs font-medium text-gray-700"
+                                            style="border-color: {{ $sevColor }}">
+                                            <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                                <circle cx="10" cy="10" r="9" fill="{{ $sevColor }}" />
+                                                <path d="M10 6v4.5" stroke="white" stroke-width="1.6" stroke-linecap="round" />
+                                                <circle cx="10" cy="13.2" r="1" fill="white" />
+                                            </svg>
+                                            {{ $indicator['label'] }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </td>
+                            <td class="py-4 pr-6 text-right whitespace-nowrap" style="padding-left: 8px;">
+                                <button type="button" class="text-sm font-medium text-[#6D0D23] hover:underline" @click="selected = {{ $i }}">
+                                    View
+                                </button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="py-8 text-center text-gray-400">No startups currently have an active risk indicator.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
 
         {{-- Detail modal --}}
         <div x-show="selected !== null" x-cloak
@@ -183,7 +223,7 @@
                             &#10005;
                         </button>
                     </div>
-                    <ul class="space-y-3 max-h-96 overflow-y-auto">
+                    <ul class="space-y-3 overflow-y-auto" style="max-height: 384px;">
                         <template x-for="indicator in rows[selected].indicators" :key="indicator.key">
                             <li class="rounded-lg border border-gray-200 p-3">
                                 <div class="flex items-center justify-between gap-4">
