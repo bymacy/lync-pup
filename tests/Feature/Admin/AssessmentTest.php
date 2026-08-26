@@ -74,6 +74,57 @@ class AssessmentTest extends TestCase
         $response->assertSee('Technology Readiness Level');
     }
 
+    public function test_view_profile_link_carries_context_back_to_the_rls_page(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $startup = $this->approvedStartup();
+
+        $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', [
+            'main' => 'assessment',
+            'stage' => 'Pre-Assessment',
+            'assessment_startup' => $startup->startup_id,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee(route('admin.startups.show', [
+            'startup' => $startup,
+            'from' => 'assessment-hub',
+            'stage' => 'Pre-Assessment',
+            'assessment_startup' => $startup->startup_id,
+        ]));
+    }
+
+    public function test_startup_profile_back_link_returns_to_the_rls_page_when_arriving_from_assessment_hub(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $startup = $this->approvedStartup();
+
+        $response = $this->actingAs($admin)->get(route('admin.startups.show', [
+            'startup' => $startup,
+            'from' => 'assessment-hub',
+            'stage' => 'Pre-Assessment',
+            'assessment_startup' => $startup->startup_id,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee(route('admin.assessment-hub.index', [
+            'main' => 'assessment',
+            'stage' => 'Pre-Assessment',
+            'assessment_startup' => $startup->startup_id,
+        ]));
+    }
+
+    public function test_startup_profile_back_link_falls_back_to_the_startups_index_normally(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $startup = $this->approvedStartup();
+
+        $response = $this->actingAs($admin)->get(route('admin.startups.show', ['startup' => $startup]));
+
+        $response->assertOk();
+        $response->assertSee(route('admin.startups.index'));
+    }
+
     public function test_overview_pills_reflect_saved_scores_across_stages(): void
     {
         $admin = User::factory()->create(['role' => 'Admin']);
@@ -99,6 +150,39 @@ class AssessmentTest extends TestCase
         $this->assertFalse($pillsByLabel['VENTURE EXIT']['completed']);
         $this->assertSame(1, $row['completed_count']);
         $this->assertSame(11, $row['not_started_count']);
+    }
+
+    public function test_overview_table_only_shows_the_selected_startup(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $selected = $this->approvedStartup();
+        $this->approvedStartup(); // another approved startup that should NOT show up
+
+        $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', [
+            'main' => 'assessment',
+            'stage' => 'Overview',
+            'assessment_startup' => $selected->startup_id,
+        ]));
+
+        $response->assertOk();
+        $rows = $response->viewData('overviewRows');
+        $this->assertCount(1, $rows);
+        $this->assertSame($selected->startup_id, $rows->first()['startup']->startup_id);
+    }
+
+    public function test_document_pills_link_to_their_stage_for_the_row_startup(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $startup = $this->approvedStartup();
+
+        $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', ['main' => 'assessment']));
+
+        $response->assertOk();
+        $response->assertSee(route('admin.assessment-hub.index', [
+            'main' => 'assessment',
+            'stage' => 'Active-Assessment',
+            'assessment_startup' => $startup->startup_id,
+        ]));
     }
 
     public function test_only_approved_startups_are_selectable_for_assessment(): void
@@ -509,5 +593,85 @@ class AssessmentTest extends TestCase
         $pillsByLabel = collect($row['pills'])->keyBy('label');
 
         $this->assertTrue($pillsByLabel['VENTURE EXIT']['completed']);
+    }
+
+    public function test_venture_exit_lists_every_not_started_assessment_as_incomplete(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $startup = $this->approvedStartup();
+
+        $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', [
+            'main' => 'assessment',
+            'assessment_startup' => $startup->startup_id,
+            'stage' => 'Venture Exit',
+        ]));
+
+        $response->assertOk();
+
+        $incomplete = $response->viewData('incompleteAssessments');
+
+        // All 11 non-Venture-Exit pills, since nothing has been saved yet.
+        $this->assertCount(11, $incomplete);
+        $this->assertTrue($incomplete->contains('PRE - TRL'));
+        $this->assertTrue($incomplete->contains('DOCUMENT 6'));
+        $this->assertTrue($incomplete->contains('POST - SRL'));
+        $this->assertFalse($incomplete->contains('VENTURE EXIT'));
+    }
+
+    public function test_venture_exit_incomplete_list_shrinks_as_assessments_are_saved(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $startup = $this->approvedStartup();
+
+        $this->actingAs($admin)->put(route('admin.assessment-hub.assessments.update', $startup), [
+            'stage' => 'Pre-Assessment',
+            'trl_progress' => json_encode($this->progressThroughLevel('TRL', 1)),
+            'mrl_progress' => json_encode([]),
+            'tmrl_progress' => json_encode([]),
+            'srl_progress' => json_encode([]),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', [
+            'main' => 'assessment',
+            'assessment_startup' => $startup->startup_id,
+            'stage' => 'Venture Exit',
+        ]));
+
+        $incomplete = $response->viewData('incompleteAssessments');
+
+        $this->assertCount(10, $incomplete);
+        $this->assertFalse($incomplete->contains('PRE - TRL'));
+        $this->assertTrue($incomplete->contains('PRE - MRL'));
+    }
+
+    public function test_venture_exit_incomplete_list_is_empty_once_every_assessment_is_saved(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $startup = $this->approvedStartup();
+
+        foreach (['Pre-Assessment', 'Post-Assessment'] as $stage) {
+            $this->actingAs($admin)->put(route('admin.assessment-hub.assessments.update', $startup), [
+                'stage' => $stage,
+                'trl_progress' => json_encode($this->progressThroughLevel('TRL', 1)),
+                'mrl_progress' => json_encode($this->progressThroughLevel('MRL', 1)),
+                'tmrl_progress' => json_encode($this->progressThroughLevel('TMRL', 1)),
+                'srl_progress' => json_encode($this->progressThroughLevel('SRL', 1)),
+            ]);
+        }
+
+        $this->actingAs($admin)->put(route('admin.assessment-hub.assessments.update-documents', $startup), [
+            'stage' => 'Active-Assessment',
+            'document_6' => json_encode(['business_stage' => []]),
+            'document_7' => json_encode(['check_ins' => []]),
+            'document_8' => json_encode(['prototype_name' => 'Draft']),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', [
+            'main' => 'assessment',
+            'assessment_startup' => $startup->startup_id,
+            'stage' => 'Venture Exit',
+        ]));
+
+        $this->assertCount(0, $response->viewData('incompleteAssessments'));
     }
 }

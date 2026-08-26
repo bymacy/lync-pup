@@ -21,7 +21,12 @@ default => 'Schedule',
 };
 
 $initialDate = old('evaluation_date', $schedule?->evaluation_date?->format('Y-m-d') ?? now()->format('Y-m-d'));
-$initialStart = old('start_time', $schedule ? substr($schedule->start_time, 0, 5) : ($timeSlots[0][0] ?? null));
+// No $schedule (i.e. mode="add") means there's nothing to prefill from — leave
+// the time slot blank so the modal always opens with nothing pre-selected,
+// instead of always defaulting to the first slot (08:00) regardless of
+// whether it's actually available on whatever date ends up chosen.
+$initialStart = old('start_time', $schedule ? substr($schedule->start_time, 0, 5) : null);
+$initialNotes = old('notes', $schedule?->notes);
 $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($startup?->startup_id ?? '0');
 @endphp
 
@@ -30,6 +35,7 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
     x-data="{
         date: @js($initialDate),
         startTime: @js($initialStart),
+        notes: @js($initialNotes),
         viewMonth: new Date(@js($initialDate) + 'T00:00:00').getMonth(),
         viewYear: new Date(@js($initialDate) + 'T00:00:00').getFullYear(),
         booked: @js($bookedSlots),
@@ -40,6 +46,7 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
             return rows.some(r => r.start_time === startTime && r.id !== this.excludeId);
         },
         isPastSlot(startTime) {
+            if (! startTime) return false;
             const now = new Date();
             const todayStr = now.getFullYear() + '-' + this.pad(now.getMonth() + 1) + '-' + this.pad(now.getDate());
             if (this.date !== todayStr) return false;
@@ -51,12 +58,22 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
         prevMonth() { this.viewMonth--; if (this.viewMonth < 0) { this.viewMonth = 11; this.viewYear--; } },
         nextMonth() { this.viewMonth++; if (this.viewMonth > 11) { this.viewMonth = 0; this.viewYear++; } },
         pad(n) { return n < 10 ? '0' + n : '' + n; },
-        pick(day) { this.date = this.viewYear + '-' + this.pad(this.viewMonth + 1) + '-' + this.pad(day); },
+        pick(day) {
+            this.date = this.viewYear + '-' + this.pad(this.viewMonth + 1) + '-' + this.pad(day);
+            // Clear the previously chosen time slot whenever the admin picks a
+            // different date — a slot valid on one day may be booked/past on
+            // another, so don't carry it over silently.
+            this.startTime = null;
+        },
         isSelected(day) { return (this.viewYear + '-' + this.pad(this.viewMonth + 1) + '-' + this.pad(day)) === this.date; },
         isPastDay(day) {
             const d = new Date(this.viewYear, this.viewMonth, day);
             const today = new Date(); today.setHours(0, 0, 0, 0);
             return d < today;
+        },
+        isWeekend(day) {
+            const dow = new Date(this.viewYear, this.viewMonth, day).getDay();
+            return dow === 0 || dow === 6;
         },
         monthLabel() { return new Date(this.viewYear, this.viewMonth, 1).toLocaleString('default', { month: 'long' }) + ' ' + this.viewYear; },
         friendlyDate() {
@@ -70,13 +87,13 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
             return hour12 + ':' + (m < 10 ? '0' + m : m) + ' ' + (h < 12 ? 'AM' : 'PM');
         },
     }"
-    x-init="if (!{{ $isReadOnly ? 'true' : 'false' }} && (isPastSlot(startTime) || isSlotBooked(startTime))) { const f = slots.find(t => !isPastSlot(t) && !isSlotBooked(t)); if (f) startTime = f; }">
+    x-init="if (startTime && !{{ $isReadOnly ? 'true' : 'false' }} && (isPastSlot(startTime) || isSlotBooked(startTime))) { const f = slots.find(t => !isPastSlot(t) && !isSlotBooked(t)); if (f) startTime = f; }">
     <div class="shrink-0 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-6 py-4 flex items-center justify-between">
         <h3 class="text-sm font-bold flex items-center gap-3">
             <img src="{{ asset('images/icons/cal.svg') }}" alt="" class="h-6 w-6 brightness-0 invert" aria-hidden="true">
             <span>{{ $title }}</span>
         </h3>
-        <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); {{ $close }}"
+        <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); notes = @js($initialNotes); {{ $close }}"
             class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             aria-label="Close">
             <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -141,12 +158,12 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
                             </template>
                             <template x-for="day in daysInMonth(viewYear, viewMonth)" :key="day">
                                 <button type="button"
-                                    @click="{{ $isReadOnly ? '' : "if (!isPastDay(day)) pick(day)" }}"
-                                    :disabled="{{ $isReadOnly ? 'true' : 'isPastDay(day)' }}"
+                                    @click="{{ $isReadOnly ? '' : "if (!isPastDay(day) && !isWeekend(day)) pick(day)" }}"
+                                    :disabled="{{ $isReadOnly ? 'true' : '(isPastDay(day) || isWeekend(day))' }}"
                                     :class="{
                                     'bg-[#6C0E24] text-white rounded-lg font-bold': isSelected(day),
-                                    'text-gray-300 cursor-not-allowed': isPastDay(day) && !isSelected(day),
-                                    'hover:bg-gray-100 rounded-lg cursor-pointer': !isPastDay(day) && !isSelected(day) && !{{ $isReadOnly ? 'true' : 'false' }},
+                                    'text-gray-300 cursor-not-allowed': (isPastDay(day) || isWeekend(day)) && !isSelected(day),
+                                    'hover:bg-gray-100 rounded-lg cursor-pointer': !isPastDay(day) && !isWeekend(day) && !isSelected(day) && !{{ $isReadOnly ? 'true' : 'false' }},
                                 }"
                                     class="py-2" x-text="day"></button>
                             </template>
@@ -181,7 +198,8 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
             <div class="mt-6">
                 <p class="font-medium mb-2">Notes (Optional)</p>
                 <textarea name="notes" rows="3" placeholder="Enter any notes for this schedule..."
-                    class="w-full border rounded-lg px-3 py-2 text-sm">{{ old('notes', $schedule?->notes) }}</textarea>
+                    x-model="notes"
+                    class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
                 @error('notes') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
             </div>
             @elseif ($schedule?->notes)
@@ -207,7 +225,7 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
     <div class="shrink-0 border-t border-gray-200 bg-white px-6 py-4">
         <div class="flex gap-3">
             @if ($mode !== 'edit')
-            <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); {{ $close }}" class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition hover:bg-gray-50">
+            <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); notes = @js($initialNotes); {{ $close }}" class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition hover:bg-gray-50">
                 {{ $isReadOnly ? 'Close' : 'Cancel' }}
             </button>
             @endif

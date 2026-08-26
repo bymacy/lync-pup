@@ -24,19 +24,28 @@ class AssessmentHubController extends Controller
             ->orderBy('created_at')
             ->get();
 
+        // Once a startup's Information Sheet is approved, they're done with
+        // the evaluation stage — their schedule row (even if still
+        // 'Scheduled') should stop showing up here and live under the
+        // Approved tab instead.
         $scheduledToday = EvaluationSchedule::with('startup')
             ->where('status', 'Scheduled')
             ->whereDate('evaluation_date', now()->toDateString())
+            ->whereDoesntHave('startup.informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
             ->orderBy('start_time')
             ->get();
 
-        $scheduled = EvaluationSchedule::with('startup')
+        $scheduled = EvaluationSchedule::with('startup.informationSheet')
             ->where('status', 'Scheduled')
             ->get();
 
-        $todayEvaluations = $scheduled->filter->isToday()->sortBy('start_time')->values();
-        $upcomingEvaluations = $scheduled->filter->isUpcoming()->sortBy(['evaluation_date', 'start_time'])->values();
-        $missedEvaluations = $scheduled->filter->isMissed()->sortByDesc('evaluation_date')->values();
+        $activeSchedules = $scheduled->reject(
+            fn ($row) => $row->startup?->informationSheet?->approval_status === 'Approved'
+        );
+
+        $todayEvaluations = $activeSchedules->filter->isToday()->sortBy('start_time')->values();
+        $upcomingEvaluations = $activeSchedules->filter->isUpcoming()->sortBy(['evaluation_date', 'start_time'])->values();
+        $missedEvaluations = $activeSchedules->filter->isMissed()->sortByDesc('evaluation_date')->values();
 
         $approvedStartups = Startup::with('informationSheet')
             ->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
@@ -147,31 +156,63 @@ class AssessmentHubController extends Controller
             ->get()
             ->groupBy('startup_id');
 
-        $overviewRows = $assessableStartups->map(function (Startup $s) use ($pillDefinitions, $assessmentsByStartup, $documentsByStartup) {
-            $byStage = $assessmentsByStartup->get($s->startup_id, collect())->keyBy('stage');
-            $byDocument = $documentsByStartup->get($s->startup_id, collect())->keyBy('document_number');
+        // When a specific startup is selected, the Overview table (only
+        // reachable while a startup is selected via its own "Overview"
+        // stage tab) should show just that startup's row, not every
+        // assessable startup.
+        $overviewRows = $assessableStartups
+            ->when($selectedStartup, fn ($startups) => $startups->where('startup_id', $selectedStartup->startup_id))
+            ->values()
+            ->map(function (Startup $s) use ($pillDefinitions, $assessmentsByStartup, $documentsByStartup) {
+                $byStage = $assessmentsByStartup->get($s->startup_id, collect())->keyBy('stage');
+                $byDocument = $documentsByStartup->get($s->startup_id, collect())->keyBy('document_number');
 
-            $pills = collect($pillDefinitions)->map(function ($def) use ($byStage, $byDocument) {
-                if (! empty($def['document'])) {
-                    return ['label' => $def['label'], 'completed' => $byDocument->has($def['document']), 'nav_stage' => $def['nav_stage']];
-                }
+                $pills = collect($pillDefinitions)->map(function ($def) use ($byStage, $byDocument) {
+                    if (! empty($def['document'])) {
+                        return ['label' => $def['label'], 'completed' => $byDocument->has($def['document']), 'nav_stage' => $def['nav_stage']];
+                    }
 
-                $row = $byStage->get($def['stage']);
+                    $row = $byStage->get($def['stage']);
 
-                $completed = ! empty($def['aggregate'])
-                    ? (bool) ($row && collect(ReadinessRubric::TYPES)->contains(fn ($t) => $row->scoreFor($t) !== null))
-                    : (bool) ($row && $row->scoreFor($def['type']) !== null);
+                    $completed = ! empty($def['aggregate'])
+                        ? (bool) ($row && collect(ReadinessRubric::TYPES)->contains(fn ($t) => $row->scoreFor($t) !== null))
+                        : (bool) ($row && $row->scoreFor($def['type']) !== null);
 
-                return ['label' => $def['label'], 'completed' => $completed, 'nav_stage' => $def['nav_stage']];
+                    return ['label' => $def['label'], 'completed' => $completed, 'nav_stage' => $def['nav_stage']];
+                });
+
+                return [
+                    'startup' => $s,
+                    'pills' => $pills,
+                    'completed_count' => $pills->where('completed', true)->count(),
+                    'not_started_count' => $pills->where('completed', false)->count(),
+                ];
             });
 
-            return [
-                'startup' => $s,
-                'pills' => $pills,
-                'completed_count' => $pills->where('completed', true)->count(),
-                'not_started_count' => $pills->where('completed', false)->count(),
-            ];
-        });
+        // Venture Exit's "Save Assessment" should warn (not silently allow)
+        // when the startup still has other assessments/documents that were
+        // never started — reuses the same pill definitions/completion rule
+        // as the Overview table above, just scoped to this one startup and
+        // excluding Venture Exit's own pill.
+        $incompleteAssessments = collect();
+        if ($selectedStartup) {
+            $byStage = $assessmentsByStartup->get($selectedStartup->startup_id, collect())->keyBy('stage');
+            $byDocument = $documentsByStartup->get($selectedStartup->startup_id, collect())->keyBy('document_number');
+
+            $incompleteAssessments = collect($pillDefinitions)
+                ->reject(fn ($def) => ($def['document'] ?? null) === \App\Support\VentureExitForm::DOCUMENT_NUMBER)
+                ->reject(function ($def) use ($byStage, $byDocument) {
+                    if (! empty($def['document'])) {
+                        return $byDocument->has($def['document']);
+                    }
+
+                    $row = $byStage->get($def['stage']);
+
+                    return (bool) ($row && $row->scoreFor($def['type']) !== null);
+                })
+                ->pluck('label')
+                ->values();
+        }
 
         return view('admin.assessment-hub.index', [
             'pendingStartups' => $pendingStartups,
@@ -190,6 +231,7 @@ class AssessmentHubController extends Controller
             'activeDocuments' => $activeDocuments,
             'ventureExitDocument' => $ventureExitDocument,
             'postAssessmentSummary' => $postAssessmentSummary,
+            'incompleteAssessments' => $incompleteAssessments,
             'rubricMeta' => ReadinessRubric::meta($selectedStage),
             'rubricLevels' => ReadinessRubric::all(),
             'stages' => ReadinessRubric::STAGES,

@@ -46,7 +46,7 @@
     }
 
     $docHasData = [6 => $activeDocuments->has(6), 7 => $activeDocuments->has(7), 8 => $activeDocuments->has(8)];
-    $tableInput = 'w-full rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-rose-900';
+    $tableInput = 'w-full rounded border border-gray-200 px-3 py-3 text-base leading-normal focus:outline-none focus:ring-1 focus:ring-rose-900';
 @endphp
 
 <div
@@ -173,7 +173,15 @@
                                         <tr>
                                             @foreach (array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_6_ROW_COLUMNS) as $col)
                                                 <td class="border p-1">
-                                                    <input type="text" x-model="doc6.{{ $sectionKey }}[idx].{{ $col }}" class="{{ $tableInput }}">
+                                                    {{-- A single-line text input hides everything past its edge behind
+                                                         horizontal scroll once the entry runs long. A textarea wraps
+                                                         instead, and this x-effect grows its height to fit — on every
+                                                         keystroke, on tab switch (the panel is display:none while on
+                                                         another tab, so height can only be measured once it's
+                                                         visible again), and after Clear Form blanks it back down. --}}
+                                                    <textarea rows="1" x-model="doc6.{{ $sectionKey }}[idx].{{ $col }}"
+                                                        x-effect="doc6.{{ $sectionKey }}[idx].{{ $col }}; activeDoc; $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+                                                        class="{{ $tableInput }} block resize-none overflow-hidden"></textarea>
                                                 </td>
                                             @endforeach
                                             <td class="border p-1 text-center">
@@ -216,7 +224,15 @@
                                 <tr>
                                     @foreach (array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_7_ROW_COLUMNS) as $col)
                                         <td class="border p-1">
-                                            <input type="text" x-model="doc7.check_ins[idx].{{ $col }}" class="{{ $tableInput }}">
+                                            @if ($col === 'dates')
+                                            {{-- A native date input, not free text — a real calendar picker
+                                                 instead of typing dates out by hand. --}}
+                                            <input type="date" x-model="doc7.check_ins[idx].{{ $col }}" class="{{ $tableInput }}">
+                                            @else
+                                            <textarea rows="1" x-model="doc7.check_ins[idx].{{ $col }}"
+                                                x-effect="doc7.check_ins[idx].{{ $col }}; activeDoc; $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+                                                class="{{ $tableInput }} block resize-none overflow-hidden"></textarea>
+                                            @endif
                                         </td>
                                     @endforeach
                                     <td class="border p-1 text-center">
@@ -247,7 +263,11 @@
                                     <td class="border px-3 py-2 font-semibold">{{ $metric }}</td>
                                     @foreach (array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_7_PERFORMANCE_COLUMNS) as $col)
                                         <td class="border p-1">
+                                            @if ($col === 'dates')
+                                            <input type="date" x-model="doc7.performance_matrix['{{ $metric }}'].{{ $col }}" class="{{ $tableInput }}">
+                                            @else
                                             <input type="text" x-model="doc7.performance_matrix['{{ $metric }}'].{{ $col }}" class="{{ $tableInput }}">
+                                            @endif
                                         </td>
                                     @endforeach
                                 </tr>

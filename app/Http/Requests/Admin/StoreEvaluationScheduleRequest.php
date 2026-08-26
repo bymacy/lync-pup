@@ -29,7 +29,16 @@ class StoreEvaluationScheduleRequest extends FormRequest
                     }
                 },
             ],
-            'evaluation_date' => ['required', 'date', 'after_or_equal:today'],
+            'evaluation_date' => [
+                'required',
+                'date',
+                'after_or_equal:today',
+                function ($attribute, $value, $fail) {
+                    if (\Illuminate\Support\Carbon::parse($value)->isWeekend()) {
+                        $fail('Evaluations cannot be scheduled on a Saturday or Sunday.');
+                    }
+                },
+            ],
             'start_time' => [
                 'required',
                 Rule::in(array_column(EvaluationSchedule::TIME_SLOTS, 0)),

@@ -79,6 +79,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
         showConfirm: false,
         showSuccess: {{ session('roadblock_submitted') ? 'true' : 'false' }},
         activeRoadblock: null,
+        activeUpdate: null,
         previewImageUrl: null,
 
         /* ---------- validation state ---------- */
@@ -553,11 +554,65 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
             </form>
         </div>
 
-        {{-- Update tab — placeholder, separate module --}}
+        {{-- ============================================================
+             Update tab
+             ============================================================ --}}
         <div x-show="tab === 'update'" x-cloak>
 
+            <div class="{{ $sectionHeader }}">
+                <span class="icon-mask {{ $sectionHeaderIcon }} {{ $sectionHeaderMaskSize }}"
+                    style="--icon: url('{{ asset('images/icons/assessmentHub.svg') }}')"></span>
+                <h2 class="{{ $sectionHeaderTitle }}">View Update</h2>
+            </div>
 
-            <p class="text-gray-500 italic">Weekly Update submission — not built yet.</p>
+            @forelse ($weeklyUpdates as $update)
+            <div class="mb-4 flex overflow-hidden rounded-lg border border-solid border-gray-200 bg-white">
+
+                {{-- Rail --}}
+                <div class="flex w-10 shrink-0 items-center justify-center bg-[#FFF1F2] sm:w-12">
+                    <span class="icon-mask h-5 w-5 text-[#6D0D23]"
+                        style="--icon: url('{{ asset('images/icons/assessmentHub.svg') }}')"></span>
+                </div>
+
+                {{-- Body --}}
+                <div class="min-w-0 flex-1 px-4 py-3 sm:px-5 sm:py-4">
+
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                        <div class="min-w-0">
+                            <p class="mb-1 text-sm font-bold text-gray-900">Area Discussed</p>
+
+                            <p class="text-sm font-semibold text-gray-900">
+                                {{ $update['area_discussed'] ?: 'Not specified' }}
+                            </p>
+
+                            <p class="mt-0.5 text-sm text-gray-600">
+                                Uploaded on:
+                                {{ ! empty($update['dates']) ? \Illuminate\Support\Carbon::parse($update['dates'])->format('M d, Y') : '—' }}
+                            </p>
+                        </div>
+
+                        <button type="button"
+                            @click="activeUpdate = @js($update)"
+                            class="h-fit w-full shrink-0 rounded-md border border-[#6D0D23] px-6 py-1.5 text-sm font-medium text-[#6D0D23] transition hover:bg-[#6D0D23] hover:text-white focus:outline-none sm:w-auto">
+                            View
+                        </button>
+                    </div>
+
+                    {{-- Divider + Action Plan excerpt --}}
+                    <div class="mt-3 border-t border-gray-200 pt-3">
+                        <p class="truncate text-sm text-gray-600">
+                            <span class="font-semibold text-gray-900">Action Plan:</span>
+                            {{ $update['action_plan'] ?: 'Not specified' }}
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+            @empty
+            <div class="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center">
+                <p class="text-sm text-gray-500">No weekly updates yet.</p>
+            </div>
+            @endforelse
         </div>
 
         {{-- ============================================================
@@ -898,6 +953,68 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                                 <p class="text-sm text-gray-400">No files attached.</p>
                             </template>
                         </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- ============================================================
+             Weekly Update detail modal
+             ============================================================ --}}
+        <div x-show="activeUpdate" x-cloak
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            @keydown.escape.window="activeUpdate = null"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 sm:py-6">
+
+            <div @click.outside="activeUpdate = null"
+                x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 scale-95"
+                x-transition:enter-end="opacity-100 scale-100"
+                class="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+
+                {{-- Header (pinned) --}}
+                <div class="flex shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-4 text-white sm:px-6">
+                    <div class="flex min-w-0 items-center gap-2.5 sm:gap-3">
+                        <span class="icon-mask h-6 w-6 shrink-0 text-white sm:h-7 sm:w-7"
+                            style="--icon: url('{{ asset('images/icons/assessmentHub.svg') }}')"></span>
+                        <span class="truncate text-base font-bold tracking-tight sm:text-lg">Weekly Update</span>
+                    </div>
+
+                    <button type="button" @click="activeUpdate = null" aria-label="Close"
+                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none">
+                        {!! $xIcon() !!}
+                    </button>
+                </div>
+
+                {{-- Body (scrolls) --}}
+                <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+
+                    <div class="mb-4">
+                        <h4 class="text-sm font-semibold text-gray-900">Weekly Check-in Details</h4>
+                    </div>
+
+                    {{-- Detail card --}}
+                    <div class="rounded-xl border border-gray-200 p-4 sm:p-5">
+
+                        <div class="mb-4">
+                            <label class="mb-1.5 block text-xs font-medium text-gray-500">Uploaded On</label>
+                            <p class="rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-800"
+                                x-text="activeUpdate && activeUpdate.dates
+                                    ? new Date(activeUpdate.dates + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+                                    : '—'"></p>
+                        </div>
+
+                        @foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_7_ROW_COLUMNS as $col => $label)
+                        @continue ($col === 'dates')
+                        <div class="mb-4">
+                            <label class="mb-1.5 block text-xs font-medium text-gray-500">{{ $label }}</label>
+                            <p class="whitespace-pre-line rounded-md bg-gray-100 px-3 py-3 text-sm leading-relaxed text-gray-800 sm:px-4"
+                                x-text="(activeUpdate && activeUpdate.{{ $col }}) ? activeUpdate.{{ $col }} : 'Not specified'"></p>
+                        </div>
+                        @endforeach
 
                     </div>
                 </div>

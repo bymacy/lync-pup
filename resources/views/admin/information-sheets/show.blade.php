@@ -1190,10 +1190,15 @@
                         @endif
 
                         @if ($approveUrl)
-                        <button type="button" @click="confirmingApprove = true"
+                        @php $canApprove = $startup->hasScheduledEvaluation(); @endphp
+                        <button type="button"
+                            @click="{{ $canApprove ? 'confirmingApprove = true' : '' }}"
+                            @disabled(! $canApprove)
+                            title="{{ $canApprove ? '' : 'Schedule an evaluation for this startup before approving.' }}"
                             class="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white
                                    bg-gradient-to-r from-[#6D0D23] to-[#11386A]
-                                   hover:opacity-95 transition">
+                                   hover:opacity-95 transition
+                                   disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50">
                             Approve &amp; Lock
                         </button>
                         @endif

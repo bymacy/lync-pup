@@ -40,6 +40,7 @@ class InformationSheetController extends Controller
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
 
         abort_if($sheet->approval_status === 'Approved', 403, 'This Information Sheet is approved and locked. Contact your Coordinator for changes.');
+        abort_if($startup->evaluationDayLockActive(), 403, 'This Information Sheet is locked because your evaluation day has started. Contact your Coordinator for changes.');
 
         $data = $request->validated();
 

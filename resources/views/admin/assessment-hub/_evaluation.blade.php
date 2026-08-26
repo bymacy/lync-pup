@@ -17,14 +17,14 @@ return $url
 @endphp
 
 @php
-$initialStage = in_array(request('stage'), ['unscheduled', 'today', 'upcoming', 'missed']) ? request('stage') : 'today';
+$initialStage = in_array(request('stage'), ['today', 'upcoming', 'missed']) ? request('stage') : 'today';
 $months = $upcomingEvaluations->pluck('evaluation_date')
 ->map(fn ($d) => $d->format('Y-m'))->unique()->sort()
 ->mapWithKeys(fn ($m) => [$m => \Carbon\Carbon::createFromFormat('Y-m', $m)->format('F, Y')])
 ->prepend('All Months', 'all')->all();
 @endphp
 <div x-data="{ stage: @js($initialStage), month: 'all' }" x-init="$watch('stage', value => setQueryParam('stage', value))">
-    @php $stages = ['unscheduled' => 'Unscheduled', 'today' => 'Today', 'upcoming' => 'Upcoming', 'missed' => 'Missed']; @endphp
+    @php $stages = ['today' => 'Today', 'upcoming' => 'Upcoming', 'missed' => 'Missed']; @endphp
 
     <div class="mb-6 flex flex-col sm:flex-row sm:items-end gap-4">
         <div class="w-full sm:max-w-xs">
@@ -83,67 +83,6 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                     </button>
                     @endforeach
                 </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- ==================== UNSCHEDULED ==================== --}}
-    <div x-show="stage === 'unscheduled'" x-cloak>
-
-        <div class="{{ $shell }}">
-            <div class="{{ $scroll }}">
-                <table class="{{ $table }}">
-                    <thead class="{{ $thead }}">
-                        <tr>
-                            <th class="{{ $th }}">Startup</th>
-                            <th class="{{ $th }}">Registration Date</th>
-                            <th class="{{ $th }}">Cohort</th>
-                            <th class="{{ $th }}">Category</th>
-                            <th class="{{ $th }}">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($pendingStartups as $startup)
-                        <tr x-data="{ scheduleOpen: false }" class="border-b border-gray-100 last:border-0 hover:bg-gray-50/70">
-                            <td class="px-4 py-3 text-center font-medium text-gray-900">
-                                <div class="flex items-center justify-center gap-2">
-                                    <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
-                                        {!! $avatar($startup) !!}
-                                    </span>
-                                    <span>{{ $startup->company_name }}</span>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-center text-gray-600">
-                                {{ optional($startup->informationSheet?->submission_date ?? $startup->created_at)->format('M d, Y') ?? '—' }}
-                            </td>
-                            <td class="px-4 py-3 text-center text-gray-600">{{ $startup->cohort_number ?? '—' }}</td>
-                            <td class="px-4 py-3 text-center text-gray-600">{{ $startup->industry_sector }}</td>
-                            <td class="px-4 py-3 text-center">
-                                <button type="button" @click="scheduleOpen = true"
-                                    class="{{ $btn }} w-[130px] gap-2 bg-[#6C0E24] text-white hover:opacity-90">
-                                    <img src="{{ asset('images/icons/cal.svg') }}" alt=""
-                                        class="h-4 w-4 brightness-0 invert" aria-hidden="true">
-                                    <span>Set Evaluation</span>
-                                </button>
-
-                                <div x-show="scheduleOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;">
-                                    <div class="w-full max-w-3xl overflow-hidden rounded-xl bg-white">
-                                        <x-evaluation-schedule-modal mode="add"
-                                            :startup="$startup"
-                                            close="scheduleOpen = false"
-                                            :action="route('admin.assessment-hub.evaluations.store')"
-                                            :time-slots="$timeSlots" :booked-slots="$bookedSlots" />
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="5" class="px-4 py-10 text-center text-gray-400">Naka-schedule na lahat ng startup.</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>

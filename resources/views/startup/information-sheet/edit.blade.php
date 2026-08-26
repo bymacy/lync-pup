@@ -4,14 +4,21 @@
         <p class="text-gray-500 mt-1">View your details below.</p>
     </div>
 
-    @php $sheet = $startup->informationSheet; @endphp
+    @php
+        $sheet = $startup->informationSheet;
+        $lockReason = $sheet?->approval_status === 'Approved'
+            ? 'Approved & Locked — contact your Coordinator for changes'
+            : ($startup->evaluationDayLockActive()
+                ? 'Locked — your evaluation day has started. Contact your Coordinator for changes'
+                : null);
+    @endphp
 
 
     <div
         class="bg-white rounded-xl border border-gray-200 max-w-6xl overflow-hidden"
         x-data="{
     editing: false,
-    isLocked: {{ $sheet?->approval_status === 'Approved' ? 'true' : 'false' }},
+    isLocked: {{ $lockReason ? 'true' : 'false' }},
     saving: false,
     dirty: false,
     lastClickedInput: null,
@@ -1091,7 +1098,7 @@ pendingRemoval: [],
 
                     <template x-if="isLocked">
                         <div class="flex-1 text-center bg-gray-100 text-gray-500 rounded-lg py-2.5 text-sm font-medium">
-                            Approved &amp; Locked — contact your Coordinator for changes
+                            {{ $lockReason }}
                         </div>
                     </template>
 

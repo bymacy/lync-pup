@@ -34,10 +34,21 @@
             $description = filled($startup->informationSheet?->business_description)
             ? $startup->informationSheet->business_description
             : null;
+
+            // Arriving here from the RL's assessment page ("View Profile") should
+            // return there — not to the generic Startups index — so it preserves
+            // exactly which stage/startup the admin was scoring.
+            $backUrl = request('from') === 'assessment-hub'
+            ? route('admin.assessment-hub.index', array_filter([
+                'main' => 'assessment',
+                'stage' => request('stage'),
+                'assessment_startup' => request('assessment_startup'),
+            ]))
+            : route('admin.startups.index', request()->only('tab'));
             @endphp
 
             <div class="flex items-center justify-between mb-4">
-                <a href="{{ route('admin.startups.index', request()->only('tab')) }}" class="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Startup Profile</a>
+                <a href="{{ $backUrl }}" class="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Startup Profile</a>
             </div>
 
             <div class="rounded-2xl overflow-hidden mb-8 shadow-sm">

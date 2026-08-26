@@ -52,6 +52,12 @@
             <div
                 class="relative h-screen flex overflow-hidden"
                 x-data="{ sidebarOpen: false }"
+                x-init="window.addEventListener('beforeunload', (e) => {
+                    if ($store.navigation.hasUnsavedChanges) {
+                        e.preventDefault();
+                        e.returnValue = '';
+                    }
+                })"
                 @keydown.escape.window="sidebarOpen = false">
 
                 {{-- Mobile backdrop --}}
@@ -105,7 +111,15 @@
                             @php $isActive = request()->routeIs($item['route'] . '*'); @endphp
 
                             <a href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
-                                @click="sidebarOpen = false"
+                                @click="
+                                if ($store.navigation.hasUnsavedChanges) {
+                                    $event.preventDefault();
+                                    $store.navigation.nextUrl = $el.href;
+                                    $store.navigation.showLeaveModal = true;
+                                } else {
+                                    sidebarOpen = false;
+                                }
+                            "
                                 class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
                         {{ $isActive
                             ? 'bg-white text-[#6D0D23] shadow-sm'
@@ -212,7 +226,7 @@
                     </div>
                 </aside>
 
-                <main class="flex-1 h-screen overflow-y-auto">
+                <main class="relative flex-1 h-screen overflow-y-auto">
 
                     {{-- Mobile top bar --}}
                     <div class="lg:hidden sticky top-0 z-30 flex items-center gap-3 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-4 py-3 shadow-sm">
@@ -339,6 +353,65 @@
                         {{ $slot }}
                     </div>
                 </main>
+            </div>
+
+            {{-- Unsaved changes modal — pages opt in by writing
+                 $store.navigation.hasUnsavedChanges as their dirty-state changes. --}}
+            <div
+                x-data
+                x-show="$store.navigation.showLeaveModal"
+                x-cloak
+                class="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+
+                <div
+                    @click.outside="$store.navigation.showLeaveModal = false"
+                    class="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+
+                    <button
+                        type="button"
+                        @click="$store.navigation.showLeaveModal = false"
+                        class="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full border border-[#6D0D23] text-[#6D0D23] transition hover:bg-[#6D0D23] hover:text-white"
+                        aria-label="Close">
+                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                    </button>
+
+                    <div class="flex justify-center mb-4">
+                        <div class="h-14 w-14 rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] flex items-center justify-center text-white text-xl font-bold">
+                            !
+                        </div>
+                    </div>
+
+                    <h2 class="text-xl font-bold text-center text-[#5B1933]">
+                        Unsaved Changes
+                    </h2>
+
+                    <p class="mt-2 text-center text-sm text-gray-600">
+                        You have unsaved changes.
+                        If you leave this page, your edits will be lost.
+                    </p>
+
+                    <div class="mt-6 flex gap-3">
+                        <button
+                            type="button"
+                            @click="$store.navigation.showLeaveModal = false"
+                            class="flex-1 rounded-lg border border-gray-300 py-2.5 font-medium text-gray-700 hover:bg-gray-50">
+                            Stay
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="
+                                $store.navigation.hasUnsavedChanges = false;
+                                $store.navigation.showLeaveModal = false;
+                                window.location = $store.navigation.nextUrl;
+                            "
+                            class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 font-medium text-white">
+                            Leave
+                        </button>
+                    </div>
+                </div>
             </div>
 </body>
 

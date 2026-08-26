@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\AssessmentHubController;
 use App\Http\Controllers\Admin\EvaluationScheduleController;
 use App\Http\Controllers\Admin\FounderApplicationController;
 use App\Http\Controllers\Admin\CohortController;
+use App\Http\Controllers\Admin\RiskMonitoringController;
 
 
 require __DIR__.'/auth.php';
@@ -151,7 +152,7 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
         ->except(['create', 'edit', 'show'])
         ->names('cohorts');
 
-    // Future modules (Risk Monitoring) nest here
+    Route::get('/risk-monitoring', [RiskMonitoringController::class, 'index'])->name('risk-monitoring.index');
 });
 
 // Startup-only routes (future modules nest here)

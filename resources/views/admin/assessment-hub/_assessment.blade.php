@@ -69,6 +69,7 @@ for ($i = 0; $i < $count; $i++) {
                     style="display:none;">
                     @if ($selectedStartup)
                     <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $selectedStage]) }}"
+                        @click="if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
                         class="block w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                         All Startup
                     </a>
@@ -76,6 +77,7 @@ for ($i = 0; $i < $count; $i++) {
                     @foreach ($assessableStartups as $option)
                     @unless ($selectedStartup && $selectedStartup->startup_id === $option->startup_id)
                     <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $selectedStage, 'assessment_startup' => $option->startup_id]) }}"
+                        @click="if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
                         class="block w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                         {{ $option->company_name }}
                     </a>
@@ -87,6 +89,7 @@ for ($i = 0; $i < $count; $i++) {
             <div class="flex w-full overflow-hidden rounded-lg border border-gray-200">
                 @foreach ($allStages as $stageOption)
                     <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $stageOption, 'assessment_startup' => $selectedStartup?->startup_id]) }}"
+                        @click="if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
                         class="flex-1 px-4 py-1.5 text-center text-sm font-semibold transition {{ $selectedStage === $stageOption ? 'bg-[#6C0E24] text-white' : 'text-gray-600 hover:bg-gray-50' }}">
                         {{ $stageOption }}
                     </a>
@@ -135,10 +138,11 @@ for ($i = 0; $i < $count; $i++) {
                             <td class="px-4 py-4">
                                 <div class="flex flex-wrap justify-center gap-2">
                                     @foreach (($selectedStage === 'Overview' ? $row['pills'] : $row['pills']->where('nav_stage', $selectedStage)) as $pill)
-                                    <span class="whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold
+                                    <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $pill['nav_stage'], 'assessment_startup' => $row['startup']->startup_id]) }}"
+                                        class="whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold transition hover:opacity-75
                                                 {{ $pill['completed'] ? 'border-green-400 text-green-700 bg-green-50' : 'border-rose-200 text-rose-500 bg-rose-50' }}">
                                         {{ $pill['label'] }}
-                                    </span>
+                                    </a>
                                     @endforeach
                                 </div>
                             </td>
@@ -181,6 +185,21 @@ for ($i = 0; $i < $count; $i++) {
                 }
                 return count || null;
             },
+            // Live progress-bar fill only — NOT the official score. Each of the
+            // 9 levels caps at a full 1.0 (100%) of its own weight regardless
+            // of how many sub-items it has, so checking any one sub-item inside
+            // a level immediately nudges the bar, instead of only jumping once
+            // an entire level's first box gets checked (that's what scoreFor()
+            // above is still for — the X/9 badge and everything persisted).
+            weightedProgress(type) {
+                let total = 0;
+                for (const level of Object.keys(this.progress[type])) {
+                    const checks = this.progress[type][level];
+                    if (! checks.length) continue;
+                    total += checks.filter(v => v).length / checks.length;
+                }
+                return total; // 0..9
+            },
             highestTouchedLevel(type) {
                 let best = null;
                 for (const level of Object.keys(this.progress[type]).map(Number).sort((a, b) => a - b)) {
@@ -206,6 +225,7 @@ for ($i = 0; $i < $count; $i++) {
             expanded.MRL = highestTouchedLevel('MRL') ?? 1;
             expanded.TMRL = highestTouchedLevel('TMRL') ?? 1;
             expanded.SRL = highestTouchedLevel('SRL') ?? 1;
+            $watch(() => isDirty(), value => { $store.navigation.hasUnsavedChanges = value; });
         ">
 
             <div>
@@ -225,7 +245,8 @@ for ($i = 0; $i < $count; $i++) {
                     @endforeach
                 </div>
 
-                <form method="POST" action="{{ route('admin.assessment-hub.assessments.update', $selectedStartup) }}" id="assessment-form">
+                <form method="POST" action="{{ route('admin.assessment-hub.assessments.update', $selectedStartup) }}" id="assessment-form"
+                    @submit="$store.navigation.hasUnsavedChanges = false">
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="stage" value="{{ $selectedStage }}">
@@ -347,7 +368,7 @@ for ($i = 0; $i < $count; $i++) {
 
                         <div class="mb-3 h-2 w-full rounded-full bg-gray-200">
                             <div class="h-2 rounded-full bg-rose-900 transition-all"
-                                :style="`width: ${((scoreFor('{{ $type }}') || 0) / 9) * 100}%`"></div>
+                                :style="`width: ${(weightedProgress('{{ $type }}') / 9) * 100}%`"></div>
                         </div>
                         <div class="mb-4 flex justify-between text-xs text-gray-400">
                             @for ($n = 1; $n <= 9; $n++)
@@ -370,6 +391,8 @@ for ($i = 0; $i < $count; $i++) {
                                         {{ $level }}
                                     </span>
                                     <span class="flex-1 font-bold text-gray-900">{{ $definition['title'] }}</span>
+                                    <span class="shrink-0 text-xs text-gray-400 opacity-60"
+                                        x-text="progress.{{ $type }}[{{ $level }}].filter(v => v).length + '/' + progress.{{ $type }}[{{ $level }}].length"></span>
                                     <svg class="h-4 w-4 shrink-0 text-gray-400 transition-transform"
                                         :class="expanded.{{ $type }} === {{ $level }} ? 'rotate-180' : ''"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -515,7 +538,8 @@ for ($i = 0; $i < $count; $i++) {
                 <p class="mt-4 text-sm text-gray-400">No {{ $selectedStage }} data yet.</p>
                 @endif
 
-                <a href="{{ route('admin.startups.show', $selectedStartup) }}"
+                <a href="{{ route('admin.startups.show', ['startup' => $selectedStartup, 'from' => 'assessment-hub', 'stage' => $selectedStage, 'assessment_startup' => $selectedStartup->startup_id]) }}"
+                    @click="if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
                     class="mt-5 block rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-center text-sm font-bold text-white transition hover:opacity-90">
                     View Profile
                 </a>

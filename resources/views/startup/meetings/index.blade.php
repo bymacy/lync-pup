@@ -196,7 +196,7 @@
                         @else
                         <div class="text-xs text-gray-600">
                             <p class="mb-1 font-semibold text-gray-800">Note:</p>
-                            <p class="italic">Bring 1 valid ID each startup member.</p>
+                            <p class="italic">{{ $meeting['notes'] ?: 'Bring 1 valid ID each startup member.' }}</p>
                         </div>
                         @endif
                     </div>

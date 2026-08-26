@@ -1,0 +1,316 @@
+<?php
+
+namespace Tests\Unit;
+
+use App\Models\AssessmentDocument;
+use App\Models\Coordinator;
+use App\Models\CoordinatorAssignment;
+use App\Models\InformationSheet;
+use App\Models\Mentor;
+use App\Models\Roadblock;
+use App\Models\Startup;
+use App\Support\RiskEngine;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class RiskEngineTest extends TestCase
+{
+    use RefreshDatabase;
+
+    /**
+     * Overwrites timestamps on a model while bypassing Eloquent's automatic
+     * updated_at touch, so tests can simulate "this happened N days ago".
+     */
+    protected function backdate($model, array $attributes): void
+    {
+        $model->timestamps = false;
+        $model->forceFill($attributes)->save();
+    }
+
+    protected function indicator(array $result, string $key): ?array
+    {
+        return collect($result['indicators'])->firstWhere('key', $key);
+    }
+
+    public function test_no_information_sheet_triggers_the_critical_indicator_with_a_day_tier(): void
+    {
+        $startup = Startup::factory()->create();
+        $this->backdate($startup, ['created_at' => now()->subDays(5)]);
+
+        $result = RiskEngine::assess($startup->fresh());
+        $indicator = $this->indicator($result, 'no_information_sheet');
+
+        $this->assertNotNull($indicator);
+        $this->assertSame('Critical', $indicator['severity']);
+        $this->assertSame(5, $indicator['base_score']);
+        $this->assertSame(2, $indicator['additional_score']); // 4-7 day tier
+        $this->assertSame(7, $indicator['score']);
+    }
+
+    public function test_information_sheet_not_evaluated_triggers_the_high_indicator_and_excludes_no_info_sheet(): void
+    {
+        $startup = Startup::factory()->create();
+        $sheet = InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Pending',
+        ]);
+        $this->backdate($sheet, ['created_at' => now()->subDays(9)]);
+
+        $result = RiskEngine::assess($startup->fresh());
+
+        $indicator = $this->indicator($result, 'information_sheet_not_evaluated');
+        $this->assertNotNull($indicator);
+        $this->assertSame('High', $indicator['severity']);
+        $this->assertSame(4, $indicator['base_score']);
+        $this->assertSame(3, $indicator['additional_score']); // 8+ day tier
+        $this->assertSame(7, $indicator['score']);
+
+        $this->assertNull($this->indicator($result, 'no_information_sheet'));
+    }
+
+    public function test_no_mentor_assigned_to_a_pending_roadblock_triggers_the_medium_indicator(): void
+    {
+        $startup = Startup::factory()->create();
+        $roadblock = Roadblock::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'status' => 'Pending',
+            'mentor_id' => null,
+        ]);
+        $this->backdate($roadblock, ['created_at' => now()->subDays(2)]);
+
+        $result = RiskEngine::assess($startup->fresh());
+        $indicator = $this->indicator($result, 'no_mentor_assigned');
+
+        $this->assertNotNull($indicator);
+        $this->assertSame('Medium', $indicator['severity']);
+        $this->assertSame(1, $indicator['additional_score']); // 1-3 day tier
+        $this->assertSame(4, $indicator['score']);
+    }
+
+    public function test_a_roadblock_with_a_mentor_already_assigned_does_not_trigger_the_indicator(): void
+    {
+        $startup = Startup::factory()->create();
+        $mentor = Mentor::factory()->create();
+        Roadblock::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'status' => 'Pending',
+            'mentor_id' => $mentor->mentor_id,
+        ]);
+
+        $result = RiskEngine::assess($startup->fresh());
+
+        $this->assertNull($this->indicator($result, 'no_mentor_assigned'));
+    }
+
+    public function test_no_weekly_updates_does_not_trigger_before_a_startup_is_approved(): void
+    {
+        $startup = Startup::factory()->create();
+        InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Pending',
+        ]);
+
+        $result = RiskEngine::assess($startup->fresh());
+
+        $this->assertNull($this->indicator($result, 'no_weekly_updates'));
+    }
+
+    public function test_no_weekly_updates_triggers_for_an_approved_startup_with_a_stale_check_in(): void
+    {
+        $startup = Startup::factory()->create();
+        InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Approved',
+        ]);
+
+        $doc7 = AssessmentDocument::create([
+            'startup_id' => $startup->startup_id,
+            'stage' => 'Active-Assessment',
+            'document_number' => 7,
+            'data' => [
+                'check_ins' => [
+                    [
+                        'dates' => now()->subWeeks(3)->toDateString(),
+                        'area_discussed' => 'Old check-in',
+                        'action_plan' => '',
+                        'feedback_takeaways' => '',
+                        'remarks' => '',
+                    ],
+                ],
+            ],
+        ]);
+
+        $result = RiskEngine::assess($startup->fresh(), $doc7);
+        $indicator = $this->indicator($result, 'no_weekly_updates');
+
+        $this->assertNotNull($indicator);
+        $this->assertSame('Medium', $indicator['severity']);
+        $this->assertSame(3, $indicator['additional_score']); // 3+ weeks missed
+        $this->assertSame(5, $indicator['score']);
+    }
+
+    public function test_no_weekly_updates_does_not_trigger_when_the_latest_check_in_is_recent(): void
+    {
+        $startup = Startup::factory()->create();
+        InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Approved',
+        ]);
+
+        $doc7 = AssessmentDocument::create([
+            'startup_id' => $startup->startup_id,
+            'stage' => 'Active-Assessment',
+            'document_number' => 7,
+            'data' => [
+                'check_ins' => [
+                    [
+                        'dates' => now()->subDays(2)->toDateString(),
+                        'area_discussed' => 'Recent',
+                        'action_plan' => '',
+                        'feedback_takeaways' => '',
+                        'remarks' => '',
+                    ],
+                ],
+            ],
+        ]);
+
+        $result = RiskEngine::assess($startup->fresh(), $doc7);
+
+        $this->assertNull($this->indicator($result, 'no_weekly_updates'));
+    }
+
+    public function test_no_portfolio_coordinator_does_not_trigger_before_a_startup_is_approved(): void
+    {
+        $startup = Startup::factory()->create();
+        InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Pending',
+        ]);
+
+        $result = RiskEngine::assess($startup->fresh());
+
+        $this->assertNull($this->indicator($result, 'no_portfolio_coordinator'));
+    }
+
+    public function test_no_portfolio_coordinator_triggers_for_an_approved_startup_with_no_active_assignment(): void
+    {
+        $startup = Startup::factory()->create();
+        $sheet = InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Approved',
+        ]);
+        $this->backdate($sheet, ['updated_at' => now()->subDays(10)]);
+
+        $result = RiskEngine::assess($startup->fresh());
+        $indicator = $this->indicator($result, 'no_portfolio_coordinator');
+
+        $this->assertNotNull($indicator);
+        $this->assertSame('Low', $indicator['severity']);
+        $this->assertSame(3, $indicator['additional_score']);
+        $this->assertSame(4, $indicator['score']);
+    }
+
+    public function test_an_active_coordinator_assignment_prevents_the_indicator(): void
+    {
+        $startup = Startup::factory()->create();
+        InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Approved',
+        ]);
+        $coordinator = Coordinator::factory()->create();
+        CoordinatorAssignment::create([
+            'startup_id' => $startup->startup_id,
+            'coordinator_id' => $coordinator->coordinator_id,
+            'assigned_date' => now(),
+            'assignment_status' => 'Active',
+        ]);
+
+        $result = RiskEngine::assess($startup->fresh());
+
+        $this->assertNull($this->indicator($result, 'no_portfolio_coordinator'));
+    }
+
+    public function test_failed_mentorship_triggers_a_flat_score_with_no_time_escalation(): void
+    {
+        $startup = Startup::factory()->create();
+        $roadblock = Roadblock::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'status' => 'Failed',
+        ]);
+        $this->backdate($roadblock, [
+            'created_at' => now()->subDays(30),
+            'failed_at' => now()->subDays(30),
+        ]);
+
+        $result = RiskEngine::assess($startup->fresh());
+        $indicator = $this->indicator($result, 'failed_mentorship');
+
+        $this->assertNotNull($indicator);
+        $this->assertSame('High', $indicator['severity']);
+        $this->assertSame(4, $indicator['base_score']);
+        $this->assertSame(0, $indicator['additional_score']);
+        $this->assertSame(4, $indicator['score']);
+    }
+
+    public function test_total_score_is_the_sum_of_every_triggered_indicator(): void
+    {
+        $startup = Startup::factory()->create();
+        $this->backdate($startup, ['created_at' => now()->subDays(1)]); // no info sheet: 5 + 1 = 6
+        Roadblock::factory()->create(['startup_id' => $startup->startup_id, 'status' => 'Failed']); // 4
+
+        $result = RiskEngine::assess($startup->fresh());
+
+        $this->assertSame(10, $result['score']);
+        $this->assertSame('High', $result['level']);
+    }
+
+    public function test_a_fully_healthy_startup_has_no_triggered_indicators(): void
+    {
+        $startup = Startup::factory()->create();
+        InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Approved',
+        ]);
+        $coordinator = Coordinator::factory()->create();
+        CoordinatorAssignment::create([
+            'startup_id' => $startup->startup_id,
+            'coordinator_id' => $coordinator->coordinator_id,
+            'assigned_date' => now(),
+            'assignment_status' => 'Active',
+        ]);
+        $doc7 = AssessmentDocument::create([
+            'startup_id' => $startup->startup_id,
+            'stage' => 'Active-Assessment',
+            'document_number' => 7,
+            'data' => [
+                'check_ins' => [
+                    [
+                        'dates' => now()->toDateString(),
+                        'area_discussed' => 'Today',
+                        'action_plan' => '',
+                        'feedback_takeaways' => '',
+                        'remarks' => '',
+                    ],
+                ],
+            ],
+        ]);
+
+        $result = RiskEngine::assess($startup->fresh(), $doc7);
+
+        $this->assertSame(0, $result['score']);
+        $this->assertSame('None', $result['level']);
+        $this->assertCount(0, $result['indicators']);
+    }
+
+    public function test_classify_matches_the_confirmed_thresholds(): void
+    {
+        $this->assertSame('None', RiskEngine::classify(0));
+        $this->assertSame('Low', RiskEngine::classify(1));
+        $this->assertSame('Low', RiskEngine::classify(4));
+        $this->assertSame('Moderate', RiskEngine::classify(5));
+        $this->assertSame('Moderate', RiskEngine::classify(9));
+        $this->assertSame('High', RiskEngine::classify(10));
+        $this->assertSame('High', RiskEngine::classify(14));
+        $this->assertSame('Critical', RiskEngine::classify(15));
+    }
+}

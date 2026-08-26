@@ -20,7 +20,7 @@ return $url
     <div class="xl:col-span-8">
         <div class="flex items-center gap-2 mb-2.5">
             <img src="{{ asset('images/icons/calendar.svg') }}" alt="" class="h-8 w-8" aria-hidden="true">
-            <h2 class="text-md font-bold text-gray-900">Evaluation Day</h2>
+            <h2 class="text-md font-bold text-gray-900">Awaiting Schedule</h2>
         </div>
 
         <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">

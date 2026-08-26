@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Startup;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateInformationSheetRequest extends FormRequest
@@ -16,6 +17,32 @@ class UpdateInformationSheetRequest extends FormRequest
         if ($this->hasFile('founder_signature') && ! $this->file('founder_signature')->isValid()) {
             $this->files->remove('founder_signature');
         }
+    }
+
+    /**
+     * Once this startup has a scheduled evaluation, fields that already
+     * hold a value can be replaced but not cleared — see
+     * InformationSheet::blankedFields() and Startup::hasScheduledEvaluation().
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $startup = $this->user()->startup;
+            $sheet = $startup?->informationSheet;
+
+            if (! $sheet || ! $startup->hasScheduledEvaluation()) {
+                return;
+            }
+
+            $data = collect($validator->getData())->except(['_token', '_method', 'founder_signature'])->all();
+
+            foreach ($sheet->blankedFields($data) as $field) {
+                $validator->errors()->add(
+                    $field,
+                    'This field cannot be cleared once an evaluation has been scheduled — please keep or replace the existing value.'
+                );
+            }
+        });
     }
 
     public function rules(): array

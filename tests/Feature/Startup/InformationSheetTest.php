@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Startup;
 
+use App\Models\EvaluationSchedule;
 use App\Models\InformationSheet;
 use App\Models\Startup;
 use App\Models\StartupReference;
@@ -87,5 +88,102 @@ class InformationSheetTest extends TestCase
         ]);
 
         $response->assertForbidden();
+    }
+
+    public function test_founder_can_leave_fields_blank_before_any_evaluation_is_scheduled(): void
+    {
+        [$user, $startup] = $this->makeFounder();
+        $startup->informationSheet->update(['mobile_no' => '09171234567']);
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+            'mobile_no' => '', // field cleared, as a real form would submit it.
+        ]);
+
+        $response->assertRedirect(route('startup.information-sheet.edit'));
+        $this->assertNull($startup->informationSheet->fresh()->mobile_no);
+    }
+
+    public function test_founder_cannot_blank_a_previously_filled_field_once_evaluation_is_scheduled(): void
+    {
+        [$user, $startup] = $this->makeFounder();
+        $startup->informationSheet->update(['mobile_no' => '09171234567']);
+        EvaluationSchedule::create([
+            'startup_id' => $startup->startup_id,
+            'evaluation_date' => now()->addDays(3),
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'status' => 'Scheduled',
+        ]);
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+            'mobile_no' => '', // cleared — should now be rejected instead of accepted.
+        ]);
+
+        $response->assertSessionHasErrors(['mobile_no']);
+        $this->assertEquals('09171234567', $startup->informationSheet->fresh()->mobile_no);
+    }
+
+    public function test_founder_can_replace_a_field_once_evaluation_is_scheduled(): void
+    {
+        [$user, $startup] = $this->makeFounder();
+        $startup->informationSheet->update(['mobile_no' => '09171234567']);
+        EvaluationSchedule::create([
+            'startup_id' => $startup->startup_id,
+            'evaluation_date' => now()->addDays(3),
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'status' => 'Scheduled',
+        ]);
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+            'mobile_no' => '09209876543',
+        ]);
+
+        $response->assertRedirect(route('startup.information-sheet.edit'));
+        $this->assertEquals('09209876543', $startup->informationSheet->fresh()->mobile_no);
+    }
+
+    public function test_founder_is_locked_out_once_the_evaluation_day_starts(): void
+    {
+        [$user, $startup] = $this->makeFounder();
+        EvaluationSchedule::create([
+            'startup_id' => $startup->startup_id,
+            'evaluation_date' => now(),
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'status' => 'Scheduled',
+        ]);
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'surname' => 'Attempted Change',
+            'first_name' => 'Still Attempted',
+        ]);
+
+        $response->assertForbidden();
+    }
+
+    public function test_founder_is_not_locked_by_a_cancelled_evaluation(): void
+    {
+        [$user, $startup] = $this->makeFounder();
+        EvaluationSchedule::create([
+            'startup_id' => $startup->startup_id,
+            'evaluation_date' => now(),
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'status' => 'Cancelled',
+        ]);
+
+        $response = $this->actingAs($user)->patch(route('startup.information-sheet.update'), [
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+        ]);
+
+        $response->assertRedirect(route('startup.information-sheet.edit'));
     }
 }

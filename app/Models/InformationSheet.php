@@ -64,4 +64,32 @@ class InformationSheet extends Model
     {
         return trim("{$this->first_name} {$this->middle_name} {$this->surname} {$this->name_extension}");
     }
+
+    /**
+     * Given a submitted $data array (field => new value), returns the
+     * fillable field names that currently hold a non-blank value but would
+     * be saved as blank by this submission. Used once a startup has a
+     * scheduled evaluation to enforce "replace, don't remove" instead of
+     * the normal partial-overwrite semantics of Model::update().
+     */
+    public function blankedFields(array $data): array
+    {
+        $blanked = [];
+
+        foreach ($data as $field => $value) {
+            if (! in_array($field, $this->getFillable(), true)) {
+                continue;
+            }
+
+            $current = $this->getAttribute($field);
+            $currentIsBlank = $current === null || $current === '';
+            $newIsBlank = $value === null || $value === '';
+
+            if (! $currentIsBlank && $newIsBlank) {
+                $blanked[] = $field;
+            }
+        }
+
+        return $blanked;
+    }
 }

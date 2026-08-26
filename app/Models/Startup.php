@@ -122,6 +122,30 @@ class Startup extends Model
         return $latest->status === 'Completed' ? 'Completed' : 'In Progress';
     }
 
+    /**
+     * True once an admin has booked (and not cancelled) an evaluation for
+     * this startup. Once this is true, the founder's/admin's Information
+     * Sheet save should stop treating blank fields as "clear this value" —
+     * see InformationSheet::blankedFields().
+     */
+    public function hasScheduledEvaluation(): bool
+    {
+        return $this->evaluationSchedules()->where('status', '!=', 'Cancelled')->exists();
+    }
+
+    /**
+     * True from the calendar day of a (non-cancelled) evaluation onward —
+     * drives the founder-side Information Sheet lock. Admin retains edit
+     * access so revisions can still be made during/around the evaluation.
+     */
+    public function evaluationDayLockActive(): bool
+    {
+        return $this->evaluationSchedules()
+            ->where('status', '!=', 'Cancelled')
+            ->whereDate('evaluation_date', '<=', now()->toDateString())
+            ->exists();
+    }
+
     // Computed status, not stored
     public function getStatusAttribute(): string
     {

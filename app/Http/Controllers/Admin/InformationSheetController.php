@@ -41,6 +41,12 @@ class InformationSheetController extends Controller
 
     public function approve(Startup $startup): RedirectResponse
     {
+        abort_if(
+            ! $startup->hasScheduledEvaluation(),
+            403,
+            'This startup must have a scheduled evaluation before their Information Sheet can be approved.'
+        );
+
         $startup->informationSheet()->update([
             'approval_status' => 'Approved',
             'evaluator_remarks' => null,
