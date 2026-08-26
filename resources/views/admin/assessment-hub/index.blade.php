@@ -47,7 +47,7 @@
         $initialTab = in_array(request('tab'), ['schedule', 'evaluation', 'approved']) ? request('tab') : 'schedule';
         $subTabs = ['schedule' => 'Schedule', 'evaluation' => 'Evaluation', 'approved' => 'Approved'];
         @endphp
-        <div x-show="mainTab === 'information-sheet'" x-data="{ subTab: @js($initialTab) }"
+        <div x-show="mainTab === 'information-sheet'" x-cloak x-data="{ subTab: @js($initialTab) }"
             x-init="$watch('subTab', value => setQueryParam('tab', value))">
 
             {{-- replaces the old border-b sub-tab row --}}

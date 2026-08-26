@@ -11,8 +11,10 @@ namespace App\Support;
  *
  * ReadinessLevelAssessment stores which of these criteria are checked (per
  * level, per RL type) as JSON; the actual 1-9 score for each RL type is
- * derived from that via scoreFromProgress() — the highest level whose
- * criteria are ALL checked.
+ * derived from that via scoreFromProgress() — the COUNT of levels (out of
+ * 9) that have at least one criterion checked. Skipping level 1 and
+ * checking level 2 counts as 1/9, not 2/9 — order doesn't matter, only how
+ * many levels have any progress on them.
  */
 class ReadinessRubric
 {
@@ -71,10 +73,13 @@ class ReadinessRubric
     }
 
     /**
-     * The highest level (1-9) whose criteria are ALL checked in $progress
-     * (shape: [level => [bool, bool, ...]]). Returns null when nothing
-     * qualifies (including when $progress is empty/null) so callers can
-     * distinguish "Not Started" from a real level.
+     * The COUNT (1-9) of levels in $progress (shape: [level => [bool,
+     * bool, ...]]) that have at least one checked criterion — not the
+     * highest level reached. Checking only level 2 (skipping level 1)
+     * counts as 1, not 2; a level needs just one checked criterion to
+     * count, not all of them. Returns null when nothing qualifies
+     * (including when $progress is empty/null) so callers can distinguish
+     * "Not Started" from a real score.
      */
     public static function scoreFromProgress(string $type, ?array $progress): ?int
     {
@@ -83,26 +88,23 @@ class ReadinessRubric
         }
 
         $levels = self::levels($type);
-        $best = null;
+        $count = 0;
 
         foreach ($levels as $level => $definition) {
             $checked = $progress[$level] ?? $progress[(string) $level] ?? null;
-            $criteriaCount = count($definition['criteria']);
 
-            if (! is_array($checked) || count($checked) < $criteriaCount) {
+            if (! is_array($checked)) {
                 continue;
             }
 
-            $allChecked = collect($checked)
-                ->take($criteriaCount)
-                ->every(fn ($v) => (bool) $v);
+            $anyChecked = collect($checked)->contains(fn ($v) => (bool) $v);
 
-            if ($allChecked) {
-                $best = $level;
+            if ($anyChecked) {
+                $count++;
             }
         }
 
-        return $best;
+        return $count ?: null;
     }
 
     public static function all(): array

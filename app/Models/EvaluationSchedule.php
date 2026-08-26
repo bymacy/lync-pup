@@ -56,6 +56,20 @@ class EvaluationSchedule extends Model
         return Carbon::parse($this->evaluation_date->format('Y-m-d').' '.$this->end_time);
     }
 
+    public function getStartsAtAttribute(): ?Carbon
+    {
+        if (! $this->evaluation_date || ! $this->start_time) {
+            return null;
+        }
+
+        return Carbon::parse($this->evaluation_date->format('Y-m-d').' '.$this->start_time);
+    }
+
+    public function hasStarted(): bool
+    {
+        return $this->starts_at !== null && $this->starts_at->isPast();
+    }
+
     public function isToday(): bool
     {
         return $this->evaluation_date->isToday();

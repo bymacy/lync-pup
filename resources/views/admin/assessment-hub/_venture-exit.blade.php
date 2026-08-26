@@ -41,8 +41,12 @@
 <div
     x-data="{
         ve: @js($veSeed),
+        initialVe: @js($veSeed),
         showClearConfirm: false,
         showSaved: @js($justSaved ?? false),
+        isDirty() {
+            return JSON.stringify(this.ve) !== JSON.stringify(this.initialVe);
+        },
         clearAll() {
             document.getElementById('venture-exit-form').reset();
             this.ve.date_of_assessment = '';
@@ -185,15 +189,13 @@
             </div>
 
             <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-                <button type="button" @click="showClearConfirm = true"
-                    class="h-11 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:flex-1">
+                <button type="button" @click="showClearConfirm = true" :disabled="! isDirty()"
+                    class="h-11 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white sm:flex-1">
                     Clear Form
                 </button>
-                <button type="submit"
-                    class="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-90 sm:flex-1">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
+                <button type="submit" :disabled="! isDirty()"
+                    class="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-1">
+                    <img src="{{ asset('images/icons/save.svg') }}" alt="" class="h-4 w-4 brightness-0 invert">
                     Save Assessment
                 </button>
             </div>

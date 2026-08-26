@@ -55,8 +55,16 @@
         doc6: @js($doc6Seed),
         doc7: @js($doc7Seed),
         doc8: @js($doc8Seed),
+        initialDoc6: @js($doc6Seed),
+        initialDoc7: @js($doc7Seed),
+        initialDoc8: @js($doc8Seed),
         showClearConfirm: false,
         showSaved: @js($justSaved ?? false),
+        isDirty() {
+            return JSON.stringify(this.doc6) !== JSON.stringify(this.initialDoc6)
+                || JSON.stringify(this.doc7) !== JSON.stringify(this.initialDoc7)
+                || JSON.stringify(this.doc8) !== JSON.stringify(this.initialDoc8);
+        },
         addRow(doc, section, columns) {
             const blank = {};
             columns.forEach(c => blank[c] = '');
@@ -109,11 +117,12 @@
         @foreach ([6 => 'Document 6', 7 => 'Document 7', 8 => 'Document 8'] as $num => $label)
             <button type="button" @click="activeDoc = {{ $num }}"
                 class="rounded-lg border px-4 py-3 text-center transition"
-                :class="activeDoc === {{ $num }} ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white hover:bg-gray-50'">
-                <p class="font-bold" :class="activeDoc === {{ $num }} ? 'text-green-700' : 'text-gray-900'">{{ $label }}</p>
-                @unless ($docHasData[$num])
-                    <p class="text-xs text-gray-400">Not Started</p>
-                @endunless
+                :class="activeDoc === {{ $num }} ? 'border-[#6C0E24] bg-[#6C0E24]/5' : 'border-gray-200 bg-white hover:bg-gradient-to-r hover:from-[#6D0D23]/5 hover:to-[#11386A]/5'">
+                <p class="font-bold" :class="activeDoc === {{ $num }} ? 'text-[#6C0E24]' : 'text-gray-900'">{{ $label }}</p>
+                <p class="mt-1 flex items-center justify-center gap-1.5 text-xs {{ $docHasData[$num] ? 'text-green-600' : 'text-gray-400' }}">
+                    <span class="h-1.5 w-1.5 shrink-0 rounded-full {{ $docHasData[$num] ? 'bg-green-500' : 'bg-gray-300' }}"></span>
+                    {{ $docHasData[$num] ? 'Started' : 'Not Started' }}
+                </p>
             </button>
         @endforeach
     </div>
@@ -399,15 +408,13 @@
         </div>
 
         <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-            <button type="button" @click="showClearConfirm = true"
-                class="h-11 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:flex-1">
+            <button type="button" @click="showClearConfirm = true" :disabled="! isDirty()"
+                class="h-11 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white sm:flex-1">
                 Clear Form
             </button>
-            <button type="submit"
-                class="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-90 sm:flex-1">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
+            <button type="submit" :disabled="! isDirty()"
+                class="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-1">
+                <img src="{{ asset('images/icons/save.svg') }}" alt="" class="h-4 w-4 brightness-0 invert">
                 Save Assessment
             </button>
         </div>

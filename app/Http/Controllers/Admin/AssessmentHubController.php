@@ -67,7 +67,7 @@ class AssessmentHubController extends Controller
             ? $assessableStartups->firstWhere('startup_id', (int) $assessmentStartupParam)
             : null;
 
-        $selectedStage = in_array($request->query('stage'), ReadinessRubric::STAGES, true)
+        $selectedStage = in_array($request->query('stage'), [...ReadinessRubric::STAGES, 'Overview', 'Reports'], true)
             ? $request->query('stage')
             : 'Pre-Assessment';
 
@@ -121,18 +121,18 @@ class AssessmentHubController extends Controller
         // for each stage/RL-type combo — "Document 6/7/8" pills are
         // "completed" once that document has been saved at least once.
         $pillDefinitions = [
-            ['label' => 'PRE - TRL', 'stage' => 'Pre-Assessment', 'type' => 'TRL'],
-            ['label' => 'PRE - MRL', 'stage' => 'Pre-Assessment', 'type' => 'MRL'],
-            ['label' => 'PRE - SRL', 'stage' => 'Pre-Assessment', 'type' => 'SRL'],
-            ['label' => 'PRE - TMRL', 'stage' => 'Pre-Assessment', 'type' => 'TMRL'],
-            ['label' => 'DOCUMENT 6', 'document' => 6],
-            ['label' => 'DOCUMENT 7', 'document' => 7],
-            ['label' => 'DOCUMENT 8', 'document' => 8],
-            ['label' => 'POST - TRL', 'stage' => 'Post-Assessment', 'type' => 'TRL'],
-            ['label' => 'POST - MRL', 'stage' => 'Post-Assessment', 'type' => 'MRL'],
-            ['label' => 'POST - SRL', 'stage' => 'Post-Assessment', 'type' => 'SRL'],
-            ['label' => 'POST - TMRL', 'stage' => 'Post-Assessment', 'type' => 'TMRL'],
-            ['label' => 'VENTURE EXIT', 'document' => \App\Support\VentureExitForm::DOCUMENT_NUMBER],
+            ['label' => 'PRE - TRL', 'stage' => 'Pre-Assessment', 'type' => 'TRL', 'nav_stage' => 'Pre-Assessment'],
+            ['label' => 'PRE - MRL', 'stage' => 'Pre-Assessment', 'type' => 'MRL', 'nav_stage' => 'Pre-Assessment'],
+            ['label' => 'PRE - SRL', 'stage' => 'Pre-Assessment', 'type' => 'SRL', 'nav_stage' => 'Pre-Assessment'],
+            ['label' => 'PRE - TMRL', 'stage' => 'Pre-Assessment', 'type' => 'TMRL', 'nav_stage' => 'Pre-Assessment'],
+            ['label' => 'DOCUMENT 6', 'document' => 6, 'nav_stage' => 'Active-Assessment'],
+            ['label' => 'DOCUMENT 7', 'document' => 7, 'nav_stage' => 'Active-Assessment'],
+            ['label' => 'DOCUMENT 8', 'document' => 8, 'nav_stage' => 'Active-Assessment'],
+            ['label' => 'POST - TRL', 'stage' => 'Post-Assessment', 'type' => 'TRL', 'nav_stage' => 'Post-Assessment'],
+            ['label' => 'POST - MRL', 'stage' => 'Post-Assessment', 'type' => 'MRL', 'nav_stage' => 'Post-Assessment'],
+            ['label' => 'POST - SRL', 'stage' => 'Post-Assessment', 'type' => 'SRL', 'nav_stage' => 'Post-Assessment'],
+            ['label' => 'POST - TMRL', 'stage' => 'Post-Assessment', 'type' => 'TMRL', 'nav_stage' => 'Post-Assessment'],
+            ['label' => 'VENTURE EXIT', 'document' => \App\Support\VentureExitForm::DOCUMENT_NUMBER, 'nav_stage' => 'Venture Exit'],
         ];
 
         $assessmentsByStartup = ReadinessLevelAssessment::whereIn('startup_id', $assessableStartups->pluck('startup_id'))
@@ -153,7 +153,7 @@ class AssessmentHubController extends Controller
 
             $pills = collect($pillDefinitions)->map(function ($def) use ($byStage, $byDocument) {
                 if (! empty($def['document'])) {
-                    return ['label' => $def['label'], 'completed' => $byDocument->has($def['document'])];
+                    return ['label' => $def['label'], 'completed' => $byDocument->has($def['document']), 'nav_stage' => $def['nav_stage']];
                 }
 
                 $row = $byStage->get($def['stage']);
@@ -162,7 +162,7 @@ class AssessmentHubController extends Controller
                     ? (bool) ($row && collect(ReadinessRubric::TYPES)->contains(fn ($t) => $row->scoreFor($t) !== null))
                     : (bool) ($row && $row->scoreFor($def['type']) !== null);
 
-                return ['label' => $def['label'], 'completed' => $completed];
+                return ['label' => $def['label'], 'completed' => $completed, 'nav_stage' => $def['nav_stage']];
             });
 
             return [

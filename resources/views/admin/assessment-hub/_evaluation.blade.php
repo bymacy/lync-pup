@@ -185,12 +185,15 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                                         class="{{ $btn }} w-[130px] text-white hover:opacity-90 bg-[#6C0E24]">
                                         Start Evaluation
                                     </a>
+                                    @unless ($item->hasStarted())
                                     <button type="button" @click="rescheduleOpen = true"
                                         class="{{ $btn }} w-[110px] border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">
                                         Reschedule
                                     </button>
+                                    @endunless
                                 </div>
 
+                                @unless ($item->hasStarted())
                                 <div x-show="rescheduleOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;">
                                     <div class="w-full max-w-3xl overflow-hidden rounded-xl bg-white">
                                         <x-evaluation-schedule-modal mode="reschedule" :schedule="$item"
@@ -199,6 +202,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                                             :time-slots="$timeSlots" :booked-slots="$bookedSlots" />
                                     </div>
                                 </div>
+                                @endunless
                             </td>
                         </tr>
                         @empty
