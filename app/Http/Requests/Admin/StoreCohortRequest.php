@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreCohortRequest extends FormRequest
 {
@@ -14,23 +13,22 @@ class StoreCohortRequest extends FormRequest
 
     public function rules(): array
     {
-        $cohortId = $this->route('cohort')?->cohort_id;
-
         return [
-            'number' => [
-                'required', 'integer', 'min:1',
-                Rule::unique('cohorts', 'number')->ignore($cohortId, 'cohort_id'),
-            ],
-            'label' => ['nullable', 'string', 'max:100'],
-            'status' => ['required', 'string', 'in:Active,Inactive'],
+            // "Cohort Name" in the UI — the underlying number (used
+            // elsewhere in the app as Startup::cohort_number) is
+            // auto-assigned by the controller, not user-entered.
+            'label' => ['required', 'string', 'max:100'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'description' => ['nullable', 'string', 'max:2000'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'number.required' => 'Please enter a cohort number.',
-            'number.unique' => 'That cohort number already exists.',
+            'label.required' => 'Please enter a cohort name.',
+            'end_date.after_or_equal' => 'End date must be on or after the start date.',
         ];
     }
 }

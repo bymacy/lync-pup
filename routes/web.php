@@ -64,9 +64,7 @@ Route::get('/storage/{path}', [StorageController::class, 'show'])
 // for them. CheckRole now catches that and bounces them to their own
 // dashboard instead.
 Route::middleware(['auth', 'role:Admin'])->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
 });
 
 Route::middleware('auth')->group(function () {
@@ -149,9 +147,12 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/founder-applications/{startup}/approve', [FounderApplicationController::class, 'approve'])->name('founder-applications.approve');
     Route::post('/founder-applications/{startup}/reject', [FounderApplicationController::class, 'reject'])->name('founder-applications.reject');
 
+    // No standalone "index" page/route — cohort CRUD is handled entirely
+    // through the admin Dashboard's cohort selector + 3-dot menu now.
     Route::resource('cohorts', CohortController::class)
-        ->except(['create', 'edit', 'show'])
+        ->except(['index', 'create', 'edit', 'show'])
         ->names('cohorts');
+    Route::patch('cohorts/{cohort}/archive', [CohortController::class, 'archive'])->name('cohorts.archive');
 
     Route::get('/risk-monitoring', [RiskMonitoringController::class, 'index'])->name('risk-monitoring.index');
 });

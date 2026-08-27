@@ -234,7 +234,6 @@
                                                 @endforeach
                                             </select>
                                             @error('cohort_id') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-                                            <a href="{{ route('admin.cohorts.index') }}" class="inline-block mt-1 text-xs text-rose-800 hover:underline">Manage cohorts</a>
                                         </div>
 
                                         <div>

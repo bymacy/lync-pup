@@ -7,29 +7,45 @@ use App\Http\Requests\Admin\StoreCohortRequest;
 use App\Http\Requests\Admin\UpdateCohortRequest;
 use App\Models\Cohort;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
 
+// No index() here — cohort management is now handled entirely through the
+// admin Dashboard's cohort selector + 3-dot menu (see resources/views/dashboard.blade.php),
+// not a standalone listing page.
 class CohortController extends Controller
 {
-    public function index(): View
-    {
-        $cohorts = Cohort::withCount('startups')->orderBy('number')->get();
-
-        return view('admin.cohorts.index', compact('cohorts'));
-    }
-
     public function store(StoreCohortRequest $request): RedirectResponse
     {
-        Cohort::create($request->validated());
+        Cohort::create([
+            ...$request->validated(),
+            // Not user-entered (see StoreCohortRequest) — auto-assigned so
+            // Startup::cohort_number (used all over the rest of the app)
+            // still has a real, unique integer to key off of.
+            'number' => (Cohort::max('number') ?? 0) + 1,
+            'status' => 'Active',
+        ]);
 
-        return redirect()->route('admin.cohorts.index')->with('status', 'Cohort added successfully.');
+        return redirect()->back()->with('cohortAction', 'created');
     }
 
     public function update(UpdateCohortRequest $request, Cohort $cohort): RedirectResponse
     {
         $cohort->update($request->validated());
 
-        return redirect()->route('admin.cohorts.index')->with('status', 'Cohort updated successfully.');
+        return redirect()->back()->with('cohortAction', 'updated');
+    }
+
+    /**
+     * "Archive/End Cohort" — a distinct action from delete. Sets the
+     * existing 'Inactive' status value (displayed as "Archived", see
+     * Cohort::getStatusLabelAttribute()). Startups keep their cohort_id
+     * untouched; only new assignment/assessment activity is expected to
+     * stop, which is enforced at the point those actions happen, not here.
+     */
+    public function archive(Cohort $cohort): RedirectResponse
+    {
+        $cohort->update(['status' => 'Inactive']);
+
+        return redirect()->back()->with('cohortAction', 'archived');
     }
 
     public function destroy(Cohort $cohort): RedirectResponse
@@ -40,6 +56,6 @@ class CohortController extends Controller
         // is untouched either way.
         $cohort->delete();
 
-        return redirect()->route('admin.cohorts.index')->with('status', 'Cohort removed.');
+        return redirect()->back()->with('cohortAction', 'deleted');
     }
 }
