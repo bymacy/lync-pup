@@ -153,7 +153,7 @@
                         </div>
                     </div>
             
-                    <div id="assign-coordinator" class="scroll-mt-24 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                    <div id="assign-coordinator" data-highlight-id="coordinator" class="scroll-mt-24 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                         <h2 class="flex items-center gap-2 font-bold text-gray-900">
                             <span class="{{ $headingIcon }}">{!! $icon('mentorProfile.svg', 'w-4 h-4') !!}</span>
                             Portfolio Coordinator

@@ -2,7 +2,6 @@
 
 namespace Tests\Unit;
 
-use App\Models\AssessmentDocument;
 use App\Models\Coordinator;
 use App\Models\CoordinatorAssignment;
 use App\Models\InformationSheet;
@@ -47,6 +46,31 @@ class RiskEngineTest extends TestCase
         $this->assertSame(7, $indicator['score']);
     }
 
+    public function test_incomplete_information_sheet_triggers_when_no_submission_date_is_set(): void
+    {
+        $startup = Startup::factory()->create();
+        // Mirrors the Startup Profile save flow: a row exists (business_description
+        // only) but the founder never went through the real Information Sheet
+        // submission, so submission_date is still null.
+        $sheet = InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'submission_date' => null,
+        ]);
+        $this->backdate($sheet, ['created_at' => now()->subDays(9)]);
+
+        $result = RiskEngine::assess($startup->fresh());
+
+        $indicator = $this->indicator($result, 'incomplete_information_sheet');
+        $this->assertNotNull($indicator);
+        $this->assertSame('High', $indicator['severity']);
+        $this->assertSame(4, $indicator['base_score']);
+        $this->assertSame(3, $indicator['additional_score']); // 8+ day tier
+        $this->assertSame(7, $indicator['score']);
+
+        $this->assertNull($this->indicator($result, 'no_information_sheet'));
+        $this->assertNull($this->indicator($result, 'information_sheet_not_evaluated'));
+    }
+
     public function test_information_sheet_not_evaluated_triggers_the_high_indicator_and_excludes_no_info_sheet(): void
     {
         $startup = Startup::factory()->create();
@@ -54,7 +78,7 @@ class RiskEngineTest extends TestCase
             'startup_id' => $startup->startup_id,
             'approval_status' => 'Pending',
         ]);
-        $this->backdate($sheet, ['created_at' => now()->subDays(9)]);
+        $this->backdate($sheet, ['submission_date' => now()->subDays(9)]);
 
         $result = RiskEngine::assess($startup->fresh());
 
@@ -66,6 +90,7 @@ class RiskEngineTest extends TestCase
         $this->assertSame(7, $indicator['score']);
 
         $this->assertNull($this->indicator($result, 'no_information_sheet'));
+        $this->assertNull($this->indicator($result, 'incomplete_information_sheet'));
     }
 
     public function test_no_mentor_assigned_to_a_pending_roadblock_triggers_the_medium_indicator(): void
@@ -100,83 +125,6 @@ class RiskEngineTest extends TestCase
         $result = RiskEngine::assess($startup->fresh());
 
         $this->assertNull($this->indicator($result, 'no_mentor_assigned'));
-    }
-
-    public function test_no_weekly_updates_does_not_trigger_before_a_startup_is_approved(): void
-    {
-        $startup = Startup::factory()->create();
-        InformationSheet::factory()->create([
-            'startup_id' => $startup->startup_id,
-            'approval_status' => 'Pending',
-        ]);
-
-        $result = RiskEngine::assess($startup->fresh());
-
-        $this->assertNull($this->indicator($result, 'no_weekly_updates'));
-    }
-
-    public function test_no_weekly_updates_triggers_for_an_approved_startup_with_a_stale_check_in(): void
-    {
-        $startup = Startup::factory()->create();
-        InformationSheet::factory()->create([
-            'startup_id' => $startup->startup_id,
-            'approval_status' => 'Approved',
-        ]);
-
-        $doc7 = AssessmentDocument::create([
-            'startup_id' => $startup->startup_id,
-            'stage' => 'Active-Assessment',
-            'document_number' => 7,
-            'data' => [
-                'check_ins' => [
-                    [
-                        'dates' => now()->subWeeks(3)->toDateString(),
-                        'area_discussed' => 'Old check-in',
-                        'action_plan' => '',
-                        'feedback_takeaways' => '',
-                        'remarks' => '',
-                    ],
-                ],
-            ],
-        ]);
-
-        $result = RiskEngine::assess($startup->fresh(), $doc7);
-        $indicator = $this->indicator($result, 'no_weekly_updates');
-
-        $this->assertNotNull($indicator);
-        $this->assertSame('Medium', $indicator['severity']);
-        $this->assertSame(3, $indicator['additional_score']); // 3+ weeks missed
-        $this->assertSame(5, $indicator['score']);
-    }
-
-    public function test_no_weekly_updates_does_not_trigger_when_the_latest_check_in_is_recent(): void
-    {
-        $startup = Startup::factory()->create();
-        InformationSheet::factory()->create([
-            'startup_id' => $startup->startup_id,
-            'approval_status' => 'Approved',
-        ]);
-
-        $doc7 = AssessmentDocument::create([
-            'startup_id' => $startup->startup_id,
-            'stage' => 'Active-Assessment',
-            'document_number' => 7,
-            'data' => [
-                'check_ins' => [
-                    [
-                        'dates' => now()->subDays(2)->toDateString(),
-                        'area_discussed' => 'Recent',
-                        'action_plan' => '',
-                        'feedback_takeaways' => '',
-                        'remarks' => '',
-                    ],
-                ],
-            ],
-        ]);
-
-        $result = RiskEngine::assess($startup->fresh(), $doc7);
-
-        $this->assertNull($this->indicator($result, 'no_weekly_updates'));
     }
 
     public function test_no_portfolio_coordinator_does_not_trigger_before_a_startup_is_approved(): void
@@ -278,24 +226,8 @@ class RiskEngineTest extends TestCase
             'assigned_date' => now(),
             'assignment_status' => 'Active',
         ]);
-        $doc7 = AssessmentDocument::create([
-            'startup_id' => $startup->startup_id,
-            'stage' => 'Active-Assessment',
-            'document_number' => 7,
-            'data' => [
-                'check_ins' => [
-                    [
-                        'dates' => now()->toDateString(),
-                        'area_discussed' => 'Today',
-                        'action_plan' => '',
-                        'feedback_takeaways' => '',
-                        'remarks' => '',
-                    ],
-                ],
-            ],
-        ]);
 
-        $result = RiskEngine::assess($startup->fresh(), $doc7);
+        $result = RiskEngine::assess($startup->fresh());
 
         $this->assertSame(0, $result['score']);
         $this->assertSame('None', $result['level']);

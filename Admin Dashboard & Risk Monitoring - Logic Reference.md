@@ -8,14 +8,14 @@ All Dashboard numbers respect the cohort filter in the top-right dropdown ("All 
 
 Both the Dashboard's "At Risk Startup" stat, its "Risk Classification" donut, and the entire Risk Monitoring page are driven by the same underlying scoring engine (`app/Support/RiskEngine.php`). Understanding this once explains the colored pills on both pages.
 
-For every startup, the engine checks ten independent conditions ("indicators"). Any condition that is currently true for that startup is "triggered" and contributes points to that startup's Total Risk Score. A startup with none triggered scores 0.
+For every startup, the engine checks nine independent conditions ("indicators"). Any condition that is currently true for that startup is "triggered" and contributes points to that startup's Total Risk Score. A startup with none triggered scores 0.
 
 | Indicator | Category | Severity | Base score | When it triggers |
 |---|---|---|---|---|
-| No Information Sheet | Information Sheet | Critical | 5 | The startup has never submitted an Information Sheet at all. |
-| Information Sheet Not Evaluated | Information Sheet | High | 4 | A sheet was submitted but its `approval_status` is not yet "Approved". |
+| No Information Sheet | Information Sheet | Critical | 5 | The startup has no Information Sheet row at all — hasn't even saved a Startup Profile yet. |
+| Incomplete Information Sheet | Information Sheet | High | 4 | A row exists but the founder has never actually gone through the real Information Sheet submission (see "Incomplete vs Not Evaluated" below). |
+| Information Sheet Not Evaluated | Information Sheet | High | 4 | The sheet was genuinely submitted (has a `submission_date`) but its `approval_status` is not yet "Approved". |
 | No Mentor Assigned to Submitted Roadblock | Mentor Coordination | Medium | 3 | The startup has a Roadblock still sitting in "Pending" status with no mentor assigned. |
-| No Weekly Updates | Weekly Updates | Medium | 2 | Only checked once the startup is approved. Looks at Assessment Document 7 ("Weekly Check-ins") and flags if the most recent check-in entry is 1+ weeks old (see escalation below). |
 | No Portfolio Coordinator Assigned | Portfolio Coordinator | Low | 1 | Only checked once the startup is approved, and there is no `CoordinatorAssignment` with `assignment_status = 'Active'`. |
 | Failed Mentorship | Mentor Coordination | High | 4 | The startup has at least one Roadblock with `status = 'Failed'`. This one is flat — see below. |
 | Pre-Assessment Overdue | Readiness Assessment | High | 4 | The startup's cohort has a start date, it's been 2+ months since that date, and the startup has no scored Pre-Assessment yet. |
@@ -26,6 +26,17 @@ For every startup, the engine checks ten independent conditions ("indicators"). 
 **Failed Mentorship is an addition beyond the original 5-indicator spec I was given** — it's a reasonable 6th condition (a startup whose mentorship attempt outright failed is clearly at risk), but it should be confirmed as in-scope, not assumed.
 
 **The four Readiness Assessment indicators are new** and their severities/base scores (High/4, High/4, Critical/5, Medium/3) are my own judgment call, not an explicit spec — worth confirming they feel right, especially whether Post-Assessment Overdue should really outrank everything else at Critical.
+
+**"No Weekly Updates" has been retired** — per direct testing feedback, it's no longer tracked at all: not scored, not shown as a category or badge anywhere.
+
+### Incomplete vs Not Evaluated
+
+An `InformationSheet` row can exist without the founder ever having gone through the actual Information Sheet form — the Startup Profile page also creates/touches this same row (setting only `business_description`) the moment a founder saves their profile, well before they've filled in personal details or hit submit on the real Information Sheet. The one reliable signal that the real form was actually submitted is `submission_date`, a column that is only ever set inside the Information Sheet's own `update()` action — never by the Profile save. So:
+
+- **Incomplete Information Sheet** = a row exists, but `submission_date` is still null (they've touched the Profile page at most, never the actual Information Sheet form).
+- **Information Sheet Not Evaluated** = `submission_date` is set (they genuinely submitted the form) but it isn't `Approved` yet.
+
+These two are mutually exclusive by construction and their severities (both High/4) are my judgment call, worth confirming.
 
 ### Why the Readiness Assessment indicators are measured differently
 
@@ -41,8 +52,7 @@ A startup only gets flagged once its cohort's due date has actually passed, and 
 
 Every indicator except "Failed Mentorship" gets an extra point added on top of its base score the longer the underlying problem has gone unaddressed, so a startup that's been missing an Information Sheet for two weeks scores higher than one that's been missing it for one day.
 
-- **Day-based indicators** (No Information Sheet, Information Sheet Not Evaluated, No Mentor Assigned, No Portfolio Coordinator, and all four Readiness Assessment indicators — measured from their due date instead of a creation date): 1–3 days late = +1, 4–7 days = +2, 8+ days = +3.
-- **Week-based indicator** (No Weekly Updates): 1 week since the last check-in = +1, 2 weeks = +2, 3+ weeks = +3.
+- **Day-based indicators** (No Information Sheet, Incomplete Information Sheet, Information Sheet Not Evaluated, No Mentor Assigned, No Portfolio Coordinator, and all four Readiness Assessment indicators — measured from their due date instead of a creation date): 1–3 days late = +1, 4–7 days = +2, 8+ days = +3.
 - **Failed Mentorship** does not escalate — a "Failed" status is a one-time terminal outcome, not an ongoing delay, so it always contributes exactly its flat base score of 4.
 
 A triggered indicator's final score is `base_score + escalation`. For example, "No Mentor Assigned" sitting unresolved for 10 days scores `3 + 3 = 6`.
@@ -63,9 +73,10 @@ So a startup showing a red "Critical" pill has at least 15 combined points acros
 
 ## 2. Risk Monitoring page
 
-- **Risk Register donut**: counts every startup by overall level (Critical/High/Moderate/Low/None) and draws one ring segment per level that actually has startups in it, sized proportionally, with a small gap between segments for readability. Zero-count levels don't get a segment at all.
-- **Top Risk Categories table**: for each of the five categories (Information Sheet, Portfolio Coordinator, Weekly Updates, Mentor Coordination, Readiness Assessment), counts how many startups have *at least one* triggered indicator in that category, then breaks those startups down by their *overall* level — so this shows how serious the fallout tends to be for startups affected by that category, not the category's own severity.
+- **Risk Classification donut** (renamed from "Risk Register" for consistency with the Dashboard's naming): counts every startup by overall level (Critical/High/Moderate/Low/None) and draws one ring segment per level that actually has startups in it, sized proportionally, with a small gap between segments for readability. Zero-count levels don't get a segment at all.
+- **Top Risk Categories table**: for each of the four categories (Information Sheet, Portfolio Coordinator, Mentor Coordination, Readiness Assessment), counts how many startups have *at least one* triggered indicator in that category, then breaks those startups down by their *overall* level — so this shows how serious the fallout tends to be for startups affected by that category, not the category's own severity.
 - **Risk Indicator table**: one row per startup that has a Total Risk Score greater than 0, sorted highest score first. Startups with a score of 0 (level "None") are omitted entirely, since there's nothing actionable to show for them. Clicking "View" opens the full breakdown of every triggered indicator for that startup with its base/escalation/final score.
+- **Clickable indicator badges**: every indicator badge — in the table and inside the "View" detail modal — is now a link straight to wherever an admin would actually resolve that specific problem, instead of just describing it. Information Sheet indicators go to that startup's Information Sheet page; No Mentor Assigned / Failed Mentorship go to Roadblock Management (Manage or Archive → Failed) with that startup's row flashed briefly so it's easy to spot; No Portfolio Coordinator goes to that startup's profile page with the Portfolio Coordinator section flashed; the four Readiness Assessment indicators go straight to that startup's specific stage inside Assessment Hub's Assessment tab.
 
 ## 3. Admin Dashboard
 
@@ -93,7 +104,7 @@ Only startups with a scored assessment count toward this donut's total — unass
 
 ### Risk Classification donut
 
-Identical logic and colors to the Risk Register donut on the Risk Monitoring page, just re-scoped to the currently filtered cohort and re-labelled "Total Startups" instead of counting only at-risk ones.
+Identical logic and colors to the Risk Classification donut on the Risk Monitoring page, just re-scoped to the currently filtered cohort and re-labelled "Total Startups" instead of counting only at-risk ones.
 
 ### Average Readiness Level
 
@@ -123,3 +134,4 @@ Eight milestones **invented for this card** — there's no existing canonical mi
 - "Assessed Startup" counts a startup once per stage it's been assessed in, so a fully-assessed startup (both Pre and Post) contributes to both the Pre RL and Post RL sub-counts shown in the card.
 - The four Readiness Assessment risk indicators (Pre/Active/Post-Assessment + Venture Exit overdue) use cohort-relative due dates (2/4/5/5 months after cohort start) confirmed directly by the incubation team, but my chosen severities/base scores for those four are still a judgment call worth double-checking.
 - A startup whose cohort has no `start_date` set will never show any of the four Readiness Assessment risk indicators, since there's no due date to measure against.
+- "Incomplete Information Sheet" is a new indicator that uses `submission_date` as the "did they actually submit the real form" signal, chosen because it's the one existing column that's set only by the real Information Sheet submission and never by the separate Startup Profile save — this was a code-level judgment call (not an explicit spec) worth confirming matches the incubation team's intent.

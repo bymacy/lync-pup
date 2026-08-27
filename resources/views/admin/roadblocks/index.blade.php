@@ -235,6 +235,7 @@
                     {{-- Sorting flips CSS order rather than reordering the DOM, so each
                      card keeps its own Alpine state (open modals, previews) intact. --}}
                     <div class="flex h-full flex-col overflow-hidden rounded-xl border"
+                        data-highlight-id="startup-{{ $roadblock->startup_id }}"
                         x-show="matchesPending(@js(['name' => $roadblock->startup->company_name, 'category' => $roadblock->display_category]))"
                         :style="`order: ${pendingSort === 'newest' ? {{ $loop->index }} : {{ $pendingCount - 1 }} - {{ $loop->index }}}`"
                         x-data="{ viewOpen: false, assignOpen: @js($erroredRoadblockId === $roadblock->roadblock_id), previewImage: null }">
@@ -734,7 +735,7 @@
                                 <tbody>
                                     @forelse ($failed as $roadblock)
                                     @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
-                                    <tr class="border-b border-gray-100 last:border-0" x-data="{ deleteOpen: false, rescheduleOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
+                                    <tr class="border-b border-gray-100 last:border-0" data-highlight-id="startup-{{ $roadblock->startup_id }}" x-data="{ deleteOpen: false, rescheduleOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
                                         <td class="px-3 py-3 align-middle sm:px-4">
                                             <div class="{{ $archiveNameBox }}">
                                                 @if ($roadblock->startup->startup_photo_url)

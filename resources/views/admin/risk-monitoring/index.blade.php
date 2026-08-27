@@ -1,7 +1,7 @@
 <x-layouts.admin title="Risk Monitoring">
 
     @php
-        // Overall Risk Register donut, built as a CSS conic-gradient — no
+        // Risk Classification donut, built as a CSS conic-gradient — no
         // chart.js elsewhere in this app, so hand-rolled to match convention.
         // Zero-count levels are skipped entirely (a real chart wouldn't draw
         // an empty slice), and a small white gap is inserted between each
@@ -41,6 +41,7 @@
                 'label' => $i['label'],
                 'severity' => $i['severity'],
                 'score' => $i['score'],
+                'link' => $i['link'],
             ])->values(),
         ])->values();
     @endphp
@@ -51,10 +52,10 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 items-stretch">
-        {{-- Risk Register --}}
+        {{-- Risk Classification --}}
         <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
             <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4">
-                <h2 class="text-white font-semibold text-lg">Risk Register</h2>
+                <h2 class="text-white font-semibold text-lg">Risk Classification</h2>
             </div>
             <div class="p-6 flex items-center gap-8">
                 {{-- Sized via inline styles rather than Tailwind's h-*/inset-* utilities:
@@ -108,7 +109,7 @@
                         <tr class="text-left text-gray-500 border-b border-gray-200">
                             <th class="py-2 font-medium" style="padding-right: 16px;">Category</th>
                             <th class="py-2 px-2 font-medium text-center">Risk Count</th>
-                            <th class="py-2 px-2 font-medium text-center">Critical</th>
+                            <th class="py-2 px-2 font-medium text-center border-l border-gray-200">Critical</th>
                             <th class="py-2 px-2 font-medium text-center">High</th>
                             <th class="py-2 px-2 font-medium text-center">Moderate</th>
                             <th class="py-2 px-2 font-medium text-center">Low</th>
@@ -119,7 +120,7 @@
                             <tr class="border-b border-gray-100 last:border-0">
                                 <td class="py-3 font-medium text-gray-800" style="padding-right: 16px;">{{ $row['category'] }}</td>
                                 <td class="py-3 px-2 text-center">{{ $row['count'] }}</td>
-                                <td class="py-3 px-2 text-center">{{ $row['by_level']['Critical'] }}</td>
+                                <td class="py-3 px-2 text-center border-l border-gray-100">{{ $row['by_level']['Critical'] }}</td>
                                 <td class="py-3 px-2 text-center">{{ $row['by_level']['High'] }}</td>
                                 <td class="py-3 px-2 text-center">{{ $row['by_level']['Moderate'] }}</td>
                                 <td class="py-3 px-2 text-center">{{ $row['by_level']['Low'] }}</td>
@@ -178,7 +179,9 @@
                                 <div class="flex flex-wrap gap-2">
                                     @foreach ($row['assessment']['indicators'] as $indicator)
                                         @php $sevColor = $severityColors[$indicator['severity']]; @endphp
-                                        <span class="inline-flex items-center gap-1.5 rounded-full border bg-white px-2.5 py-1 text-xs font-medium text-gray-700"
+                                        <a href="{{ $indicator['link'] ?? '#' }}"
+                                            title="Go resolve: {{ $indicator['label'] }}"
+                                            class="inline-flex items-center gap-1.5 rounded-full border bg-white px-2.5 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-50 hover:shadow-sm"
                                             style="border-color: {{ $sevColor }}">
                                             <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                                                 <circle cx="10" cy="10" r="9" fill="{{ $sevColor }}" />
@@ -186,7 +189,7 @@
                                                 <circle cx="10" cy="13.2" r="1" fill="white" />
                                             </svg>
                                             {{ $indicator['label'] }}
-                                        </span>
+                                        </a>
                                     @endforeach
                                 </div>
                             </td>
@@ -225,12 +228,18 @@
                     </div>
                     <ul class="space-y-3 overflow-y-auto" style="max-height: 384px;">
                         <template x-for="indicator in rows[selected].indicators" :key="indicator.key">
-                            <li class="rounded-lg border border-gray-200 p-3">
-                                <div class="flex items-center justify-between gap-4">
-                                    <span class="font-medium text-gray-800" x-text="indicator.label"></span>
-                                    <span class="text-sm font-semibold text-gray-800" x-text="indicator.score"></span>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1" x-text="indicator.severity + ' severity'"></p>
+                            <li>
+                                <a :href="indicator.link ?? '#'"
+                                    class="block rounded-lg border border-gray-200 p-3 transition hover:border-gray-300 hover:bg-gray-50">
+                                    <div class="flex items-center justify-between gap-4">
+                                        <span class="font-medium text-gray-800" x-text="indicator.label"></span>
+                                        <span class="text-sm font-semibold text-gray-800" x-text="indicator.score"></span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        <span x-text="indicator.severity + ' severity'"></span>
+                                        <span class="text-[#6D0D23] font-medium">— click to resolve</span>
+                                    </p>
+                                </a>
                             </li>
                         </template>
                     </ul>

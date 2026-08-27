@@ -22,8 +22,6 @@ class RiskEngine
 
     public const CATEGORY_COORDINATOR = 'Portfolio Coordinator';
 
-    public const CATEGORY_WEEKLY_UPDATES = 'Weekly Updates';
-
     public const CATEGORY_MENTOR = 'Mentor Coordination';
 
     public const CATEGORY_ASSESSMENT = 'Readiness Assessment';
@@ -31,7 +29,6 @@ class RiskEngine
     public const CATEGORIES = [
         self::CATEGORY_INFO_SHEET,
         self::CATEGORY_COORDINATOR,
-        self::CATEGORY_WEEKLY_UPDATES,
         self::CATEGORY_MENTOR,
         self::CATEGORY_ASSESSMENT,
     ];
@@ -70,6 +67,16 @@ class RiskEngine
             'severity' => 'Critical',
             'base_score' => 5,
         ],
+
+        // See the "Incomplete vs Not Evaluated" docblock above assess()
+        // for why these two are split on `submission_date` rather than
+        // both just checking `approval_status !== 'Approved'`.
+        'incomplete_information_sheet' => [
+            'label' => 'Incomplete Information Sheet',
+            'category' => self::CATEGORY_INFO_SHEET,
+            'severity' => 'High',
+            'base_score' => 4,
+        ],
         'information_sheet_not_evaluated' => [
             'label' => 'Information Sheet Not Evaluated',
             'category' => self::CATEGORY_INFO_SHEET,
@@ -81,12 +88,6 @@ class RiskEngine
             'category' => self::CATEGORY_MENTOR,
             'severity' => 'Medium',
             'base_score' => 3,
-        ],
-        'no_weekly_updates' => [
-            'label' => 'No Weekly Updates',
-            'category' => self::CATEGORY_WEEKLY_UPDATES,
-            'severity' => 'Medium',
-            'base_score' => 2,
         ],
         'no_portfolio_coordinator' => [
             'label' => 'No Portfolio Coordinator Assigned',
@@ -166,13 +167,12 @@ class RiskEngine
      * `activeCoordinatorAssignment`, `roadblocks`, `readinessAssessments`,
      * and `cohort` eager-loaded by the caller to avoid N+1 queries.
      * $documents is that startup's full AssessmentDocument collection (any
-     * stage/number) — used to read Doc 7 (Weekly Check-ins), Docs 6/7/8
-     * (Active-Assessment completion), and the Venture Exit form.
+     * stage/number) — used to read Docs 6/7/8 (Active-Assessment
+     * completion) and the Venture Exit form.
      */
     public static function assess(Startup $startup, ?Collection $documents = null): array
     {
         $documents = $documents ?? collect();
-        $doc7 = $documents->first(fn (AssessmentDocument $d) => $d->stage === 'Active-Assessment' && $d->document_number === 7);
         $triggered = [];
 
         $infoSheet = $startup->informationSheet;
@@ -186,14 +186,33 @@ class RiskEngine
             );
         }
 
-        // 2. Information Sheet Not Evaluated — clock starts at submission.
-        if ($infoSheet && $infoSheet->approval_status !== 'Approved') {
-            $triggered['information_sheet_not_evaluated'] = self::dayTierScore(
+        // 2 & 3. Incomplete vs Not Evaluated — an InformationSheet row can
+        // exist without the founder ever having gone through the actual
+        // Information Sheet submission flow: the Startup Profile page
+        // (app/Http/Controllers/Startup/StartupProfileController.php)
+        // also creates/touches this row (setting only business_description)
+        // whenever a founder saves their profile, well before they've
+        // filled in or submitted the real Information Sheet form. The one
+        // reliable signal that the actual form was submitted is
+        // `submission_date`, which is only ever set inside
+        // InformationSheetController::update() — never by the profile save.
+        // So: a row with no submission_date is "started but not finished"
+        // (Incomplete); a row with a submission_date but not yet Approved
+        // is genuinely "submitted, awaiting admin evaluation" (Not
+        // Evaluated).
+        if ($infoSheet && ! $infoSheet->submission_date) {
+            $triggered['incomplete_information_sheet'] = self::dayTierScore(
                 $infoSheet->created_at ? Carbon::parse($infoSheet->created_at) : null
             );
         }
 
-        // 3. No Mentor Assigned to Submitted Roadblock — a roadblock still
+        if ($infoSheet && $infoSheet->submission_date && $infoSheet->approval_status !== 'Approved') {
+            $triggered['information_sheet_not_evaluated'] = self::dayTierScore(
+                Carbon::parse($infoSheet->submission_date)
+            );
+        }
+
+        // 4. No Mentor Assigned to Submitted Roadblock — a roadblock still
         // sitting in 'Pending' (not yet Scheduled/Resolved/Failed) with no
         // mentor_id means it's awaiting assignment. Use the oldest such
         // roadblock so the score reflects the longest-ignored case.
@@ -206,28 +225,12 @@ class RiskEngine
             $triggered['no_mentor_assigned'] = self::dayTierScore(Carbon::parse($unassigned->created_at));
         }
 
-        // 4. No Weekly Updates — only meaningful once a startup is actually
-        // in the program (info sheet approved), otherwise every not-yet-
-        // approved applicant would spuriously show this risk from day one.
-        if ($isApproved) {
-            $checkIns = collect($doc7?->data['check_ins'] ?? [])
-                ->filter(fn ($row) => collect($row)->contains(fn ($value) => trim((string) $value) !== ''));
-
-            $latestDate = $checkIns->map(fn ($row) => $row['dates'] ?? null)->filter()->sort()->last();
-            $since = $latestDate
-                ? Carbon::parse($latestDate)
-                : Carbon::parse($infoSheet->updated_at ?? $startup->created_at);
-
-            $weeksScore = self::weekTierScore($since);
-            if ($weeksScore > 0) {
-                $triggered['no_weekly_updates'] = $weeksScore;
-            }
-        }
-
-        // 5. No Portfolio Coordinator Assigned — same "approved cohort only"
-        // scoping as #4. There's no dedicated "approved_at" timestamp on
-        // InformationSheet, so its updated_at is used as the best-available
-        // proxy for when the startup became active.
+        // 5. No Portfolio Coordinator Assigned — only meaningful once a
+        // startup is actually in the program (info sheet approved),
+        // otherwise every not-yet-approved applicant would spuriously show
+        // this risk from day one. There's no dedicated "approved_at"
+        // timestamp on InformationSheet, so its updated_at is used as the
+        // best-available proxy for when the startup became active.
         if ($isApproved && ! $startup->activeCoordinatorAssignment) {
             $triggered['no_portfolio_coordinator'] = self::dayTierScore(
                 Carbon::parse($infoSheet->updated_at ?? $startup->created_at)
@@ -304,6 +307,7 @@ class RiskEngine
                 'base_score' => $meta['base_score'],
                 'additional_score' => $additional,
                 'score' => $score,
+                'link' => self::resolveLink($key, $startup),
             ];
         }
 
@@ -312,6 +316,63 @@ class RiskEngine
             'level' => self::classify($total),
             'indicators' => $indicators,
         ];
+    }
+
+    /**
+     * Where an admin should go to actually resolve a triggered indicator —
+     * "the causes of the problem," not just a description of it. Each
+     * indicator type routes to whichever existing admin page/section
+     * already handles that problem:
+     *  - Information Sheet indicators -> that startup's Information Sheet
+     *    detail/evaluation page (works even if no sheet exists yet).
+     *  - Mentor/roadblock indicators -> Roadblock Management, landing on
+     *    the Manage or Archive/Failed tab as appropriate, with that
+     *    startup's card/row flash-highlighted (see resources/js/app.js's
+     *    flashHighlightFromQuery + the data-highlight-id="startup-{id}"
+     *    attributes on those rows).
+     *  - No Portfolio Coordinator -> that startup's profile page, flashing
+     *    the existing "Portfolio Coordinator" section.
+     *  - Readiness Assessment indicators -> Assessment Hub's Assessment
+     *    tab, already scoped to that exact startup + stage — no highlight
+     *    needed since the page itself is the resolution destination.
+     */
+    protected static function resolveLink(string $key, Startup $startup): ?string
+    {
+        return match ($key) {
+            'no_information_sheet', 'incomplete_information_sheet', 'information_sheet_not_evaluated' =>
+                route('admin.information-sheet.show', $startup),
+
+            'no_mentor_assigned' => route('admin.roadblocks.index', [
+                'tab' => 'manage',
+                'highlight' => 'startup-'.$startup->startup_id,
+            ]),
+            'failed_mentorship' => route('admin.roadblocks.index', [
+                'tab' => 'archive',
+                'stage' => 'failed',
+                'highlight' => 'startup-'.$startup->startup_id,
+            ]),
+
+            'no_portfolio_coordinator' => route('admin.startups.show', [
+                'startup' => $startup,
+                'highlight' => 'coordinator',
+            ]),
+
+            'no_pre_assessment' => self::assessmentHubLink($startup, 'Pre-Assessment'),
+            'no_active_assessment' => self::assessmentHubLink($startup, 'Active-Assessment'),
+            'no_post_assessment' => self::assessmentHubLink($startup, 'Post-Assessment'),
+            'no_venture_exit' => self::assessmentHubLink($startup, 'Venture Exit'),
+
+            default => null,
+        };
+    }
+
+    protected static function assessmentHubLink(Startup $startup, string $stage): string
+    {
+        return route('admin.assessment-hub.index', [
+            'main' => 'assessment',
+            'stage' => $stage,
+            'assessment_startup' => $startup->startup_id,
+        ]);
     }
 
     /**
@@ -343,23 +404,6 @@ class RiskEngine
             $days >= 8 => 3,
             $days >= 4 => 2,
             $days >= 1 => 1,
-            default => 0,
-        };
-    }
-
-    /** Tiers: 1 week missed = +1, 2 weeks = +2, 3+ weeks = +3. */
-    protected static function weekTierScore(?Carbon $since): int
-    {
-        if (! $since) {
-            return 0;
-        }
-
-        $weeks = $since->diffInDays(now()) / 7;
-
-        return match (true) {
-            $weeks >= 3 => 3,
-            $weeks >= 2 => 2,
-            $weeks >= 1 => 1,
             default => 0,
         };
     }

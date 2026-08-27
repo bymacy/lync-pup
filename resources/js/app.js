@@ -16,6 +16,47 @@ window.setQueryParam = function (key, value) {
     window.history.replaceState({}, '', url);
 };
 
+/**
+ * Flash-highlight: reads ?highlight=<id> from the URL, finds the element
+ * carrying a matching data-highlight-id, scrolls it into view, and pulses
+ * it with the .flash-highlight CSS animation (see resources/css/app.css) a
+ * few times. Used by Risk Monitoring's indicator badge links so an admin
+ * landing on Assessment Hub / Roadblocks / a startup's profile can
+ * immediately spot the row or section they were sent to resolve. Retries
+ * briefly since the target may start out hidden behind an Alpine x-show
+ * (e.g. a tab that hasn't finished initializing yet). Cleans the query
+ * param out of the URL afterward so a page refresh doesn't replay it.
+ */
+window.flashHighlightFromQuery = function (paramName = 'highlight') {
+    const url = new URL(window.location);
+    const targetId = url.searchParams.get(paramName);
+    if (!targetId) return;
+
+    let attempts = 0;
+    const tryFlash = () => {
+        const el = document.querySelector(`[data-highlight-id="${CSS.escape(targetId)}"]`);
+
+        if (el && el.offsetParent !== null) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('flash-highlight');
+            setTimeout(() => el.classList.remove('flash-highlight'), 3500);
+
+            url.searchParams.delete(paramName);
+            window.history.replaceState({}, '', url);
+            return;
+        }
+
+        if (attempts < 20) {
+            attempts += 1;
+            setTimeout(tryFlash, 100);
+        }
+    };
+
+    tryFlash();
+};
+
+document.addEventListener('DOMContentLoaded', () => window.flashHighlightFromQuery());
+
 Alpine.store('navigation', {
     hasUnsavedChanges: false,
     showLeaveModal: false,
