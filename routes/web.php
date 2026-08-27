@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\EvaluationScheduleController;
 use App\Http\Controllers\Admin\FounderApplicationController;
 use App\Http\Controllers\Admin\CohortController;
 use App\Http\Controllers\Admin\RiskMonitoringController;
+use App\Http\Controllers\Startup\FounderReadinessController;
 
 
 require __DIR__.'/auth.php';
@@ -192,4 +193,6 @@ Route::middleware(['auth', 'role:Startup', 'approved'])->prefix('startup')->name
 
     Route::get('/roadblocks', [RoadblockController::class, 'index'])->name('submissions.index');
     Route::post('/roadblocks', [RoadblockController::class, 'store'])->name('submissions.store');
+
+    Route::get('readiness', [FounderReadinessController::class, 'index'])->name('readiness.index');
 });

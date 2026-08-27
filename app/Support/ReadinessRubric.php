@@ -107,6 +107,25 @@ class ReadinessRubric
         return $count ?: null;
     }
 
+    /**
+     * Maps an overall readiness score (0-9, the average of TRL/MRL/TMRL/SRL)
+     * to a plain-language stage label for the founder-facing Readiness
+     * Result page. No such mapping exists elsewhere in the app — these
+     * bands are a new, deliberately simple invention (not derived from any
+     * official PUP-TBIDO rubric document), split into even-ish quarters of
+     * the 0-9 scale.
+     */
+    public static function overallLabel(?float $score): string
+    {
+        return match (true) {
+            $score === null => 'Not Assessed',
+            $score < 3 => 'Ideation',
+            $score < 6 => 'Development',
+            $score < 8 => 'Validation',
+            default => 'Growth',
+        };
+    }
+
     public static function all(): array
     {
         return [

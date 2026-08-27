@@ -16,7 +16,14 @@
     [$leftX, $leftY] = $point($srl, 270);
 @endphp
 
-<svg viewBox="0 0 {{ $size }} {{ $size }}" class="w-full h-auto">
+{{--
+    viewBox is padded beyond the 0..$size box (rather than shrinking $r) so
+    the axis labels — "SRL 0/9", "TMRL 0/9", etc, wider than "TRL"/"MRL" —
+    have room to render without being clipped by the SVG's own edge. cx/cy/r
+    stay anchored to the original $size-based coordinate system, so the
+    diamond itself is unaffected; only the visible margin around it grows.
+--}}
+<svg viewBox="-32 -22 {{ $size + 64 }} {{ $size + 44 }}" class="w-full h-auto">
     @foreach ([0.33, 0.66, 1] as $ring)
         <circle cx="{{ $cx }}" cy="{{ $cy }}" r="{{ $r * $ring }}" fill="none" stroke="#e5e7eb" stroke-width="1" />
     @endforeach
