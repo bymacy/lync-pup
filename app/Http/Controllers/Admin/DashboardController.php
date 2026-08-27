@@ -99,14 +99,13 @@ class DashboardController extends Controller
             ->distinct('startup_id')
             ->count('startup_id');
 
-        $startupsForRisk = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks'])
+        $startupsForRisk = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
             ->whereIn('startup_id', $startupIds)
             ->get();
-        $doc7ByStartup = AssessmentDocument::whereIn('startup_id', $startupIds)
-            ->where('stage', 'Active-Assessment')->where('document_number', 7)
-            ->get()->keyBy('startup_id');
+        $documentsByStartup = AssessmentDocument::whereIn('startup_id', $startupIds)
+            ->get()->groupBy('startup_id');
         $atRiskCount = $startupsForRisk->filter(
-            fn (Startup $s) => RiskEngine::assess($s, $doc7ByStartup->get($s->startup_id))['score'] > 0
+            fn (Startup $s) => RiskEngine::assess($s, $documentsByStartup->get($s->startup_id))['score'] > 0
         )->count();
         $atRiskPct = $totalStartups > 0 ? round(($atRiskCount / $totalStartups) * 100, 1) : 0.0;
 
@@ -211,16 +210,15 @@ class DashboardController extends Controller
     /** Mirrors RiskMonitoringController's aggregation, scoped to $startupIds. */
     protected function buildRiskClassification($startupIds): array
     {
-        $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks'])
+        $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
             ->whereIn('startup_id', $startupIds)
             ->get();
 
-        $doc7ByStartup = AssessmentDocument::whereIn('startup_id', $startupIds)
-            ->where('stage', 'Active-Assessment')->where('document_number', 7)
-            ->get()->keyBy('startup_id');
+        $documentsByStartup = AssessmentDocument::whereIn('startup_id', $startupIds)
+            ->get()->groupBy('startup_id');
 
         $assessments = $startups->mapWithKeys(fn (Startup $s) => [
-            $s->startup_id => RiskEngine::assess($s, $doc7ByStartup->get($s->startup_id)),
+            $s->startup_id => RiskEngine::assess($s, $documentsByStartup->get($s->startup_id)),
         ]);
 
         $total = $startups->count();

@@ -12,18 +12,16 @@ class RiskMonitoringController extends Controller
 {
     public function index(): View
     {
-        $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks'])->get();
+        $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])->get();
 
-        $doc7ByStartup = AssessmentDocument::whereIn('startup_id', $startups->pluck('startup_id'))
-            ->where('stage', 'Active-Assessment')
-            ->where('document_number', 7)
+        $documentsByStartup = AssessmentDocument::whereIn('startup_id', $startups->pluck('startup_id'))
             ->get()
-            ->keyBy('startup_id');
+            ->groupBy('startup_id');
 
         // Assess every startup once; the result is reused for the donut
         // chart, the category breakdown table, and the risk indicator table.
         $assessments = $startups->mapWithKeys(fn (Startup $startup) => [
-            $startup->startup_id => RiskEngine::assess($startup, $doc7ByStartup->get($startup->startup_id)),
+            $startup->startup_id => RiskEngine::assess($startup, $documentsByStartup->get($startup->startup_id)),
         ]);
 
         // Risk Register: how many startups fall into each overall risk level.

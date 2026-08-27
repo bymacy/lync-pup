@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\AssessmentDocument;
 use App\Models\Startup;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Computes per-startup risk indicators for the admin Risk Monitoring module.
@@ -25,11 +26,33 @@ class RiskEngine
 
     public const CATEGORY_MENTOR = 'Mentor Coordination';
 
+    public const CATEGORY_ASSESSMENT = 'Readiness Assessment';
+
     public const CATEGORIES = [
         self::CATEGORY_INFO_SHEET,
         self::CATEGORY_COORDINATOR,
         self::CATEGORY_WEEKLY_UPDATES,
         self::CATEGORY_MENTOR,
+        self::CATEGORY_ASSESSMENT,
+    ];
+
+    /**
+     * Pre/Active/Post-Assessment (and Venture Exit) have no stored deadline
+     * anywhere in the app — unlike the other indicators, which anchor off a
+     * real timestamp already in the data (startup creation, sheet
+     * submission, roadblock creation). Per the incubation team, these four
+     * stages run on a fixed calendar relative to the startup's COHORT start
+     * date, not the startup's own timeline: Pre-Assessment is due 2 months
+     * after cohort start, Active-Assessment 4 months after, and both
+     * Post-Assessment and Venture Exit 5 months after. A startup whose
+     * cohort has no start_date set is never flagged for these — there's
+     * nothing to measure against.
+     */
+    public const ASSESSMENT_DUE_MONTHS = [
+        'no_pre_assessment' => 2,
+        'no_active_assessment' => 4,
+        'no_post_assessment' => 5,
+        'no_venture_exit' => 5,
     ];
 
     /**
@@ -77,6 +100,36 @@ class RiskEngine
             'severity' => 'High',
             'base_score' => 4,
         ],
+
+        // See ASSESSMENT_DUE_MONTHS docblock above for why these four are
+        // measured against the cohort's start date rather than the
+        // startup's own timeline. Severity increases the closer to
+        // graduation the missed stage is, since less runway remains to
+        // recover from it.
+        'no_pre_assessment' => [
+            'label' => 'Pre-Assessment Overdue',
+            'category' => self::CATEGORY_ASSESSMENT,
+            'severity' => 'High',
+            'base_score' => 4,
+        ],
+        'no_active_assessment' => [
+            'label' => 'Active-Assessment Overdue',
+            'category' => self::CATEGORY_ASSESSMENT,
+            'severity' => 'High',
+            'base_score' => 4,
+        ],
+        'no_post_assessment' => [
+            'label' => 'Post-Assessment Overdue',
+            'category' => self::CATEGORY_ASSESSMENT,
+            'severity' => 'Critical',
+            'base_score' => 5,
+        ],
+        'no_venture_exit' => [
+            'label' => 'Venture Exit Overdue',
+            'category' => self::CATEGORY_ASSESSMENT,
+            'severity' => 'Medium',
+            'base_score' => 3,
+        ],
     ];
 
     /** Overall Total Risk Score -> risk level, per the reference thresholds. */
@@ -110,12 +163,16 @@ class RiskEngine
 
     /**
      * Assess a single startup. $startup must have `informationSheet`,
-     * `activeCoordinatorAssignment`, and `roadblocks` eager-loaded by the
-     * caller to avoid N+1 queries. $doc7 is that startup's Active-Assessment
-     * Document 7 (Weekly Check-ins) record, if any.
+     * `activeCoordinatorAssignment`, `roadblocks`, `readinessAssessments`,
+     * and `cohort` eager-loaded by the caller to avoid N+1 queries.
+     * $documents is that startup's full AssessmentDocument collection (any
+     * stage/number) — used to read Doc 7 (Weekly Check-ins), Docs 6/7/8
+     * (Active-Assessment completion), and the Venture Exit form.
      */
-    public static function assess(Startup $startup, ?AssessmentDocument $doc7 = null): array
+    public static function assess(Startup $startup, ?Collection $documents = null): array
     {
+        $documents = $documents ?? collect();
+        $doc7 = $documents->first(fn (AssessmentDocument $d) => $d->stage === 'Active-Assessment' && $d->document_number === 7);
         $triggered = [];
 
         $infoSheet = $startup->informationSheet;
@@ -182,6 +239,57 @@ class RiskEngine
             $triggered['failed_mentorship'] = 0;
         }
 
+        // 7-10. Pre/Active/Post-Assessment + Venture Exit — see
+        // ASSESSMENT_DUE_MONTHS docblock for why these are measured against
+        // the startup's COHORT start date instead of its own timeline. No
+        // cohort / no start_date set means there's nothing to measure
+        // against, so these simply never trigger for that startup.
+        $cohortStart = $startup->cohort?->start_date ? Carbon::parse($startup->cohort->start_date) : null;
+        if ($cohortStart) {
+            $hasPreAssessment = $startup->readinessAssessments->contains(
+                fn ($a) => $a->stage === 'Pre-Assessment' && $a->overall_score !== null
+            );
+            if (! $hasPreAssessment) {
+                $score = self::assessmentDueScore($cohortStart, self::ASSESSMENT_DUE_MONTHS['no_pre_assessment']);
+                if ($score !== null) {
+                    $triggered['no_pre_assessment'] = $score;
+                }
+            }
+
+            $activeDocsCount = $documents
+                ->where('stage', 'Active-Assessment')
+                ->whereIn('document_number', [6, 7, 8])
+                ->pluck('document_number')
+                ->unique()
+                ->count();
+            if ($activeDocsCount < 3) {
+                $score = self::assessmentDueScore($cohortStart, self::ASSESSMENT_DUE_MONTHS['no_active_assessment']);
+                if ($score !== null) {
+                    $triggered['no_active_assessment'] = $score;
+                }
+            }
+
+            $hasPostAssessment = $startup->readinessAssessments->contains(
+                fn ($a) => $a->stage === 'Post-Assessment' && $a->overall_score !== null
+            );
+            if (! $hasPostAssessment) {
+                $score = self::assessmentDueScore($cohortStart, self::ASSESSMENT_DUE_MONTHS['no_post_assessment']);
+                if ($score !== null) {
+                    $triggered['no_post_assessment'] = $score;
+                }
+            }
+
+            $hasVentureExit = $documents->contains(
+                fn (AssessmentDocument $d) => $d->document_number === VentureExitForm::DOCUMENT_NUMBER
+            );
+            if (! $hasVentureExit) {
+                $score = self::assessmentDueScore($cohortStart, self::ASSESSMENT_DUE_MONTHS['no_venture_exit']);
+                if ($score !== null) {
+                    $triggered['no_venture_exit'] = $score;
+                }
+            }
+        }
+
         $total = 0;
         $indicators = [];
         foreach ($triggered as $key => $additional) {
@@ -204,6 +312,22 @@ class RiskEngine
             'level' => self::classify($total),
             'indicators' => $indicators,
         ];
+    }
+
+    /**
+     * Deadline-based version of dayTierScore(): $cohortStart + $dueMonths is
+     * the due date. Returns null (don't trigger) if that date hasn't passed
+     * yet, otherwise the same 1-3/4-7/8+ day-late tiers as everything else.
+     */
+    protected static function assessmentDueScore(Carbon $cohortStart, int $dueMonths): ?int
+    {
+        $dueDate = $cohortStart->copy()->addMonths($dueMonths);
+
+        if (now()->lessThan($dueDate)) {
+            return null;
+        }
+
+        return self::dayTierScore($dueDate);
     }
 
     /** Tiers: 1-3 days = +1, 4-7 days = +2, 8+ days = +3. */
