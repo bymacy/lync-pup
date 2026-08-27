@@ -7,7 +7,10 @@
         // an empty slice), and a small white gap is inserted between each
         // present slice so the ring reads as distinct segments rather than
         // one smooth blended gradient.
-        $donutOrder = ['Critical', 'High', 'Moderate', 'Low', 'None'];
+        // Ascending severity order (None first, Critical last) and "X Risk"
+        // labels (None stays bare), matching the Dashboard's identical card.
+        $donutOrder = ['None', 'Low', 'Moderate', 'High', 'Critical'];
+        $donutLabel = fn ($level) => $level === 'None' ? 'None' : "{$level} Risk";
         $total = max($totalStartups, 1);
         $activeLevels = collect($donutOrder)->filter(fn ($level) => ($levelCounts[$level] ?? 0) > 0)->values();
         $gapDeg = $activeLevels->count() > 1 ? 5 : 0;
@@ -72,10 +75,9 @@
                 </div>
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="text-left text-gray-500 border-b border-gray-200">
-                            <th class="py-2 pr-2 font-medium">Risk Level</th>
-                            <th class="py-2 px-2 font-medium text-center">Count</th>
-                            <th class="py-2 pl-2 font-medium text-right">Percentage</th>
+                        <tr class="text-left text-gray-400 border-b border-gray-200">
+                            <th class="py-2 pr-2 font-medium">Status</th>
+                            <th class="py-2 pl-2 font-medium text-right">Count</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -84,12 +86,11 @@
                                 <td class="py-2.5 pr-2">
                                     <span class="flex items-center gap-2 text-gray-700 font-medium">
                                         <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background: {{ $levelColors[$level] }}"></span>
-                                        {{ $level }}
+                                        {{ $donutLabel($level) }}
                                     </span>
                                 </td>
-                                <td class="py-2.5 px-2 text-center text-gray-700">{{ $levelCounts[$level] ?? 0 }}</td>
-                                <td class="py-2.5 pl-2 text-right text-gray-500">
-                                    {{ $totalStartups ? round((($levelCounts[$level] ?? 0) / $totalStartups) * 100) : 0 }}%
+                                <td class="py-2.5 pl-2 text-right text-gray-500 whitespace-nowrap">
+                                    {{ $levelCounts[$level] ?? 0 }} ({{ $totalStartups ? round((($levelCounts[$level] ?? 0) / $totalStartups) * 100) : 0 }}%)
                                 </td>
                             </tr>
                         @endforeach

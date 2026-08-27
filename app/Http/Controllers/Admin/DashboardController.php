@@ -19,21 +19,37 @@ use Illuminate\View\View;
 class DashboardController extends Controller
 {
     /**
-     * "Incubation Progress" buckets. Not an official PUP-TBIDO rubric — the
-     * official ReadinessRubric scores each of the 4 categories 0-9 with an
-     * overall_score average in that same 0-9 range (see
-     * ReadinessRubric::overallLabel, which buckets 0-9 into
-     * Ideation/Development/Validation/Growth). This dashboard card instead
-     * needs a 0-5 scale per the reference mockup, so overall_score is
-     * rescaled (score / 9 * 5) and bucketed here. Invented for this view;
-     * flagged for the user in the build summary.
+     * "Incubation Progress" — per direct testing feedback, this card should
+     * reflect a startup's WHOLE progress through the incubation program,
+     * not just its latest assessment score. Each startup's completion
+     * percentage is the sum of these weights for whichever milestones it
+     * has actually reached (a startup that hasn't reached any of them
+     * scores 0%; one that's reached all five scores 100%). Weights and
+     * bucket ranges below are exactly as specified by the tester.
+     */
+    protected const INCUBATION_WEIGHTS = [
+        'approved_information_sheet' => 10,
+        'pre_assessment' => 15,
+        'active_assessment' => 20,
+        'post_assessment' => 25,
+        'venture_exit' => 30,
+    ];
+
+    /**
+     * Bucket ranges are contiguous (each band's upper bound is the next
+     * band's lower bound) per the reference mockup table, which showed
+     * "60.25 – 80.25%" / "20.25 – 40.25%" etc. rather than the slightly
+     * different text-only ranges also given alongside it — the mockup table
+     * is treated as authoritative since it's the actual UI reference.
+     * Bucketing checks from the top down (>= min), so a value that lands
+     * exactly on a shared boundary belongs to the higher band.
      */
     protected const INCUBATION_BUCKETS = [
-        'High Ready' => [4.21, 5.00],
-        'Moderately Ready' => [3.41, 4.20],
-        'Moderately Unready' => [2.61, 3.40],
-        'Not Ready' => [1.81, 2.60],
-        'Critically Unready' => [1.00, 1.80],
+        'High Ready' => [80.25, 100.00],
+        'Moderately Ready' => [60.25, 80.25],
+        'Moderately Unready' => [40.25, 60.25],
+        'Not Ready' => [20.25, 40.25],
+        'Critically Unready' => [0.00, 20.25],
     ];
 
     protected const INCUBATION_COLORS = [
@@ -70,7 +86,7 @@ class DashboardController extends Controller
             'stats' => $this->buildStatCards($startupIds, $totalStartups),
             'incubationProgress' => $this->buildIncubationProgress($startupIds),
             'riskClassification' => $this->buildRiskClassification($startupIds),
-            'averageReadiness' => $this->buildAverageReadiness($startupIds, $readinessStage),
+            'averageReadiness' => $this->buildAverageReadiness($startupIds, $totalStartups, $readinessStage),
             'milestones' => $this->buildMilestoneCompletion($startupIds, $totalStartups),
         ]);
     }
@@ -163,48 +179,95 @@ class DashboardController extends Controller
     }
 
     /**
-     * Incubation Progress donut: classifies each startup that has at least
-     * one scored assessment (Post-Assessment preferred over Pre-Assessment,
-     * matching the founder-side dashboard's own precedence) into the 0-5
-     * scale buckets above.
+     * Incubation Progress donut: every in-scope startup gets a weighted
+     * completion percentage (see INCUBATION_WEIGHTS) covering its whole
+     * journey through the program, not just its latest assessment score —
+     * a startup that hasn't reached any milestone yet still counts, landing
+     * in "Critically Unready" at 0%. Bucketed per INCUBATION_BUCKETS.
      */
     protected function buildIncubationProgress($startupIds): array
     {
-        $assessments = ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
-            ->whereIn('stage', ['Pre-Assessment', 'Post-Assessment'])
-            ->whereNotNull('overall_score')
-            ->get()
-            ->groupBy('startup_id');
+        $totalStartups = count($startupIds);
 
         $counts = collect(array_keys(self::INCUBATION_BUCKETS))->mapWithKeys(fn ($label) => [$label => 0])->all();
-        $assessedTotal = 0;
 
-        foreach ($assessments as $rows) {
-            $chosen = $rows->firstWhere('stage', 'Post-Assessment') ?? $rows->firstWhere('stage', 'Pre-Assessment');
-            if (! $chosen || $chosen->overall_score === null) {
-                continue;
-            }
-            $rescaled = max(1.0, min(5.0, ($chosen->overall_score / 9) * 5));
-            foreach (self::INCUBATION_BUCKETS as $label => [$min, $max]) {
-                if ($rescaled >= $min && $rescaled <= $max) {
-                    $counts[$label]++;
-                    $assessedTotal++;
-                    break;
-                }
-            }
+        if ($totalStartups === 0) {
+            $breakdown = collect(self::INCUBATION_BUCKETS)->keys()->map(fn ($label) => [
+                'label' => $label,
+                'range' => self::incubationRangeLabel($label),
+                'count' => 0,
+                'percent' => 0.0,
+                'color' => self::INCUBATION_COLORS[$label],
+            ]);
+
+            return ['total' => 0, 'breakdown' => $breakdown];
+        }
+
+        $approvedInfoSheetIds = InformationSheet::whereIn('startup_id', $startupIds)
+            ->where('approval_status', 'Approved')
+            ->pluck('startup_id')->flip();
+
+        $preAssessmentIds = ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
+            ->where('stage', 'Pre-Assessment')->whereNotNull('overall_score')
+            ->pluck('startup_id')->flip();
+
+        $activeAssessmentIds = AssessmentDocument::whereIn('startup_id', $startupIds)
+            ->where('stage', 'Active-Assessment')->whereIn('document_number', [6, 7, 8])
+            ->select('startup_id')->groupBy('startup_id')
+            ->havingRaw('COUNT(DISTINCT document_number) = 3')
+            ->pluck('startup_id')->flip();
+
+        $postAssessmentIds = ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
+            ->where('stage', 'Post-Assessment')->whereNotNull('overall_score')
+            ->pluck('startup_id')->flip();
+
+        $ventureExitIds = AssessmentDocument::whereIn('startup_id', $startupIds)
+            ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
+            ->pluck('startup_id')->flip();
+
+        foreach ($startupIds as $id) {
+            $percent = 0;
+            $percent += $approvedInfoSheetIds->has($id) ? self::INCUBATION_WEIGHTS['approved_information_sheet'] : 0;
+            $percent += $preAssessmentIds->has($id) ? self::INCUBATION_WEIGHTS['pre_assessment'] : 0;
+            $percent += $activeAssessmentIds->has($id) ? self::INCUBATION_WEIGHTS['active_assessment'] : 0;
+            $percent += $postAssessmentIds->has($id) ? self::INCUBATION_WEIGHTS['post_assessment'] : 0;
+            $percent += $ventureExitIds->has($id) ? self::INCUBATION_WEIGHTS['venture_exit'] : 0;
+
+            $counts[self::incubationBucketLabel((float) $percent)]++;
         }
 
         $breakdown = collect(self::INCUBATION_BUCKETS)->keys()->map(fn ($label) => [
             'label' => $label,
+            'range' => self::incubationRangeLabel($label),
             'count' => $counts[$label],
-            'percent' => $assessedTotal > 0 ? round(($counts[$label] / $assessedTotal) * 100, 1) : 0.0,
+            'percent' => round(($counts[$label] / $totalStartups) * 100, 1),
             'color' => self::INCUBATION_COLORS[$label],
         ]);
 
         return [
-            'total' => $assessedTotal,
+            'total' => $totalStartups,
             'breakdown' => $breakdown,
         ];
+    }
+
+    /** Which bucket a whole-progress percentage falls into — see INCUBATION_BUCKETS. */
+    protected static function incubationBucketLabel(float $percent): string
+    {
+        foreach (self::INCUBATION_BUCKETS as $label => [$min, $max]) {
+            if ($percent >= $min) {
+                return $label;
+            }
+        }
+
+        return 'Critically Unready';
+    }
+
+    /** "High Ready (80.25% – 100.00%)" style label for the breakdown table. */
+    protected static function incubationRangeLabel(string $label): string
+    {
+        [$min, $max] = self::INCUBATION_BUCKETS[$label];
+
+        return sprintf('%s (%.2f%% – %.2f%%)', $label, $min, $max);
     }
 
     /** Mirrors RiskMonitoringController's aggregation, scoped to $startupIds. */
@@ -222,12 +285,14 @@ class DashboardController extends Controller
         ]);
 
         $total = $startups->count();
-        $levelCounts = collect(['Critical', 'High', 'Moderate', 'Low', 'None'])->mapWithKeys(
+        // Ascending severity order (None first, Critical last) and "X Risk"
+        // labels (None stays bare) per the tester's reference table.
+        $levelCounts = collect(['None', 'Low', 'Moderate', 'High', 'Critical'])->mapWithKeys(
             fn ($level) => [$level => $assessments->filter(fn ($a) => $a['level'] === $level)->count()]
         );
 
         $breakdown = $levelCounts->map(fn ($count, $level) => [
-            'label' => $level,
+            'label' => $level === 'None' ? 'None' : "{$level} Risk",
             'count' => $count,
             'percent' => $total > 0 ? round(($count / $total) * 100, 1) : 0.0,
             'color' => RiskEngine::LEVEL_COLORS[$level],
@@ -240,33 +305,46 @@ class DashboardController extends Controller
     }
 
     /**
-     * Average Readiness Level card: cross-startup AVERAGE score per
-     * category (TRL/MRL/TMRL/SRL) for the selected stage, feeding the
-     * shared <x-readiness-radar> component plus 4 category boxes.
+     * Average Readiness Level card: per direct testing feedback, this must
+     * be "honest" about the whole cohort, not just whoever's been assessed
+     * so far — a cohort that's mostly unassessed (early in the program)
+     * should show a correspondingly low average, not a falsely-encouraging
+     * one computed only from its few assessed startups. So each category
+     * average is SUM(score for startups that have one) ÷ TOTAL in-scope
+     * startup count, treating every unassessed startup as a 0 rather than
+     * excluding it — e.g. 7 total startups, only 3 with a Pre-Assessment
+     * TRL score of 6/8/4, averages to (6+8+4+0+0+0+0) ÷ 7 = 2.57, not
+     * (6+8+4) ÷ 3 = 6.0. Feeds the shared <x-readiness-radar> component
+     * plus the 4 category boxes.
      */
-    protected function buildAverageReadiness($startupIds, string $stage): array
+    protected function buildAverageReadiness($startupIds, int $totalStartups, string $stage): array
     {
         $row = ReadinessLevelAssessment::whereIn('startup_id', $startupIds)
             ->where('stage', $stage)
-            ->selectRaw('AVG(trl_score) as trl, AVG(mrl_score) as mrl, AVG(tmrl_score) as tmrl, AVG(srl_score) as srl, AVG(overall_score) as overall, COUNT(*) as n')
+            ->selectRaw('SUM(trl_score) as trl, SUM(mrl_score) as mrl, SUM(tmrl_score) as tmrl, SUM(srl_score) as srl, SUM(overall_score) as overall, COUNT(*) as n')
             ->first();
 
-        $hasData = $row && $row->n > 0;
+        $assessedCount = $row ? (int) $row->n : 0;
+        $hasData = $totalStartups > 0;
+
+        $avg = fn ($sum) => $hasData ? round(($sum ?? 0) / $totalStartups, 1) : 0.0;
 
         $scores = [
-            'TRL' => $hasData && $row->trl !== null ? round($row->trl, 1) : 0.0,
-            'MRL' => $hasData && $row->mrl !== null ? round($row->mrl, 1) : 0.0,
-            'TMRL' => $hasData && $row->tmrl !== null ? round($row->tmrl, 1) : 0.0,
-            'SRL' => $hasData && $row->srl !== null ? round($row->srl, 1) : 0.0,
+            'TRL' => $avg($row?->trl),
+            'MRL' => $avg($row?->mrl),
+            'TMRL' => $avg($row?->tmrl),
+            'SRL' => $avg($row?->srl),
         ];
-        $overall = $hasData && $row->overall !== null ? round($row->overall, 1) : null;
+        $overall = $hasData ? $avg($row?->overall) : null;
 
         return [
             'has_data' => $hasData,
             'scores' => $scores,
             'overall_score' => $overall,
             'overall_label' => ReadinessRubric::overallLabel($overall),
-            'startup_count' => $hasData ? (int) $row->n : 0,
+            'startup_count' => $totalStartups,
+            'assessed_count' => $assessedCount,
+            'pending_count' => max($totalStartups - $assessedCount, 0),
         ];
     }
 
@@ -286,13 +364,24 @@ class DashboardController extends Controller
             return ['overall_percent' => 0.0, 'milestones' => $empty];
         }
 
+        // Per direct testing feedback: Profile Setup now also requires a
+        // startup photo and the Startup Profile page's business description
+        // (InformationSheet.business_description) on top of the original
+        // three fields — a "complete" profile means the founder-facing
+        // profile actually looks finished, not just contact details filled.
         $profileSetup = Startup::whereIn('startup_id', $startupIds)
             ->whereNotNull('industry_sector')->where('industry_sector', '!=', '')
             ->whereNotNull('location')->where('location', '!=', '')
             ->whereNotNull('contact_phone')->where('contact_phone', '!=', '')
+            ->whereNotNull('startup_photo_path')->where('startup_photo_path', '!=', '')
+            ->whereHas('informationSheet', fn ($q) => $q->whereNotNull('business_description')->where('business_description', '!=', ''))
             ->count();
 
-        $infoSheet = InformationSheet::whereIn('startup_id', $startupIds)->distinct('startup_id')->count('startup_id');
+        // Per direct testing feedback: a sheet only counts once it's
+        // actually been Approved, not merely submitted/on file.
+        $infoSheet = InformationSheet::whereIn('startup_id', $startupIds)
+            ->where('approval_status', 'Approved')
+            ->distinct('startup_id')->count('startup_id');
 
         $coordinatorAssigned = CoordinatorAssignment::whereIn('startup_id', $startupIds)
             ->where('assignment_status', 'Active')->distinct('startup_id')->count('startup_id');
@@ -301,8 +390,19 @@ class DashboardController extends Controller
             ->where('stage', 'Pre-Assessment')->whereNotNull('overall_score')
             ->distinct('startup_id')->count('startup_id');
 
-        $mentorAssigned = Roadblock::whereIn('startup_id', $startupIds)
-            ->whereNotNull('mentor_id')->distinct('startup_id')->count('startup_id');
+        // Per direct testing feedback: unlike every other milestone here,
+        // "Assign Mentor" is measured PER ROADBLOCK, not per startup — a
+        // startup with 4 of 5 roadblocks assigned should show partial
+        // progress, not read as "not done" just because one is still
+        // pending. % = roadblocks with EITHER a mentor_id or coordinator_id
+        // set ÷ all roadblocks submitted, both scoped to in-scope startups —
+        // a roadblock counts as "assigned" regardless of which of the two
+        // it was assigned to.
+        $roadblocksTotal = Roadblock::whereIn('startup_id', $startupIds)->count();
+        $roadblocksWithMentor = Roadblock::whereIn('startup_id', $startupIds)
+            ->where(fn ($q) => $q->whereNotNull('mentor_id')->orWhereNotNull('coordinator_id'))
+            ->count();
+        $mentorAssignedPercent = $roadblocksTotal > 0 ? round(($roadblocksWithMentor / $roadblocksTotal) * 100, 1) : 0.0;
 
         $activeAssessment = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('stage', 'Active-Assessment')->whereIn('document_number', [6, 7, 8])
@@ -314,9 +414,17 @@ class DashboardController extends Controller
             ->where('stage', 'Post-Assessment')->whereNotNull('overall_score')
             ->distinct('startup_id')->count('startup_id');
 
+        // Per direct testing feedback: the Venture Exit document row can
+        // exist while still blank (nothing stops an empty AssessmentDocument
+        // from being saved), so require its two core fields — the
+        // assessment date and the progress summary — to actually be filled
+        // rather than just checking the row exists.
         $ventureExit = AssessmentDocument::whereIn('startup_id', $startupIds)
             ->where('document_number', VentureExitForm::DOCUMENT_NUMBER)
-            ->distinct('startup_id')->count('startup_id');
+            ->get()
+            ->filter(fn (AssessmentDocument $doc) => filled($doc->data['date_of_assessment'] ?? null)
+                && filled($doc->data['summary_of_progress'] ?? null))
+            ->pluck('startup_id')->unique()->count();
 
         $pct = fn ($count) => round(($count / $totalStartups) * 100, 1);
 
@@ -325,7 +433,7 @@ class DashboardController extends Controller
             ['label' => 'Information Sheet', 'percent' => $pct($infoSheet)],
             ['label' => 'Assign Profile Coordinator', 'percent' => $pct($coordinatorAssigned)],
             ['label' => 'Pre-Assessment', 'percent' => $pct($preAssessment)],
-            ['label' => 'Assign Mentor', 'percent' => $pct($mentorAssigned)],
+            ['label' => 'Assign Mentor', 'percent' => $mentorAssignedPercent],
             ['label' => 'Active-Assessment', 'percent' => $pct($activeAssessment)],
             ['label' => 'Post-Assessment', 'percent' => $pct($postAssessment)],
             ['label' => 'Venture Exit', 'percent' => $pct($ventureExit)],

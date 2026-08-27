@@ -237,21 +237,26 @@
                         <div class="absolute rounded-full bg-white flex flex-col items-center justify-center"
                             style="top: 25px; right: 25px; bottom: 25px; left: 25px;">
                             <span class="font-bold text-gray-800" style="font-size: 2rem;">{{ $incubationProgress['total'] }}</span>
-                            <span class="text-sm text-gray-500">Assessed</span>
+                            <span class="text-sm text-gray-500">Total Startups</span>
                         </div>
                     </div>
                     <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-gray-400 border-b border-gray-200">
+                                <th class="py-2 pr-2 font-medium">Status</th>
+                                <th class="py-2 pl-2 font-medium text-right">Count</th>
+                            </tr>
+                        </thead>
                         <tbody>
                             @foreach ($incubationProgress['breakdown'] as $row)
                                 <tr class="border-b border-gray-100 last:border-0">
-                                    <td class="py-2.5 pr-2 whitespace-nowrap">
-                                        <span class="flex items-center gap-2 text-gray-700 font-medium">
-                                            <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background: {{ $row['color'] }}"></span>
-                                            {{ $row['label'] }}
+                                    <td class="py-2.5 pr-2">
+                                        <span class="flex items-start gap-2 text-gray-700 font-medium">
+                                            <span class="h-2.5 w-2.5 rounded-full shrink-0 mt-1" style="background: {{ $row['color'] }}"></span>
+                                            <span class="leading-tight">{{ $row['range'] }}</span>
                                         </span>
                                     </td>
-                                    <td class="py-2.5 px-2 text-center text-gray-700">{{ $row['count'] }}</td>
-                                    <td class="py-2.5 pl-2 text-right text-gray-500">{{ $row['percent'] }}%</td>
+                                    <td class="py-2.5 pl-2 text-right text-gray-500 whitespace-nowrap align-top">{{ $row['count'] }} ({{ $row['percent'] }}%)</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -273,6 +278,12 @@
                         </div>
                     </div>
                     <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-gray-400 border-b border-gray-200">
+                                <th class="py-2 pr-2 font-medium">Status</th>
+                                <th class="py-2 pl-2 font-medium text-right">Count</th>
+                            </tr>
+                        </thead>
                         <tbody>
                             @foreach ($riskClassification['breakdown'] as $row)
                                 <tr class="border-b border-gray-100 last:border-0">
@@ -282,8 +293,7 @@
                                             {{ $row['label'] }}
                                         </span>
                                     </td>
-                                    <td class="py-2.5 px-2 text-center text-gray-700">{{ $row['count'] }}</td>
-                                    <td class="py-2.5 pl-2 text-right text-gray-500">{{ $row['percent'] }}%</td>
+                                    <td class="py-2.5 pl-2 text-right text-gray-500 whitespace-nowrap">{{ $row['count'] }} ({{ $row['percent'] }}%)</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -348,7 +358,7 @@
                             </div>
                         </div>
                         <p class="text-xs text-gray-400 mt-4">
-                            Average of {{ $averageReadiness['startup_count'] }} {{ $readinessStage }} assessment(s) &middot;
+                            Average across all {{ $averageReadiness['startup_count'] }} startups ({{ $averageReadiness['assessed_count'] }} assessed, {{ $averageReadiness['pending_count'] }} pending) &middot;
                             Overall: {{ $averageReadiness['overall_score'] }}/9 ({{ $averageReadiness['overall_label'] }})
                         </p>
                     @else
