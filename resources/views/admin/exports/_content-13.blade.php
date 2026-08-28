@@ -15,7 +15,7 @@
     @foreach (\App\Support\VentureExitForm::GRADUATION_READINESS_INDICATORS as $indicator)
     <tr>
         <td>{{ $indicator }}</td>
-        <td style="text-align: center;">{{ data_get($data, "graduation_readiness.$indicator.status") ? '&#10003;' : '&#10007;' }}</td>
+        <td style="text-align: center;">{{ data_get($data, "graduation_readiness.$indicator.status") ? '✓' : '✗' }}</td>
         <td>{!! $v(data_get($data, "graduation_readiness.$indicator.remark")) !!}</td>
     </tr>
     @endforeach
@@ -44,18 +44,18 @@
     <tr>
         <td width="33%">
             <div style="font-size: 10px;">Evaluated by:</div>
-            <div style="font-weight: bold; margin-top: 14px; border-top: 1px solid #4b5563; padding-top: 2px;">{!! $v(data_get($data, 'evaluated_by_name')) !!}</div>
-            <div style="font-size: 9px; color: #6b7280;">{!! $v(data_get($data, 'evaluated_by_position')) !!}</div>
+            <div class="sig-name">{!! $v(data_get($data, 'evaluated_by_name')) !!}</div>
+            <div class="sig-position">{!! $v(data_get($data, 'evaluated_by_position')) !!}</div>
         </td>
         <td width="33%">
             <div style="font-size: 10px;">Reviewed by:</div>
-            <div style="font-weight: bold; margin-top: 14px; border-top: 1px solid #4b5563; padding-top: 2px;">{!! $v(data_get($data, 'reviewed_by_name')) !!}</div>
-            <div style="font-size: 9px; color: #6b7280;">{!! $v(data_get($data, 'reviewed_by_position')) !!}</div>
+            <div class="sig-name">{!! $v(data_get($data, 'reviewed_by_name')) !!}</div>
+            <div class="sig-position">{!! $v(data_get($data, 'reviewed_by_position')) !!}</div>
         </td>
         <td width="33%">
             <div style="font-size: 10px;">Noted by:</div>
-            <div style="font-weight: bold; margin-top: 14px; border-top: 1px solid #4b5563; padding-top: 2px;">{!! $v(data_get($data, 'noted_by_name')) !!}</div>
-            <div style="font-size: 9px; color: #6b7280;">{!! $v(data_get($data, 'noted_by_position')) !!}</div>
+            <div class="sig-name">{!! $v(data_get($data, 'noted_by_name')) !!}</div>
+            <div class="sig-position">{!! $v(data_get($data, 'noted_by_position')) !!}</div>
         </td>
     </tr>
 </table>

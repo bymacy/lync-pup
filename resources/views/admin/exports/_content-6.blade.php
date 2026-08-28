@@ -37,15 +37,15 @@
     <tr>
         @foreach (data_get($data, 'prepared_by', []) as $person)
         <td width="25%">
-            <div style="font-size: 10px;">Prepared By:</div>
-            <div style="font-weight: bold; margin-top: 14px; border-top: 1px solid #4b5563; padding-top: 2px;">{!! $v($person['name'] ?? null) !!}</div>
-            <div style="font-size: 9px; color: #6b7280;">{!! nl2br($v($person['position'] ?? null)) !!}</div>
+            <div class="sig-label">Prepared By:</div>
+            <div class="sig-name">{!! $v($person['name'] ?? null) !!}</div>
+            <div class="sig-position">{!! nl2br($v($person['position'] ?? null)) !!}</div>
         </td>
         @endforeach
         <td width="25%">
-            <div style="font-size: 10px;">Noted By:</div>
-            <div style="font-weight: bold; margin-top: 14px; border-top: 1px solid #4b5563; padding-top: 2px;">{!! $v(data_get($data, 'noted_by')) !!}</div>
-            <div style="font-size: 9px; color: #6b7280;">{!! $v(data_get($data, 'noted_by_position')) !!}</div>
+            <div class="sig-label">Noted By:</div>
+            <div class="sig-name">{!! $v(data_get($data, 'noted_by')) !!}</div>
+            <div class="sig-position">{!! $v(data_get($data, 'noted_by_position')) !!}</div>
         </td>
     </tr>
 </table>

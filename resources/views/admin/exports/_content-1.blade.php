@@ -3,35 +3,47 @@
     $v = fn ($val) => $val !== null && $val !== '' ? e($val) : '&nbsp;';
     $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '&nbsp;';
 @endphp
-@include('admin.exports._letterhead', ['formNo' => 'PUP-TBIDO FORM No. 001', 'title' => 'STARTUP INFORMATION SHEET'])
+@include('admin.exports._letterhead', [
+    'formNo' => 'PUP-TBIDO FORM No. 001',
+    'title' => 'STARTUP INFORMATION SHEET',
+    'instructions' => [
+        'Read The Attached Guide to Filling Out the Startup Information Sheet Before Accomplishing the Pup-TBIDO Form No. 100.',
+        'Use Capital Letters and Print Legibly. Tick Appropriate Boxes and Use Separate Sheet If Necessary. Indicate N/A If Not Applicable. Do Not Abbreviate.',
+        'Date Format (mm/dd/yyyy)',
+    ],
+])
 
 <div class="section-title">I. FOUNDER'S INFORMATION</div>
 <table style="margin-top: 6px;">
     <tr>
-        <td width="50%">
-            <div class="field-row"><span class="field-label">1. Surname:</span> {!! $v($sheet?->surname) !!}</div>
-            <div class="field-row"><span class="field-label">2. First Name:</span> {!! $v($sheet?->first_name) !!}</div>
-            <div class="field-row"><span class="field-label">3. Middle Name:</span> {!! $v($sheet?->middle_name) !!}</div>
-            <div class="field-row"><span class="field-label">4. Name Extension:</span> {!! $v($sheet?->name_extension) !!}</div>
-            <div class="field-row"><span class="field-label">5. Height (m):</span> {!! $v($sheet?->height_m) !!}</div>
-            <div class="field-row"><span class="field-label">6. Weight (kg):</span> {!! $v($sheet?->weight_kg) !!}</div>
-            <div class="field-row"><span class="field-label">7. Blood Type:</span> {!! $v($sheet?->blood_type) !!}</div>
-            <div class="field-row"><span class="field-label">8. GSIS ID No.:</span> {!! $v($sheet?->gsis_no) !!}</div>
-            <div class="field-row"><span class="field-label">9. Pag-IBIG No.:</span> {!! $v($sheet?->pagibig_no) !!}</div>
-            <div class="field-row"><span class="field-label">10. PhilHealth No.:</span> {!! $v($sheet?->philhealth_no) !!}</div>
-            <div class="field-row"><span class="field-label">11. SSS No.:</span> {!! $v($sheet?->sss_no) !!}</div>
-            <div class="field-row"><span class="field-label">12. Residential Address:</span> {!! $v($sheet?->residential_address) !!}</div>
-            <div class="field-row"><span class="field-label">13. Permanent Address:</span> {!! $v($sheet?->permanent_address) !!}</div>
+        <td width="50%" style="vertical-align: top;">
+            <table class="info-table">
+                <tr><td class="info-label">1. Surname:</td><td class="info-value">{!! $v($sheet?->surname) !!}</td></tr>
+                <tr><td class="info-label">2. First Name:</td><td class="info-value">{!! $v($sheet?->first_name) !!}</td></tr>
+                <tr><td class="info-label">3. Middle Name:</td><td class="info-value">{!! $v($sheet?->middle_name) !!}</td></tr>
+                <tr><td class="info-label">4. Name Extension:</td><td class="info-value">{!! $v($sheet?->name_extension) !!}</td></tr>
+                <tr><td class="info-label">5. Height (m):</td><td class="info-value">{!! $v($sheet?->height_m) !!}</td></tr>
+                <tr><td class="info-label">6. Weight (kg):</td><td class="info-value">{!! $v($sheet?->weight_kg) !!}</td></tr>
+                <tr><td class="info-label">7. Blood Type:</td><td class="info-value">{!! $v($sheet?->blood_type) !!}</td></tr>
+                <tr><td class="info-label">8. GSIS ID No.:</td><td class="info-value">{!! $v($sheet?->gsis_no) !!}</td></tr>
+                <tr><td class="info-label">9. Pag-IBIG No.:</td><td class="info-value">{!! $v($sheet?->pagibig_no) !!}</td></tr>
+                <tr><td class="info-label">10. PhilHealth No.:</td><td class="info-value">{!! $v($sheet?->philhealth_no) !!}</td></tr>
+                <tr><td class="info-label">11. SSS No.:</td><td class="info-value">{!! $v($sheet?->sss_no) !!}</td></tr>
+                <tr><td class="info-label">12. Residential Address:</td><td class="info-value">{!! $v($sheet?->residential_address) !!}</td></tr>
+                <tr><td class="info-label">13. Permanent Address:</td><td class="info-value">{!! $v($sheet?->permanent_address) !!}</td></tr>
+            </table>
         </td>
-        <td width="50%">
-            <div class="field-row"><span class="field-label">15. Sex:</span> {!! $v($sheet?->sex) !!}</div>
-            <div class="field-row"><span class="field-label">16. Civil Status:</span> {!! $v($sheet?->civil_status) !!}</div>
-            <div class="field-row"><span class="field-label">17. Citizenship (By Birth):</span> {!! $v($sheet?->citizenship_by_birth) !!}</div>
-            <div class="field-row"><span class="field-label">&nbsp;&nbsp;&nbsp;If Dual Citizenship:</span> {!! $v($sheet?->citizenship_dual) !!}</div>
-            <div class="field-row"><span class="field-label">18. Place of Birth:</span> {!! $v($sheet?->place_of_birth) !!}</div>
-            <div class="field-row"><span class="field-label">19. Date of Birth:</span> {!! $d($sheet?->date_of_birth) !!}</div>
-            <div class="field-row"><span class="field-label">20. Mobile No.:</span> {!! $v($sheet?->mobile_no) !!}</div>
-            <div class="field-row"><span class="field-label">21. Email Address:</span> {!! $v($sheet?->founder_email) !!}</div>
+        <td width="50%" style="vertical-align: top;">
+            <table class="info-table">
+                <tr><td class="info-label">15. Sex:</td><td class="info-value">{!! $v($sheet?->sex) !!}</td></tr>
+                <tr><td class="info-label">16. Civil Status:</td><td class="info-value">{!! $v($sheet?->civil_status) !!}</td></tr>
+                <tr><td class="info-label">17. Citizenship (By Birth):</td><td class="info-value">{!! $v($sheet?->citizenship_by_birth) !!}</td></tr>
+                <tr><td class="info-label">&nbsp;&nbsp;&nbsp;If Dual Citizenship:</td><td class="info-value">{!! $v($sheet?->citizenship_dual) !!}</td></tr>
+                <tr><td class="info-label">18. Place of Birth:</td><td class="info-value">{!! $v($sheet?->place_of_birth) !!}</td></tr>
+                <tr><td class="info-label">19. Date of Birth:</td><td class="info-value">{!! $d($sheet?->date_of_birth) !!}</td></tr>
+                <tr><td class="info-label">20. Mobile No.:</td><td class="info-value">{!! $v($sheet?->mobile_no) !!}</td></tr>
+                <tr><td class="info-label">21. Email Address:</td><td class="info-value">{!! $v($sheet?->founder_email) !!}</td></tr>
+            </table>
         </td>
     </tr>
 </table>
@@ -51,7 +63,7 @@
 </table>
 
 <div class="section-title">23. SCHOLARSHIP / ACADEMIC HONORS RECEIVED</div>
-<div style="border: 1px solid #9ca3af; padding: 6px; min-height: 20px;">{!! nl2br($v($sheet?->scholarships_academic_honors)) !!}</div>
+<div style="border: 1px solid #000; padding: 6px; min-height: 20px;">{!! nl2br($v($sheet?->scholarships_academic_honors)) !!}</div>
 
 <div class="section-title">24. CORE TEAM FORMATION</div>
 <table class="bordered" style="margin-top: 4px;">
@@ -108,16 +120,18 @@
 <div class="section-title">V. STARTUP INFORMATION</div>
 <table style="margin-top: 6px;">
     <tr>
-        <td width="50%">
-            <div class="field-row"><span class="field-label">27. Startup Name:</span> {!! $v($startup->company_name) !!}</div>
-            <div class="field-row"><span class="field-label">28. SEC Registration:</span> {!! $v($sheet?->sec_registration) !!}</div>
-            <div class="field-row"><span class="field-label">29. Business ID Number:</span> {!! $v($sheet?->business_id_number) !!}</div>
-            <div class="field-row"><span class="field-label">30. DTI Registration No.:</span> {!! $v($sheet?->dti_registration_number) !!}</div>
-            <div class="field-row"><span class="field-label">31. Business TIN:</span> {!! $v($sheet?->business_tin) !!}</div>
+        <td width="50%" style="vertical-align: top;">
+            <table class="info-table">
+                <tr><td class="info-label">27. Startup Name:</td><td class="info-value">{!! $v($startup->company_name) !!}</td></tr>
+                <tr><td class="info-label">28. SEC Registration:</td><td class="info-value">{!! $v($sheet?->sec_registration) !!}</td></tr>
+                <tr><td class="info-label">29. Business ID Number:</td><td class="info-value">{!! $v($sheet?->business_id_number) !!}</td></tr>
+                <tr><td class="info-label">30. DTI Registration No.:</td><td class="info-value">{!! $v($sheet?->dti_registration_number) !!}</td></tr>
+                <tr><td class="info-label">31. Business TIN:</td><td class="info-value">{!! $v($sheet?->business_tin) !!}</td></tr>
+            </table>
         </td>
-        <td width="50%">
+        <td width="50%" style="vertical-align: top;">
             <span class="field-label">33. Startup Overview:</span>
-            <div style="border: 1px solid #9ca3af; padding: 6px; min-height: 40px; margin-top: 4px;">{!! nl2br($v($sheet?->business_description)) !!}</div>
+            <div style="border: 1px solid #000; padding: 6px; min-height: 40px; margin-top: 4px;">{!! nl2br($v($sheet?->business_description)) !!}</div>
         </td>
     </tr>
 </table>
@@ -126,11 +140,11 @@
     <tr>
         <td width="50%">
             <span class="field-label">32. Non-Academic Distinctions:</span>
-            <div style="border: 1px solid #9ca3af; padding: 6px; min-height: 24px; margin-top: 4px;">{!! nl2br($v($sheet?->non_academic_distinctions)) !!}</div>
+            <div style="border: 1px solid #000; padding: 6px; min-height: 24px; margin-top: 4px;">{!! nl2br($v($sheet?->non_academic_distinctions)) !!}</div>
         </td>
         <td width="50%">
             <span class="field-label">34. Membership in Association/Organization:</span>
-            <div style="border: 1px solid #9ca3af; padding: 6px; min-height: 24px; margin-top: 4px;">{!! nl2br($v($sheet?->membership_associations)) !!}</div>
+            <div style="border: 1px solid #000; padding: 6px; min-height: 24px; margin-top: 4px;">{!! nl2br($v($sheet?->membership_associations)) !!}</div>
         </td>
     </tr>
 </table>
@@ -151,37 +165,34 @@
 </table>
 
 <div class="section-title">36. DECLARATION</div>
-<div style="border: 1px solid #9ca3af; padding: 8px; font-size: 10px; margin-top: 4px;">
+<div style="padding: 8px 0; font-size: 10px; margin-top: 4px;">
     I declare that I have personally accomplished this Startup Information Sheet which is a true, correct and complete statement
     pursuant to the provisions of pertinent laws, rules and regulations of the Republic of the Philippines. I authorize the agency
     head/authorized representative to verify/validate the contents stated herein. I agree that any misrepresentation made in this
     document and its attachments shall cause the filing of administrative/criminal case/s against me.
-    <table style="margin-top: 10px;">
-        <tr>
-            <td width="55%">
-                <div class="signature-box">Sign inside the box (print &amp; sign)</div>
-                <div style="text-align: center; font-size: 9px;">Founder's Signature</div>
-            </td>
-            <td width="45%">
-                <div class="field-row"><span class="field-label">Date Accomplished:</span> {!! $d($sheet?->date_accomplished) !!}</div>
-            </td>
-        </tr>
-    </table>
+
+    <div class="signature-box" style="margin-top: 24px; width: 260px;"></div>
+    <div class="signature-caption" style="width: 260px;">Founder's Signature (Sign inside the box)</div>
+
+    <div style="margin-top: 14px;">Date Accomplished: <span class="field-value">{!! $d($sheet?->date_accomplished) !!}</span></div>
 </div>
 
-<div style="font-size: 10px; font-weight: bold; margin-top: 10px;">FOR TECHNOLOGY BUSINESS INCUBATION &amp; DEVELOPMENT OFFICE ONLY &mdash; ENDORSEMENT AND APPROVAL</div>
-<table style="margin-top: 4px;">
+<div style="font-style: italic; font-size: 10px; margin-top: 10px; border-top: 1px solid #000; padding-top: 6px;">For Technology Business Incubation &amp; Development Office Only</div>
+<div class="section-heading-plain">Endorsement and Approval</div>
+<table style="margin-top: 6px;">
     <tr>
-        <td width="50%">
-            <div class="field-row"><span class="field-label">Portfolio Manager:</span> {!! $v($sheet?->portfolio_manager) !!}</div>
-            <div class="field-row"><span class="field-label">Cohort No.:</span> {!! $v($sheet?->cohort_no) !!}</div>
-            <div class="field-row"><span class="field-label">Endorsed By:</span> {!! $v($sheet?->endorsed_by) !!}</div>
-            <div class="field-row"><span class="field-label">Date:</span> {!! $d($sheet?->endorsement_date) !!}</div>
+        <td width="50%" style="vertical-align: top;">
+            <table class="info-table">
+                <tr><td class="info-label">Portfolio Manager:</td><td class="info-value">{!! $v($sheet?->portfolio_manager) !!}</td></tr>
+                <tr><td class="info-label">Cohort No.:</td><td class="info-value">{!! $v($sheet?->cohort_no) !!}</td></tr>
+                <tr><td class="info-label">Endorsed By:</td><td class="info-value">{!! $v($sheet?->endorsed_by) !!}</td></tr>
+                <tr><td class="info-label">Date:</td><td class="info-value">{!! $d($sheet?->endorsement_date) !!}</td></tr>
+            </table>
         </td>
-        <td width="50%">
-            <div class="signature-box">Sign inside the box (print &amp; sign)</div>
-            <div style="text-align: center; font-size: 9px; margin-bottom: 6px;">Director's Signature</div>
-            <div class="field-row"><span class="field-label">Date of Approval:</span> {!! $d($sheet?->director_approval_date) !!}</div>
+        <td width="50%" style="vertical-align: top;">
+            <div class="signature-box" style="width: 220px;"></div>
+            <div class="signature-caption" style="width: 220px;">Director's Signature (Sign inside the box)</div>
+            <div style="margin-top: 8px;">Date of Approval: <span class="field-value">{!! $d($sheet?->director_approval_date) !!}</span></div>
         </td>
     </tr>
 </table>

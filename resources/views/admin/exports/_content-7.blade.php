@@ -46,14 +46,14 @@
 <table style="margin-top: 12px;">
     <tr>
         <td width="50%">
-            <div style="font-size: 10px;">Prepared By:</div>
-            <div style="font-weight: bold; margin-top: 14px; border-top: 1px solid #4b5563; padding-top: 2px;">{!! $v(data_get($data, 'prepared_by_name')) !!}</div>
-            <div style="font-size: 9px; color: #6b7280;">{!! $v(data_get($data, 'prepared_by_position')) !!}</div>
+            <div class="sig-label">Prepared By:</div>
+            <div class="sig-name">{!! $v(data_get($data, 'prepared_by_name')) !!}</div>
+            <div class="sig-position">{!! $v(data_get($data, 'prepared_by_position')) !!}</div>
         </td>
         <td width="50%">
-            <div style="font-size: 10px;">Noted By:</div>
-            <div style="font-weight: bold; margin-top: 14px; border-top: 1px solid #4b5563; padding-top: 2px;">{!! $v(data_get($data, 'noted_by_name')) !!}</div>
-            <div style="font-size: 9px; color: #6b7280;">{!! $v(data_get($data, 'noted_by_position')) !!}</div>
+            <div class="sig-label">Noted By:</div>
+            <div class="sig-name">{!! $v(data_get($data, 'noted_by_name')) !!}</div>
+            <div class="sig-position">{!! $v(data_get($data, 'noted_by_position')) !!}</div>
         </td>
     </tr>
 </table>

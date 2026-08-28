@@ -36,78 +36,89 @@
 
 @include('admin.exports._letterhead', ['formNo' => $meta['form_no'], 'title' => $title])
 
-<div class="field-row"><span class="field-label">Startup Name:</span> {!! $v($startup->company_name) !!}
-    &nbsp;&nbsp;&nbsp;<span class="field-label">Date:</span> {!! $d($assessment?->assessment_date) !!}
-    &nbsp;&nbsp;&nbsp;<span class="field-label">Score:</span> {!! $score !== null ? $score.'/9' : '&nbsp;' !!}
-</div>
-
 @if ($type === 'TRL' && $stage === 'Pre-Assessment')
     @php $overview = $assessment?->trl_overview ?? []; @endphp
     <div class="section-title">SECTION 1: STARTUP &amp; TECHNOLOGY OVERVIEW</div>
-    <table style="margin-top: 6px;">
+    <table class="bordered" style="margin-top: 4px;">
         <tr>
-            <td width="50%">
-                <div class="field-row"><span class="field-label">Founder:</span> {!! $v(data_get($overview, 'founder')) !!}</div>
-                <div class="field-row"><span class="field-label">Tech Lead:</span> {!! $v(data_get($overview, 'tech_lead')) !!}</div>
-                <div class="field-row"><span class="field-label">Contact Info:</span> {!! $v(data_get($overview, 'contact_info')) !!}</div>
-                <div class="field-row"><span class="field-label">Brief Description:</span></div>
-                <div style="border: 1px solid #9ca3af; padding: 5px; min-height: 24px;">{!! nl2br($v(data_get($overview, 'brief_description'))) !!}</div>
-                <div class="field-row" style="margin-top: 4px;"><span class="field-label">Key Features:</span></div>
-                <div style="border: 1px solid #9ca3af; padding: 5px; min-height: 24px;">{!! nl2br($v(data_get($overview, 'key_features'))) !!}</div>
-            </td>
-            <td width="50%">
-                <div class="field-row"><span class="field-label">Industry Focus:</span></div>
+            <td width="50%"><b>Startup / Company Name:</b> {!! $v($startup->company_name) !!}</td>
+            <td width="50%"><b>Date of Assessment:</b> {!! $d($assessment?->assessment_date) !!}</td>
+        </tr>
+        <tr>
+            <td><b>Founder:</b> {!! $v(data_get($overview, 'founder')) !!}</td>
+            <td><b>Contact Information:</b> {!! $v(data_get($overview, 'contact_info')) !!}</td>
+        </tr>
+        <tr>
+            <td valign="top"><b>Tech Lead:</b> {!! $v(data_get($overview, 'tech_lead')) !!}</td>
+            <td valign="top">
+                <b>Industry Focus:</b><br>
                 @foreach (\App\Support\TrlOverviewForm::INDUSTRY_FOCUS as $option)
                     <span class="checkbox">{{ in_array($option, data_get($overview, 'industry_focus', [])) ? 'X' : '' }}</span> {{ $option }}&nbsp;&nbsp;
                 @endforeach
-
-                <div class="field-row" style="margin-top: 6px;"><span class="field-label">Tech Stack:</span></div>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">
+                <b>Brief Description of the Prototype:</b><br>
+                {!! nl2br($v(data_get($overview, 'brief_description'))) !!}
+            </td>
+            <td valign="top">
+                <b>Technology Stack used in prototype:</b>
                 @foreach (\App\Support\TrlOverviewForm::TECH_STACK_FIELDS as $key => $label)
-                    <div class="field-row">&bull; {{ $label }}: {!! $v(data_get($overview, "tech_stack.$key")) !!}</div>
+                    <div>{{ $label }}: {!! $v(data_get($overview, "tech_stack.$key")) !!}</div>
                 @endforeach
-
-                <div class="field-row" style="margin-top: 6px;"><span class="field-label">Technical Challenges &amp; Risks:</span></div>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">
+                <b>Key Features &amp; Intended Benefits of the product:</b><br>
+                {!! nl2br($v(data_get($overview, 'key_features'))) !!}
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td valign="top">
+                <b>Technical Challenges &amp; Risks:</b><br>
                 @foreach (\App\Support\TrlOverviewForm::TECHNICAL_CHALLENGES as $option)
-                    <span class="checkbox">{{ in_array($option, data_get($overview, 'technical_challenges', [])) ? 'X' : '' }}</span> {{ $option }}&nbsp;&nbsp;
+                    <span class="checkbox">{{ in_array($option, data_get($overview, 'technical_challenges', [])) ? 'X' : '' }}</span> {{ $option }}<br>
                 @endforeach
+            </td>
+            <td valign="top">
+                <b>Tech Team Capability:</b>
+                <table class="bordered" style="margin-top: 4px;">
+                    <tr><th>Role</th><th>Name</th></tr>
+                    @foreach (\App\Support\TrlOverviewForm::TECH_TEAM_ROLES as $role)
+                    <tr><td>{{ $role }}</td><td>{!! $v(data_get($overview, "tech_team.$role")) !!}</td></tr>
+                    @endforeach
+                </table>
             </td>
         </tr>
     </table>
 
-    <table class="bordered" style="margin-top: 8px;">
-        <tr><th>Tech Team Capability</th><th>Name</th></tr>
-        @foreach (\App\Support\TrlOverviewForm::TECH_TEAM_ROLES as $role)
-        <tr><td>{{ $role }}</td><td>{!! $v(data_get($overview, "tech_team.$role")) !!}</td></tr>
-        @endforeach
-    </table>
-
-    <table style="margin-top: 8px;">
+    <table class="bordered" style="margin-top: 4px;">
         <tr>
-            <td width="50%">
-                <div class="field-row"><span class="field-label">Tech Maturity Level:</span></div>
+            <td width="50%" valign="top">
+                <b>Tech Maturity Level:</b><br>
                 @foreach (\App\Support\TrlOverviewForm::TEAM_MATURITY_LEVELS as $option)
                     <span class="checkbox">{{ data_get($overview, 'team_maturity_level') === $option ? 'X' : '' }}</span> {{ $option }}<br>
                 @endforeach
             </td>
-            <td width="50%">
-                <div class="field-row"><span class="field-label">Testing Strategy:</span></div>
+            <td width="50%" valign="top">
+                <b>Testing Strategy:</b><br>
                 @foreach (\App\Support\TrlOverviewForm::TESTING_STRATEGIES as $option)
                     <span class="checkbox">{{ in_array($option, data_get($overview, 'testing_strategies', [])) ? 'X' : '' }}</span> {{ $option }}<br>
                 @endforeach
             </td>
         </tr>
-    </table>
-
-    <table style="margin-top: 8px;">
         <tr>
-            <td width="50%">
-                <div class="field-row"><span class="field-label">Topics of Interest:</span></div>
+            <td valign="top">
+                <b>Topics of Interest:</b><br>
                 @foreach (array_merge(\App\Support\TrlOverviewForm::TOPICS_OF_INTEREST_COLUMN_1, \App\Support\TrlOverviewForm::TOPICS_OF_INTEREST_COLUMN_2) as $option)
                     <span class="checkbox">{{ in_array($option, data_get($overview, 'topics_of_interest', [])) ? 'X' : '' }}</span> {{ $option }}&nbsp;&nbsp;
                 @endforeach
             </td>
-            <td width="50%">
-                <div class="field-row"><span class="field-label">Mode of Communication:</span></div>
+            <td valign="top">
+                <b>Mode of Communication:</b><br>
                 @foreach (\App\Support\TrlOverviewForm::MODES_OF_COMMUNICATION as $option)
                     <span class="checkbox">{{ data_get($overview, 'mode_of_communication') === $option ? 'X' : '' }}</span> {{ $option }}&nbsp;&nbsp;
                 @endforeach
@@ -116,38 +127,39 @@
     </table>
 
     <div class="section-title">SECTION 2: {{ strtoupper($meta['label']) }} ({{ $type }})</div>
+@else
+    <div class="field-row"><span class="field-label">Startup Name:</span> {!! $v($startup->company_name) !!}
+        &nbsp;&nbsp;&nbsp;<span class="field-label">Date:</span> {!! $d($assessment?->assessment_date) !!}
+        &nbsp;&nbsp;&nbsp;<span class="field-label">Score:</span> {!! $score !== null ? $score.'/9' : '&nbsp;' !!}
+    </div>
 @endif
 
 <table class="bordered" style="margin-top: 6px;">
     @foreach ($levels as $levelNum => $definition)
     <tr>
-        <td style="background: #f3f4f6; font-weight: bold;" colspan="2">
+        <td colspan="2" style="font-weight: bold;">
             {{ $type }} {{ $levelNum }}{{ isset($definition['target']) ? ':' : ' –' }} {{ $definition['title'] }}
         </td>
     </tr>
     @if (isset($definition['target']))
-    <tr><td colspan="2" style="font-style: italic; font-size: 10px;">Target: {{ $definition['target'] }}</td></tr>
+    <tr><td colspan="2" style="font-style: italic; font-size: 9px;">Target: {{ $definition['target'] }}</td></tr>
     @endif
     @foreach ($definition['criteria'] as $i => $criterion)
     @php
         $checked = data_get($progress, "$levelNum.$i") ?? data_get($progress, "$levelNum")[$i] ?? false;
     @endphp
     <tr>
-        <td width="20"><span class="checkbox">{{ $checked ? 'X' : '' }}</span></td>
+        <td width="24" style="text-align: center;"><span class="checkbox">{{ $checked ? 'X' : '' }}</span></td>
         <td>{{ $criterion }}</td>
     </tr>
     @endforeach
     @endforeach
 </table>
 
-<table style="margin-top: 12px;">
-    <tr>
-        @foreach ($signatories as $sig)
-        <td width="33%">
-            <div style="font-size: 10px;">{{ $sig['label'] }}:</div>
-            <div style="font-weight: bold; margin-top: 14px; border-top: 1px solid #4b5563; padding-top: 2px;">{!! $v($sig['name']) !!}</div>
-            <div style="font-size: 9px; color: #6b7280;">{!! nl2br($v($sig['position'])) !!}</div>
-        </td>
-        @endforeach
-    </tr>
-</table>
+@foreach ($signatories as $sig)
+<div class="sig-block">
+    <div class="sig-label">{{ $sig['label'] }}:</div>
+    <div class="sig-name">{!! $v($sig['name']) !!}</div>
+    <div class="sig-position">{!! nl2br($v($sig['position'])) !!}</div>
+</div>
+@endforeach

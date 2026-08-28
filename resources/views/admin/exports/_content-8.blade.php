@@ -15,7 +15,7 @@
 <div class="field-row"><span class="field-label">Startup Name:</span> {!! $v($startup->company_name) !!}</div>
 <div class="field-row"><span class="field-label">Prototype/Product Name:</span> {!! $v(data_get($data, 'prototype_name')) !!}</div>
 <div class="field-row"><span class="field-label">Brief Description:</span></div>
-<div style="border: 1px solid #9ca3af; padding: 5px; min-height: 24px;">{!! nl2br($v(data_get($data, 'prototype_description'))) !!}</div>
+<div style="border: 1px solid #000; padding: 5px; min-height: 24px;">{!! nl2br($v(data_get($data, 'prototype_description'))) !!}</div>
 
 <table style="margin-top: 8px;">
     <tr>
@@ -74,24 +74,24 @@
 </table>
 
 <div class="section-title">RECOMMENDATIONS</div>
-<div style="border: 1px solid #9ca3af; padding: 6px; min-height: 30px;">{!! nl2br($v(data_get($data, 'recommendations'))) !!}</div>
+<div style="border: 1px solid #000; padding: 6px; min-height: 30px;">{!! nl2br($v(data_get($data, 'recommendations'))) !!}</div>
 
 <table style="margin-top: 12px;">
     <tr>
         <td width="33%">
             <div style="font-size: 10px;">Validated By:</div>
-            <div style="font-weight: bold; margin-top: 14px; border-top: 1px solid #4b5563; padding-top: 2px;">{!! $v(data_get($data, 'validated_by_name')) !!}</div>
-            <div style="font-size: 9px; color: #6b7280;">{!! $v(data_get($data, 'validated_by_position')) !!}</div>
+            <div class="sig-name">{!! $v(data_get($data, 'validated_by_name')) !!}</div>
+            <div class="sig-position">{!! $v(data_get($data, 'validated_by_position')) !!}</div>
         </td>
         <td width="33%">
             <div style="font-size: 10px;">Noted By:</div>
-            <div style="font-weight: bold; margin-top: 14px; border-top: 1px solid #4b5563; padding-top: 2px;">{!! $v(data_get($data, 'noted_by_name')) !!}</div>
-            <div style="font-size: 9px; color: #6b7280;">{!! $v(data_get($data, 'noted_by_position')) !!}</div>
+            <div class="sig-name">{!! $v(data_get($data, 'noted_by_name')) !!}</div>
+            <div class="sig-position">{!! $v(data_get($data, 'noted_by_position')) !!}</div>
         </td>
         <td width="33%">
             <div style="font-size: 10px;">Approved By:</div>
-            <div style="font-weight: bold; margin-top: 14px; border-top: 1px solid #4b5563; padding-top: 2px;">{!! $v(data_get($data, 'approved_by_name')) !!}</div>
-            <div style="font-size: 9px; color: #6b7280;">{!! nl2br($v(data_get($data, 'approved_by_position'))) !!}</div>
+            <div class="sig-name">{!! $v(data_get($data, 'approved_by_name')) !!}</div>
+            <div class="sig-position">{!! nl2br($v(data_get($data, 'approved_by_position'))) !!}</div>
         </td>
     </tr>
 </table>
