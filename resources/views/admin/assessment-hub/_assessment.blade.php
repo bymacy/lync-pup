@@ -232,8 +232,9 @@ for ($i = 0; $i < $count; $i++) {
         @include('admin.assessment-hub._active-assessment')
         @elseif ($selectedStage === 'Venture Exit')
         @include('admin.assessment-hub._venture-exit')
+        @elseif ($selectedStage === 'Reports')
+        @include('admin.assessment-hub._reports')
         @elseif (! in_array($selectedStage, ['Pre-Assessment', 'Post-Assessment'], true))
-        {{-- Reports comes in a future update — every other stage is wired up. --}}
         <div class="rounded-xl border border-dashed p-12 text-center text-gray-400">
             {{ $selectedStage }} is coming in a future update.
         </div>

@@ -1136,6 +1136,53 @@
                     @error('name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
 
+                {{-- 36. Declaration & Endorsement. Both signature boxes are
+             intentionally NOT form fields: per direct instruction this is a
+             wet-ink signature — the form is meant to be printed and
+             physically signed, not signed digitally in the app. --}}
+                <div class="mt-6">
+                    <p class="text-xs font-semibold text-gray-700 mb-2">36. DECLARATION</p>
+                    <div class="border border-gray-200 rounded-md p-4 bg-white text-xs text-gray-700 leading-relaxed mb-4">
+                        <p class="mb-4">
+                            I declare that I have personally accomplished this Startup Information Sheet which is a true, correct and complete
+                            statement pursuant to the provisions of pertinent laws, rules and regulations of the Republic of the Philippines.
+                            I authorize the agency head/authorized representative to verify/validate the contents stated herein. I agree that
+                            any misrepresentation made in this document and its attachments shall cause the filing of administrative/criminal
+                            case/s against me.
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <div class="h-16 border border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 italic mb-1">
+                                    Sign inside the box (print &amp; sign)
+                                </div>
+                                <p class="text-center text-[11px] text-gray-500">Founder's Signature</p>
+                            </div>
+                            <div>
+                                {!! $field('date_accomplished', 'DATE ACCOMPLISHED', null, 'date') !!}
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="text-xs font-semibold text-gray-700 mb-2">FOR TECHNOLOGY BUSINESS INCUBATION &amp; DEVELOPMENT OFFICE ONLY — ENDORSEMENT AND APPROVAL</p>
+                    <div class="border border-gray-200 rounded-md p-4 bg-white">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+                            <div>
+                                {!! $field('portfolio_manager', 'PORTFOLIO MANAGER') !!}
+                                {!! $field('cohort_no', 'COHORT NO.') !!}
+                                {!! $field('endorsed_by', 'ENDORSED BY') !!}
+                                {!! $field('endorsement_date', 'DATE', null, 'date') !!}
+                            </div>
+                            <div>
+                                <div class="h-16 border border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 italic mb-1">
+                                    Sign inside the box (print &amp; sign)
+                                </div>
+                                <p class="text-center text-[11px] text-gray-500 mb-3">Director's Signature</p>
+                                {!! $field('director_approval_date', 'DATE OF APPROVAL', null, 'date') !!}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {{--
                     ACTION ROW
 

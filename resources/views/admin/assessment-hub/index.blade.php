@@ -10,10 +10,8 @@
                 <p class="text-gray-500 mt-1">Manage Startup Information Sheets from submission to approval and the Assessment Documents</p>
             </div>
 
-            {{-- "Export Document" is visual-only for now — no export
-                 endpoint exists yet in the app. Wire this up once a real
-                 document-export feature is scoped. --}}
             <button type="button" x-show="mainTab === 'assessment'" x-cloak
+                @click="$dispatch('open-export-modal')"
                 class="inline-flex shrink-0 items-center gap-2 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-sm font-semibold rounded-lg px-4 py-2.5 transition hover:opacity-90">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 15V3m0 12l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
@@ -21,6 +19,8 @@
                 <span>Export Document</span>
             </button>
         </div>
+
+        @include('admin.assessment-hub._export-modal')
 
         <div class="flex gap-8 border-b mb-6">
             <button type="button" @click="mainTab = 'information-sheet'"

@@ -125,6 +125,13 @@ class AssessmentHubController extends Controller
                 ->first()
             : null;
 
+        // ============ Assessment tab: Reports ============
+        // The Reports stage tab lists this startup's previously "Save to
+        // Reports"-d exports — nothing to show without a startup selected.
+        $savedReports = $selectedStartup
+            ? $selectedStartup->savedReports()->latest()->get()
+            : collect();
+
         // ============ Assessment tab: "All Startup" overview table ============
         // One row per assessable startup, with a completed/not-started pill
         // for each stage/RL-type combo — "Document 6/7/8" pills are
@@ -232,6 +239,7 @@ class AssessmentHubController extends Controller
             'ventureExitDocument' => $ventureExitDocument,
             'postAssessmentSummary' => $postAssessmentSummary,
             'incompleteAssessments' => $incompleteAssessments,
+            'savedReports' => $savedReports,
             'rubricMeta' => ReadinessRubric::meta($selectedStage),
             'rubricLevels' => ReadinessRubric::all(),
             'stages' => ReadinessRubric::STAGES,

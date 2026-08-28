@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\EvaluationScheduleController;
 use App\Http\Controllers\Admin\FounderApplicationController;
 use App\Http\Controllers\Admin\CohortController;
 use App\Http\Controllers\Admin\RiskMonitoringController;
+use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Startup\FounderReadinessController;
 
 
@@ -142,6 +143,12 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('/assessment-hub/evaluations/{evaluationSchedule}', [EvaluationScheduleController::class, 'destroy'])->name('assessment-hub.evaluations.destroy');
     Route::put('/assessment-hub/assessments/{startup}', [AssessmentController::class, 'update'])->name('assessment-hub.assessments.update');
     Route::put('/assessment-hub/assessments/{startup}/documents', [AssessmentController::class, 'updateDocuments'])->name('assessment-hub.assessments.update-documents');
+
+    Route::get('/exports/documents', [ExportController::class, 'documents'])->name('exports.documents');
+    Route::post('/exports/generate', [ExportController::class, 'generate'])->name('exports.generate');
+    Route::post('/exports/save', [ExportController::class, 'save'])->name('exports.save');
+    Route::get('/exports/{savedReport}/download', [ExportController::class, 'download'])->name('exports.download');
+    Route::delete('/exports/{savedReport}', [ExportController::class, 'destroy'])->name('exports.destroy');
 
     Route::get('/founder-applications', [FounderApplicationController::class, 'index'])->name('founder-applications.index');
     Route::post('/founder-applications/{startup}/approve', [FounderApplicationController::class, 'approve'])->name('founder-applications.approve');

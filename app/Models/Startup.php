@@ -106,6 +106,11 @@ class Startup extends Model
         return $this->hasMany(EvaluationSchedule::class, 'startup_id', 'startup_id');
     }
 
+    public function savedReports()
+    {
+        return $this->hasMany(SavedReport::class, 'startup_id', 'startup_id');
+    }
+
     public function latestEvaluationSchedule()
     {
         return $this->hasOne(EvaluationSchedule::class, 'startup_id', 'startup_id')->latestOfMany('evaluation_date');
