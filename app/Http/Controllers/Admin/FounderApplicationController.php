@@ -132,4 +132,32 @@ class FounderApplicationController extends Controller
             ->route('admin.founder-applications.index', $request->only('tab', 'per_page'))
             ->with('application_result', ['type' => 'rejected', 'startup' => $startup->company_name]);
     }
+
+    /**
+     * Permanently removes a Founder signup — both the Startup row and its
+     * User row together, so this never leaves an orphaned account behind
+     * (see the CleanOrphanedFounderAccounts command, written to mop up
+     * exactly that kind of leftover from a manual/direct-DB delete done
+     * outside the app).
+     *
+     * Deliberately scoped to still-Pending applications only. Once an
+     * admin has approved or rejected someone, real activity (assessments,
+     * roadblocks, uploaded files, etc.) may already hang off their
+     * account, and a full cascading delete of all of that is a much
+     * bigger, riskier feature than what this is for: letting an admin
+     * clean up a junk/test/abandoned signup before it's ever been acted
+     * on.
+     */
+    public function destroy(Startup $startup, Request $request): RedirectResponse
+    {
+        abort_unless($startup->user?->isPendingApproval(), 404);
+
+        $user = $startup->user;
+        $startup->delete();
+        $user->delete();
+
+        return redirect()
+            ->route('admin.founder-applications.index', $request->only('tab', 'per_page'))
+            ->with('status', 'Application deleted.');
+    }
 }

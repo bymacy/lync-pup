@@ -126,10 +126,18 @@
 
                         <td class="px-4 py-3">
                             @if ($isPending)
-                                <button type="button" @click="step = 'review'"
-                                    class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-xs font-semibold rounded-lg px-4 py-2 hover:opacity-90 transition">
-                                    Review
-                                </button>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" @click="step = 'review'"
+                                        class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-xs font-semibold rounded-lg px-4 py-2 hover:opacity-90 transition">
+                                        Review
+                                    </button>
+                                    <button type="button" @click="step = 'delete'" title="Delete application"
+                                        class="border border-gray-300 text-gray-500 hover:text-red-700 hover:border-red-300 rounded-lg p-2 transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0-1 12a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7h12z" />
+                                        </svg>
+                                    </button>
+                                </div>
                             @else
                                 <button type="button" @click="step = 'view'"
                                     class="border border-gray-300 text-gray-700 text-xs font-semibold rounded-lg px-4 py-2 hover:bg-gray-50 transition">
@@ -300,6 +308,43 @@
                                             <button type="submit" :disabled="submitting"
                                                 class="flex-1 bg-rose-900 hover:bg-rose-950 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg py-2.5 text-sm font-medium transition">
                                                 <span x-show="!submitting">Confirm Rejection</span>
+                                                <span x-show="submitting">Processing…</span>
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            {{-- ============ DELETE MODAL ============ --}}
+                            <div x-show="step === 'delete'" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style="display: none;">
+                                <div class="relative bg-white rounded-xl w-full max-w-md overflow-hidden" @click.outside="step = null">
+                                    <div class="bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between">
+                                        <h3 class="font-bold">Delete Application</h3>
+                                        <button type="button" @click="step = null" class="text-white/80 hover:text-white text-xl leading-none">&times;</button>
+                                    </div>
+
+                                    <form method="POST" action="{{ route('admin.founder-applications.destroy', $application) }}" class="p-6 space-y-4"
+                                        @submit="submitting = true">
+                                        @csrf
+                                        @method('DELETE')
+                                        <input type="hidden" name="tab" value="{{ $activeTab }}">
+                                        <input type="hidden" name="per_page" value="{{ $perPage }}">
+
+                                        <div class="flex justify-center">
+                                            <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+                                                <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0-1 12a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7h12z" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <p class="text-center font-bold text-lg text-gray-900">Delete this application?</p>
+                                        <p class="text-center text-sm text-gray-500">This permanently removes <strong>{{ $founder->name }}</strong>'s account and startup entry ({{ $application->company_name }}). This can't be undone, and no notification is sent.</p>
+
+                                        <div class="flex gap-3 pt-2">
+                                            <button type="button" @click="step = null" :disabled="submitting" class="flex-1 border rounded-lg py-2.5 text-sm font-medium text-gray-700 disabled:opacity-50">Cancel</button>
+                                            <button type="submit" :disabled="submitting"
+                                                class="flex-1 bg-red-700 hover:bg-red-800 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg py-2.5 text-sm font-medium transition">
+                                                <span x-show="!submitting">Confirm Delete</span>
                                                 <span x-show="submitting">Processing…</span>
                                             </button>
                                         </div>

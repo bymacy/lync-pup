@@ -153,6 +153,7 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/founder-applications', [FounderApplicationController::class, 'index'])->name('founder-applications.index');
     Route::post('/founder-applications/{startup}/approve', [FounderApplicationController::class, 'approve'])->name('founder-applications.approve');
     Route::post('/founder-applications/{startup}/reject', [FounderApplicationController::class, 'reject'])->name('founder-applications.reject');
+    Route::delete('/founder-applications/{startup}', [FounderApplicationController::class, 'destroy'])->name('founder-applications.destroy');
 
     // No standalone "index" page/route — cohort CRUD is handled entirely
     // through the admin Dashboard's cohort selector + 3-dot menu now.
