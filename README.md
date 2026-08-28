@@ -41,6 +41,24 @@ php artisan boost:install
 
 Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
 
+## Testing Email Locally
+
+Registration sends a real email verification link, so `.env` needs a working
+mailer — the default `log` driver just writes it to
+`storage/logs/laravel.log` instead of sending it, with no error.
+
+For local testing, use the team's shared Mailtrap Sandbox inbox rather than
+a personal email account:
+
+1. Sign up free at [mailtrap.io](https://mailtrap.io) (or get the existing
+   team sandbox's credentials from whoever set it up).
+2. Open Email Testing → Inboxes → your inbox → SMTP Settings.
+3. Copy the `MAIL_*` values into your local `.env` (see the commented
+   example in `.env.example`).
+
+Everyone using the same sandbox credentials will see all "sent"
+verification/reset emails land in that one shared Mailtrap inbox.
+
 ## Contributing
 
 Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
