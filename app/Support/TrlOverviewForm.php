@@ -34,7 +34,7 @@ class TrlOverviewForm
         'Concept', 'Functional Prototype', 'MVP (Minimum Viable Product)', 'Production Ready', 'Scalable Production System',
     ];
 
-    public const TESTING_STRATEGIES = ['Unit Testing', 'Integration Testing', 'Automated Testing Framework Used', 'Manual QA Process'];
+    public const TESTING_STRATEGIES = ['Unit Testing', 'Integration Testing', 'Automated Testing Framework', 'Manual QA Process'];
 
     public const TOPICS_OF_INTEREST_COLUMN_1 = ['Software Engineering', 'Infrastructure and Engineering', 'AI/Machine Learning', 'Product Design', 'Database Management'];
 

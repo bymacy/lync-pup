@@ -27,22 +27,97 @@ for ($i = 0; $i < $count; $i++) {
     // checklist accordion but skips straight to the checklist.
     $showTrlOverview = $selectedStage === 'Pre-Assessment';
 
+    // Section 1's identity fields are pulled straight from this startup's
+    // own records (Information Sheet / Team Members / Startup profile)
+    // instead of being retyped by the assessor here — rendered read-only
+    // below so they can never drift from the source of truth.
+    $overviewFounderName = $selectedStartup?->informationSheet?->full_name ?: $selectedStartup?->user?->name;
+    $overviewContactInfo = $selectedStartup?->informationSheet?->mobile_no ?: $selectedStartup?->contact_phone;
+    $overviewTechLead = $selectedStartup?->teamMembers?->first(fn ($member) => str_contains(strtolower($member->designation ?? ''), 'cto')
+            || str_contains(strtolower($member->designation ?? ''), 'tech lead')
+            || str_contains(strtolower($member->role ?? ''), 'cto'))
+        ?->full_name;
+    $overviewAssessmentDateInput = ($currentAssessment?->assessment_date ?? now())->format('Y-m-d');
+
+    // Signatory block at the end of the form. Evaluated by defaults to the
+    // logged-in admin (matching the old auto-filled behavior) the first
+    // time this assessment is saved; Reviewed by / Noted by have no
+    // sensible default and start blank until someone fills them in.
+    $overviewEvaluatedBy = $currentAssessment?->evaluated_by ?? (auth()->user()?->name ?? auth()->user()?->email ?? '');
+    $overviewReviewedBy = $currentAssessment?->reviewed_by ?? '';
+    $overviewNotedBy = $currentAssessment?->noted_by ?? '';
+
+    // TRL-only signatory block ("Prepared By" / "Noted By" / "Approved
+    // by") — distinct from the MRL-only Evaluated/Reviewed/Noted block
+    // above, hence the differently-named columns to avoid colliding with
+    // noted_by. "Approved by" is fixed institutional text, not stored.
+    $overviewPreparedBy = $currentAssessment?->prepared_by ?? '';
+    $overviewPreparedByPosition = $currentAssessment?->prepared_by_position ?? '';
+    $overviewTrlNotedBy = $currentAssessment?->trl_noted_by ?? '';
+    $overviewTrlNotedByPosition = $currentAssessment?->trl_noted_by_position ?? '';
+
+    // "Approved by" is editable but arrives pre-filled with the
+    // director's fixed signature/title, rather than being fully static —
+    // the assessor can correct it later without touching code.
+    $overviewApprovedBy = $currentAssessment?->approved_by ?? 'DR. PHILIP P. ERMITA , PIE, PDQM, ASEAN ENG.';
+    $overviewApprovedByPosition = $currentAssessment?->approved_by_position
+        ?? "Director, Technology Business Incubation and Development Office\nProject Leader, DOST-HEIRIT";
+
+    // MRL block's own three position/title lines — same
+    // editable-but-prefilled treatment as approved_by_position above.
+    $overviewEvaluatedByPosition = $currentAssessment?->evaluated_by_position
+        ?? "Portfolio Coordinator, TBIDO\nProject Technical Assistant II, DOST HEIRIT";
+    $overviewReviewedByPosition = $currentAssessment?->reviewed_by_position ?? 'Startup Development Chief, TBIDO';
+    $overviewNotedByPosition = $currentAssessment?->noted_by_position
+        ?? "Director, TBIDO\nProject Leader, DOST HEIRIT";
+
+    // SRL's own Evaluated/Reviewed/Noted by block — distinct storage
+    // from MRL/TMRL's above since its "Reviewed by" default title differs.
+    $overviewSrlEvaluatedBy = $currentAssessment?->srl_evaluated_by ?? '';
+    $overviewSrlEvaluatedByPosition = $currentAssessment?->srl_evaluated_by_position
+        ?? "Portfolio Coordinator, TBIDO\nProject Technical Assistant II, DOST HEIRIT";
+    $overviewSrlReviewedBy = $currentAssessment?->srl_reviewed_by ?? '';
+    $overviewSrlReviewedByPosition = $currentAssessment?->srl_reviewed_by_position ?? 'Incubation Management Chief, TBIDO';
+    $overviewSrlNotedBy = $currentAssessment?->srl_noted_by ?? '';
+    $overviewSrlNotedByPosition = $currentAssessment?->srl_noted_by_position
+        ?? "Director, TBIDO\nProject Leader, DOST HEIRIT";
+
     // Always seed a full object shape (never a bare empty array) so
     // @js() below emits a JS object — an empty PHP array would otherwise
     // serialize as `[]`, breaking every `trlOverview.<key>` access in Alpine.
         $storedOverview = $currentAssessment?->trl_overview ?? [];
         $trlOverviewSeed = [
+        // Prefilled from the startup's own records the first time this
+        // assessment is opened, but stored (and re-editable) here from then
+        // on — so the assessor can correct them without touching the
+        // startup's actual profile.
+        'founder' => $storedOverview['founder'] ?? ($overviewFounderName ?? ''),
+        'tech_lead' => $storedOverview['tech_lead'] ?? ($overviewTechLead ?? ''),
+        'contact_info' => $storedOverview['contact_info'] ?? ($overviewContactInfo ?? ''),
         'industry_focus' => $storedOverview['industry_focus'] ?? [],
         'tech_stack' => array_merge(
         array_fill_keys(array_keys(\App\Support\TrlOverviewForm::TECH_STACK_FIELDS), ''),
         $storedOverview['tech_stack'] ?? []
         ),
+        'brief_description' => $storedOverview['brief_description'] ?? '',
+        'key_features' => $storedOverview['key_features'] ?? '',
         'technical_challenges' => $storedOverview['technical_challenges'] ?? [],
-        'tech_team_roles' => $storedOverview['tech_team_roles'] ?? [],
+        'technical_challenges_other_enabled' => (bool) ($storedOverview['technical_challenges_other_enabled'] ?? false),
+        'technical_challenges_other_text' => $storedOverview['technical_challenges_other_text'] ?? '',
+        'tech_team_roles' => array_merge(
+        array_fill_keys(\App\Support\TrlOverviewForm::TECH_TEAM_ROLES, ''),
+        array_filter($storedOverview['tech_team_roles'] ?? [], 'is_string')
+        ),
         'team_maturity_level' => $storedOverview['team_maturity_level'] ?? '',
         'testing_strategies' => $storedOverview['testing_strategies'] ?? [],
+        'automated_testing_framework_name' => $storedOverview['automated_testing_framework_name'] ?? '',
         'topics_of_interest' => $storedOverview['topics_of_interest'] ?? [],
-        'mode_of_communication' => $storedOverview['mode_of_communication'] ?? '',
+        // Switched from a single radio value to a checklist (matches the
+        // source form) — guard against older saved rows that still hold a
+        // plain string here instead of an array.
+        'mode_of_communication' => is_array($storedOverview['mode_of_communication'] ?? null) ? $storedOverview['mode_of_communication'] : [],
+        'mode_of_communication_other_enabled' => (bool) ($storedOverview['mode_of_communication_other_enabled'] ?? false),
+        'mode_of_communication_other_text' => $storedOverview['mode_of_communication_other_text'] ?? '',
         ];
         @endphp
 
@@ -169,13 +244,70 @@ for ($i = 0; $i < $count; $i++) {
             expanded: { TRL: null, MRL: null, TMRL: null, SRL: null },
             progress: @js($seedProgress),
             trlOverview: @js($trlOverviewSeed),
+            assessmentDate: @js($overviewAssessmentDateInput),
+            evaluatedBy: @js($overviewEvaluatedBy),
+            reviewedBy: @js($overviewReviewedBy),
+            notedBy: @js($overviewNotedBy),
+            preparedBy: @js($overviewPreparedBy),
+            preparedByPosition: @js($overviewPreparedByPosition),
+            trlNotedBy: @js($overviewTrlNotedBy),
+            trlNotedByPosition: @js($overviewTrlNotedByPosition),
+            approvedBy: @js($overviewApprovedBy),
+            approvedByPosition: @js($overviewApprovedByPosition),
+            evaluatedByPosition: @js($overviewEvaluatedByPosition),
+            reviewedByPosition: @js($overviewReviewedByPosition),
+            notedByPosition: @js($overviewNotedByPosition),
+            srlEvaluatedBy: @js($overviewSrlEvaluatedBy),
+            srlEvaluatedByPosition: @js($overviewSrlEvaluatedByPosition),
+            srlReviewedBy: @js($overviewSrlReviewedBy),
+            srlReviewedByPosition: @js($overviewSrlReviewedByPosition),
+            srlNotedBy: @js($overviewSrlNotedBy),
+            srlNotedByPosition: @js($overviewSrlNotedByPosition),
             initialProgress: @js($seedProgress),
             initialTrlOverview: @js($trlOverviewSeed),
+            initialAssessmentDate: @js($overviewAssessmentDateInput),
+            initialEvaluatedBy: @js($overviewEvaluatedBy),
+            initialReviewedBy: @js($overviewReviewedBy),
+            initialNotedBy: @js($overviewNotedBy),
+            initialPreparedBy: @js($overviewPreparedBy),
+            initialPreparedByPosition: @js($overviewPreparedByPosition),
+            initialTrlNotedBy: @js($overviewTrlNotedBy),
+            initialTrlNotedByPosition: @js($overviewTrlNotedByPosition),
+            initialApprovedBy: @js($overviewApprovedBy),
+            initialApprovedByPosition: @js($overviewApprovedByPosition),
+            initialEvaluatedByPosition: @js($overviewEvaluatedByPosition),
+            initialReviewedByPosition: @js($overviewReviewedByPosition),
+            initialNotedByPosition: @js($overviewNotedByPosition),
+            initialSrlEvaluatedBy: @js($overviewSrlEvaluatedBy),
+            initialSrlEvaluatedByPosition: @js($overviewSrlEvaluatedByPosition),
+            initialSrlReviewedBy: @js($overviewSrlReviewedBy),
+            initialSrlReviewedByPosition: @js($overviewSrlReviewedByPosition),
+            initialSrlNotedBy: @js($overviewSrlNotedBy),
+            initialSrlNotedByPosition: @js($overviewSrlNotedByPosition),
             showClearConfirm: false,
             showSaved: @js($justSaved),
             isDirty() {
                 return JSON.stringify(this.progress) !== JSON.stringify(this.initialProgress)
-                    || JSON.stringify(this.trlOverview) !== JSON.stringify(this.initialTrlOverview);
+                    || JSON.stringify(this.trlOverview) !== JSON.stringify(this.initialTrlOverview)
+                    || this.assessmentDate !== this.initialAssessmentDate
+                    || this.evaluatedBy !== this.initialEvaluatedBy
+                    || this.reviewedBy !== this.initialReviewedBy
+                    || this.notedBy !== this.initialNotedBy
+                    || this.preparedBy !== this.initialPreparedBy
+                    || this.preparedByPosition !== this.initialPreparedByPosition
+                    || this.trlNotedBy !== this.initialTrlNotedBy
+                    || this.trlNotedByPosition !== this.initialTrlNotedByPosition
+                    || this.approvedBy !== this.initialApprovedBy
+                    || this.approvedByPosition !== this.initialApprovedByPosition
+                    || this.evaluatedByPosition !== this.initialEvaluatedByPosition
+                    || this.reviewedByPosition !== this.initialReviewedByPosition
+                    || this.notedByPosition !== this.initialNotedByPosition
+                    || this.srlEvaluatedBy !== this.initialSrlEvaluatedBy
+                    || this.srlEvaluatedByPosition !== this.initialSrlEvaluatedByPosition
+                    || this.srlReviewedBy !== this.initialSrlReviewedBy
+                    || this.srlReviewedByPosition !== this.initialSrlReviewedByPosition
+                    || this.srlNotedBy !== this.initialSrlNotedBy
+                    || this.srlNotedByPosition !== this.initialSrlNotedByPosition;
             },
             scoreFor(type) {
                 let count = 0;
@@ -229,16 +361,19 @@ for ($i = 0; $i < $count; $i++) {
         ">
 
             <div>
-                {{-- ============ RL type selector ============ --}}
-                <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {{-- ============ RL type header (tab strip) ============ --}}
+                <div class="mb-6 grid grid-cols-2 overflow-hidden rounded-lg border border-gray-200 sm:grid-cols-4">
                     @foreach ($rubricMeta as $type => $meta)
                         @php $isSavedComplete = $currentAssessment?->scoreFor($type) === 9; @endphp
                         <button type="button" @click="activeType = '{{ $type }}'"
-                            class="rounded-lg border px-4 py-3 text-center transition"
-                            :class="{{ $isSavedComplete ? 'true' : 'false' }} ? 'border-green-500 bg-green-50' : (activeType === '{{ $type }}' ? 'border-[#6C0E24] bg-[#6C0E24]/5' : 'border-[#6C0E24] bg-white hover:bg-[#6C0E24]/5')">
-                            <p class="font-bold" :class="{{ $isSavedComplete ? 'true' : 'false' }} ? 'text-green-700' : 'text-[#6C0E24]'">{{ $type }}</p>
-                            <p class="mt-1 flex items-center justify-center gap-1.5 text-xs" :class="{{ $isSavedComplete ? 'true' : 'false' }} ? 'text-green-600' : 'text-[#6C0E24]'">
-                                <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="scoreFor('{{ $type }}') ? 'bg-green-500' : 'bg-gray-300'"></span>
+                            class="border-t-2 border-r border-gray-200 px-4 py-3 text-center transition last:border-r-0"
+                            :class="activeType === '{{ $type }}' ? 'border-t-[#6C0E24] bg-[#6C0E24]/5' : 'border-t-transparent bg-white hover:bg-[#6C0E24]/5'">
+                            <p class="text-xs font-semibold uppercase tracking-wide" :class="activeType === '{{ $type }}' ? 'text-[#6C0E24]' : 'text-gray-400'">
+                                {{ $type }}
+                            </p>
+                            <p class="mt-1 flex items-center justify-center gap-1.5 text-sm font-bold"
+                                :class="{{ $isSavedComplete ? 'true' : 'false' }} ? 'text-green-600' : (scoreFor('{{ $type }}') ? 'text-[#6C0E24]' : 'text-gray-400')">
+                                <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="{{ $isSavedComplete ? 'true' : 'false' }} ? 'bg-green-500' : (scoreFor('{{ $type }}') ? 'bg-[#6C0E24]' : 'bg-gray-300')"></span>
                                 <span x-text="scoreFor('{{ $type }}') ? scoreFor('{{ $type }}') + '/9' : 'Not Started'"></span>
                             </p>
                         </button>
@@ -256,112 +391,28 @@ for ($i = 0; $i < $count; $i++) {
                     @if ($showTrlOverview)
                     <input type="hidden" name="trl_overview" :value="JSON.stringify(trlOverview)">
                     @endif
+                    <input type="hidden" name="assessment_date" :value="assessmentDate">
+                    <input type="hidden" name="evaluated_by" :value="evaluatedBy">
+                    <input type="hidden" name="reviewed_by" :value="reviewedBy">
+                    <input type="hidden" name="noted_by" :value="notedBy">
+                    <input type="hidden" name="prepared_by" :value="preparedBy">
+                    <input type="hidden" name="prepared_by_position" :value="preparedByPosition">
+                    <input type="hidden" name="trl_noted_by" :value="trlNotedBy">
+                    <input type="hidden" name="trl_noted_by_position" :value="trlNotedByPosition">
+                    <input type="hidden" name="approved_by" :value="approvedBy">
+                    <input type="hidden" name="approved_by_position" :value="approvedByPosition">
+                    <input type="hidden" name="evaluated_by_position" :value="evaluatedByPosition">
+                    <input type="hidden" name="reviewed_by_position" :value="reviewedByPosition">
+                    <input type="hidden" name="noted_by_position" :value="notedByPosition">
+                    <input type="hidden" name="srl_evaluated_by" :value="srlEvaluatedBy">
+                    <input type="hidden" name="srl_evaluated_by_position" :value="srlEvaluatedByPosition">
+                    <input type="hidden" name="srl_reviewed_by" :value="srlReviewedBy">
+                    <input type="hidden" name="srl_reviewed_by_position" :value="srlReviewedByPosition">
+                    <input type="hidden" name="srl_noted_by" :value="srlNotedBy">
+                    <input type="hidden" name="srl_noted_by_position" :value="srlNotedByPosition">
 
                     @foreach ($rubricLevels as $type => $levels)
                     <div x-show="activeType === '{{ $type }}'" @if ($type !=='TRL' ) x-cloak @endif>
-                        @if ($type === 'TRL' && $showTrlOverview)
-                        <div class="mb-6 rounded-xl border border-gray-200 p-5">
-                            <h3 class="text-base font-bold text-gray-900">Section 1: Startup & Technology Overview</h3>
-                            <p class="mb-4 text-sm text-gray-500">One-time intake captured before scoring TRL — appears only on Pre-Assessment.</p>
-
-                            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                                <div>
-                                    <p class="mb-2 text-sm font-semibold text-gray-700">Industry Focus</p>
-                                    <div class="flex flex-wrap gap-3">
-                                        @foreach (\App\Support\TrlOverviewForm::INDUSTRY_FOCUS as $option)
-                                        <label class="flex items-center gap-1.5 text-sm text-gray-700">
-                                            <input type="checkbox" value="{{ $option }}" x-model="trlOverview.industry_focus">
-                                            {{ $option }}
-                                        </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p class="mb-2 text-sm font-semibold text-gray-700">Team Maturity Level</p>
-                                    <select x-model="trlOverview.team_maturity_level" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                                        <option value="">Select...</option>
-                                        @foreach (\App\Support\TrlOverviewForm::TEAM_MATURITY_LEVELS as $option)
-                                        <option value="{{ $option }}">{{ $option }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                <div class="sm:col-span-2">
-                                    <p class="mb-2 text-sm font-semibold text-gray-700">Tech Stack</p>
-                                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                        @foreach (\App\Support\TrlOverviewForm::TECH_STACK_FIELDS as $key => $label)
-                                        <div>
-                                            <label class="mb-1 block text-xs text-gray-500">{{ $label }}</label>
-                                            <input type="text" x-model="trlOverview.tech_stack.{{ $key }}"
-                                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                                        </div>
-                                        @endforeach
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p class="mb-2 text-sm font-semibold text-gray-700">Technical Challenges</p>
-                                    <div class="flex flex-col gap-1.5">
-                                        @foreach (\App\Support\TrlOverviewForm::TECHNICAL_CHALLENGES as $option)
-                                        <label class="flex items-center gap-1.5 text-sm text-gray-700">
-                                            <input type="checkbox" value="{{ $option }}" x-model="trlOverview.technical_challenges">
-                                            {{ $option }}
-                                        </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p class="mb-2 text-sm font-semibold text-gray-700">Tech Team Roles</p>
-                                    <div class="flex flex-col gap-1.5">
-                                        @foreach (\App\Support\TrlOverviewForm::TECH_TEAM_ROLES as $option)
-                                        <label class="flex items-center gap-1.5 text-sm text-gray-700">
-                                            <input type="checkbox" value="{{ $option }}" x-model="trlOverview.tech_team_roles">
-                                            {{ $option }}
-                                        </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p class="mb-2 text-sm font-semibold text-gray-700">Testing Strategies</p>
-                                    <div class="flex flex-col gap-1.5">
-                                        @foreach (\App\Support\TrlOverviewForm::TESTING_STRATEGIES as $option)
-                                        <label class="flex items-center gap-1.5 text-sm text-gray-700">
-                                            <input type="checkbox" value="{{ $option }}" x-model="trlOverview.testing_strategies">
-                                            {{ $option }}
-                                        </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p class="mb-2 text-sm font-semibold text-gray-700">Mode of Communication</p>
-                                    <div class="flex flex-wrap gap-3">
-                                        @foreach (\App\Support\TrlOverviewForm::MODES_OF_COMMUNICATION as $option)
-                                        <label class="flex items-center gap-1.5 text-sm text-gray-700">
-                                            <input type="radio" value="{{ $option }}" x-model="trlOverview.mode_of_communication">
-                                            {{ $option }}
-                                        </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-
-                                <div class="sm:col-span-2">
-                                    <p class="mb-2 text-sm font-semibold text-gray-700">Topics of Interest</p>
-                                    <div class="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
-                                        @foreach (array_merge(\App\Support\TrlOverviewForm::TOPICS_OF_INTEREST_COLUMN_1, \App\Support\TrlOverviewForm::TOPICS_OF_INTEREST_COLUMN_2) as $option)
-                                        <label class="flex items-center gap-1.5 text-sm text-gray-700">
-                                            <input type="checkbox" value="{{ $option }}" x-model="trlOverview.topics_of_interest">
-                                            {{ $option }}
-                                        </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        @endif
 
                         <h2 class="text-lg font-bold text-gray-900">{{ $rubricMeta[$type]['label'] }}</h2>
                         <p class="mb-3 text-sm text-gray-500">{{ $rubricMeta[$type]['description'] }}</p>
@@ -380,10 +431,241 @@ for ($i = 0; $i < $count; $i++) {
                             {{ $rubricMeta[$type]['form_no'] }}
                         </p>
 
+                        @if ($type === 'TRL' && $showTrlOverview)
+                        <div class="mb-6 overflow-hidden rounded-xl border border-gray-200">
+                            <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-3">
+                                <h3 class="text-sm font-bold uppercase tracking-wide text-white">Section 1: Startup &amp; Technology Overview</h3>
+                            </div>
+                            <div class="p-5">
+                                <p class="mb-5 text-sm text-gray-500">One-time intake captured before scoring TRL — appears only on Pre-Assessment.</p>
+
+                                <div class="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+                                    {{-- ---- Left column ---- --}}
+                                    <div class="flex flex-col gap-5">
+                                        <div>
+                                            <p class="mb-1.5 text-sm font-semibold text-gray-700">Startup / Company Name</p>
+                                            <input type="text" value="{{ $selectedStartup?->company_name ?? '—' }}" readonly
+                                                class="w-full cursor-not-allowed rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-500">
+                                        </div>
+
+                                        <div>
+                                            <p class="mb-1.5 text-sm font-semibold text-gray-700">Founder</p>
+                                            <input type="text" x-model="trlOverview.founder"
+                                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                        </div>
+
+                                        <div>
+                                            <p class="mb-1.5 text-sm font-semibold text-gray-700">Tech Lead</p>
+                                            <input type="text" x-model="trlOverview.tech_lead"
+                                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                        </div>
+
+                                        <div>
+                                            <p class="mb-1.5 text-sm font-semibold text-gray-700">Brief Description of the Prototype</p>
+                                            <textarea x-model="trlOverview.brief_description" rows="4"
+                                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"></textarea>
+                                        </div>
+
+                                        <div>
+                                            <p class="mb-1.5 text-sm font-semibold text-gray-700">Key Features &amp; Intended Benefit of the Product</p>
+                                            <textarea x-model="trlOverview.key_features" rows="4"
+                                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"></textarea>
+                                        </div>
+                                    </div>
+
+                                    {{-- ---- Right column ---- --}}
+                                    <div class="flex flex-col gap-5">
+                                        <div>
+                                            <p class="mb-1.5 text-sm font-semibold text-gray-700">Date of Assessment</p>
+                                            <input type="date" x-model="assessmentDate"
+                                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                        </div>
+
+                                        <div>
+                                            <p class="mb-1.5 text-sm font-semibold text-gray-700">Contact Information</p>
+                                            <input type="text" x-model="trlOverview.contact_info"
+                                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                        </div>
+
+                                        <div>
+                                            <p class="mb-2 text-sm font-semibold text-gray-700">Industry Focus</p>
+                                            <div class="flex flex-wrap gap-3">
+                                                @foreach (\App\Support\TrlOverviewForm::INDUSTRY_FOCUS as $option)
+                                                <label class="flex items-start gap-2 text-sm text-gray-700">
+                                                    <input type="checkbox" value="{{ $option }}" x-model="trlOverview.industry_focus" class="mt-0.5 shrink-0">
+                                                    {{ $option }}
+                                                </label>
+                                                @endforeach
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <p class="mb-2 text-sm font-semibold text-gray-700">Technology Stack Used in Prototype</p>
+                                            <div class="flex flex-col gap-3">
+                                                @foreach (\App\Support\TrlOverviewForm::TECH_STACK_FIELDS as $key => $label)
+                                                <div>
+                                                    <label class="mb-1 block text-xs text-gray-500">{{ $label }}</label>
+                                                    <input type="text" x-model="trlOverview.tech_stack.{{ $key }}"
+                                                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                                </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="my-6 border-t border-gray-200"></div>
+
+                                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                                    <div class="overflow-hidden rounded-xl border border-gray-200">
+                                        <div class="flex items-center gap-2 border-b border-gray-200 bg-gradient-to-r from-[#6D0D23]/5 to-[#11386A]/5 px-4 py-3">
+                                            <p class="text-sm font-semibold text-gray-700">Technical Challenge &amp; Risks</p>
+                                        </div>
+                                        <div class="flex flex-col gap-1.5 p-4">
+                                            @foreach (\App\Support\TrlOverviewForm::TECHNICAL_CHALLENGES as $option)
+                                            <label class="flex items-start gap-2 text-sm text-gray-700">
+                                                <input type="checkbox" value="{{ $option }}" x-model="trlOverview.technical_challenges" class="mt-0.5 shrink-0">
+                                                {{ $option }}
+                                            </label>
+                                            @endforeach
+                                            <label class="flex items-start gap-2 text-sm text-gray-700">
+                                                <input type="checkbox" x-model="trlOverview.technical_challenges_other_enabled" class="mt-0.5 shrink-0">
+                                                Others:
+                                            </label>
+                                            <input type="text" x-show="trlOverview.technical_challenges_other_enabled" x-model="trlOverview.technical_challenges_other_text"
+                                                class="ml-6 w-[calc(100%-1.5rem)] rounded-md border border-gray-300 px-2 py-1 text-sm">
+                                        </div>
+                                    </div>
+
+                                    <div class="overflow-hidden rounded-xl border border-gray-200">
+                                        <div class="flex items-center gap-2 border-b border-gray-200 bg-gradient-to-r from-[#6D0D23]/5 to-[#11386A]/5 px-4 py-3">
+                                            <p class="text-sm font-semibold text-gray-700">Tech Team Capacity</p>
+                                        </div>
+                                        <div class="p-4">
+                                            <div class="overflow-hidden rounded-lg border border-gray-200">
+                                                <table class="w-full text-sm">
+                                                    <thead>
+                                                        <tr class="bg-gray-50 text-left text-xs font-semibold text-gray-500">
+                                                            <th class="px-3 py-2">Role</th>
+                                                            <th class="px-3 py-2">Name</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach (\App\Support\TrlOverviewForm::TECH_TEAM_ROLES as $role)
+                                                        <tr class="border-t border-gray-100">
+                                                            <td class="px-3 py-2 text-gray-700">{{ $role }}</td>
+                                                            <td class="px-2 py-1.5">
+                                                                <input type="text" x-model="trlOverview.tech_team_roles['{{ $role }}']"
+                                                                    placeholder="Name"
+                                                                    class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm">
+                                                            </td>
+                                                        </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="overflow-hidden rounded-xl border border-gray-200">
+                                        <div class="flex items-center gap-2 border-b border-gray-200 bg-gradient-to-r from-[#6D0D23]/5 to-[#11386A]/5 px-4 py-3">
+                                            <p class="text-sm font-semibold text-gray-700">Team Maturity Level</p>
+                                        </div>
+                                        <div class="flex flex-col gap-1.5 p-4">
+                                            @foreach (\App\Support\TrlOverviewForm::TEAM_MATURITY_LEVELS as $option)
+                                            <label class="flex items-start gap-2 text-sm text-gray-700">
+                                                <input type="radio" value="{{ $option }}" x-model="trlOverview.team_maturity_level" class="mt-0.5 shrink-0">
+                                                {{ $option }}
+                                            </label>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <div class="overflow-hidden rounded-xl border border-gray-200">
+                                        <div class="flex items-center gap-2 border-b border-gray-200 bg-gradient-to-r from-[#6D0D23]/5 to-[#11386A]/5 px-4 py-3">
+                                            <p class="text-sm font-semibold text-gray-700">Testing Strategy</p>
+                                        </div>
+                                        <div class="flex flex-col gap-1.5 p-4">
+                                            @foreach (\App\Support\TrlOverviewForm::TESTING_STRATEGIES as $option)
+                                            <label class="flex items-start gap-2 text-sm text-gray-700">
+                                                <input type="checkbox" value="{{ $option }}" x-model="trlOverview.testing_strategies" class="mt-0.5 shrink-0">
+                                                {{ $option }}
+                                            </label>
+                                            @if ($option === 'Automated Testing Framework')
+                                            <div x-show="trlOverview.testing_strategies.includes('Automated Testing Framework')" class="ml-6 flex items-center gap-2">
+                                                <span class="shrink-0 text-xs text-gray-500">Used:</span>
+                                                <input type="text" x-model="trlOverview.automated_testing_framework_name"
+                                                    class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm">
+                                            </div>
+                                            @endif
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <div class="overflow-hidden rounded-xl border border-gray-200 sm:col-span-2">
+                                        <div class="flex items-center gap-2 border-b border-gray-200 bg-gradient-to-r from-[#6D0D23]/5 to-[#11386A]/5 px-4 py-3">
+                                            <p class="text-sm font-semibold text-gray-700">Topics of Interest</p>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-x-6 gap-y-2 p-4 sm:grid-cols-3">
+                                            @foreach (array_merge(\App\Support\TrlOverviewForm::TOPICS_OF_INTEREST_COLUMN_1, \App\Support\TrlOverviewForm::TOPICS_OF_INTEREST_COLUMN_2) as $option)
+                                            <label class="flex items-start gap-2 text-sm text-gray-700">
+                                                <input type="checkbox" value="{{ $option }}" x-model="trlOverview.topics_of_interest" class="mt-0.5 shrink-0">
+                                                {{ $option }}
+                                            </label>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <div class="overflow-hidden rounded-xl border border-gray-200 sm:col-span-2">
+                                        <div class="flex items-center gap-2 border-b border-gray-200 bg-gradient-to-r from-[#6D0D23]/5 to-[#11386A]/5 px-4 py-3">
+                                            <p class="text-sm font-semibold text-gray-700">Mode of Communication Reference</p>
+                                        </div>
+                                        <div class="flex flex-wrap items-start gap-x-6 gap-y-2 p-4">
+                                            @foreach (\App\Support\TrlOverviewForm::MODES_OF_COMMUNICATION as $option)
+                                            <label class="flex items-start gap-2 text-sm text-gray-700">
+                                                <input type="checkbox" value="{{ $option }}" x-model="trlOverview.mode_of_communication" class="mt-0.5 shrink-0">
+                                                {{ $option }}
+                                            </label>
+                                            @endforeach
+                                            <label class="flex items-start gap-2 text-sm text-gray-700">
+                                                <input type="checkbox" x-model="trlOverview.mode_of_communication_other_enabled" class="mt-0.5 shrink-0">
+                                                Others:
+                                            </label>
+                                            <input type="text" x-show="trlOverview.mode_of_communication_other_enabled" x-model="trlOverview.mode_of_communication_other_text"
+                                                class="w-48 rounded-md border border-gray-300 px-2 py-1 text-sm">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
+                        @if ($type === 'TRL' && $showTrlOverview)
+                        <div class="mb-4 overflow-hidden rounded-xl border border-gray-200">
+                            <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-3">
+                                <h3 class="text-sm font-bold uppercase tracking-wide text-white">Section 2: {{ $rubricMeta[$type]['label'] }}</h3>
+                            </div>
+                        </div>
+                        @endif
+
+                        @if ($type === 'MRL' || $type === 'TMRL' || $type === 'SRL' || ($type === 'TRL' && ! $showTrlOverview))
+                        <div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                            <div>
+                                <p class="mb-1.5 text-sm font-semibold text-gray-700">Startup / Company Name</p>
+                                <input type="text" value="{{ $selectedStartup?->company_name ?? '—' }}" readonly
+                                    class="w-full cursor-not-allowed rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-500">
+                            </div>
+                            <div>
+                                <p class="mb-1.5 text-sm font-semibold text-gray-700">Date of Assessment</p>
+                                <input type="date" x-model="assessmentDate"
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            </div>
+                        </div>
+                        @endif
                         <div class="space-y-3">
                             @foreach ($levels as $level => $definition)
-                            <div class="rounded-xl border p-1 transition"
-                                :class="expanded.{{ $type }} === {{ $level }} ? 'border-rose-300 bg-rose-50/40' : 'border-gray-200'">
+                            <div class="rounded-xl border p-1 transition hover:bg-gray-100"
+                                :class="expanded.{{ $type }} === {{ $level }} ? 'border-gray-300 bg-gray-50' : 'border-gray-200'">
                                 <button type="button" @click="toggleLevel('{{ $type }}', {{ $level }})"
                                     class="flex w-full items-center gap-3 px-3 py-2.5 text-left">
                                     <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold"
@@ -425,6 +707,84 @@ for ($i = 0; $i < $count; $i++) {
                         </div>
                     </div>
                     @endforeach
+
+                    <div x-show="activeType === 'TRL'" x-cloak class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-3">
+                        <div>
+                            <p class="mb-2 text-sm font-semibold text-gray-700">Prepared By:</p>
+                            <input type="text" x-model="preparedBy" placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <input type="text" x-model="preparedByPosition" placeholder="Position"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                        </div>
+
+                        <div>
+                            <p class="mb-2 text-sm font-semibold text-gray-700">Noted By:</p>
+                            <input type="text" x-model="trlNotedBy" placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <input type="text" x-model="trlNotedByPosition" placeholder="Position"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                        </div>
+
+                        <div>
+                            <p class="mb-2 text-sm font-semibold text-gray-700">Approved by:</p>
+                            <input type="text" x-model="approvedBy"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <textarea x-model="approvedByPosition" rows="2"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                        </div>
+                    </div>
+
+                    <div x-show="activeType === 'MRL' || activeType === 'TMRL'" x-cloak class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-3">
+                        <div>
+                            <p class="mb-2 text-sm font-semibold text-gray-700">Evaluated by:</p>
+                            <input type="text" x-model="evaluatedBy" placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <textarea x-model="evaluatedByPosition" rows="2"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                        </div>
+
+                        <div>
+                            <p class="mb-2 text-sm font-semibold text-gray-700">Reviewed by:</p>
+                            <input type="text" x-model="reviewedBy" placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <input type="text" x-model="reviewedByPosition"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                        </div>
+
+                        <div>
+                            <p class="mb-2 text-sm font-semibold text-gray-700">Noted by:</p>
+                            <input type="text" x-model="notedBy" placeholder="Input name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <textarea x-model="notedByPosition" rows="2"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                        </div>
+                    </div>
+
+                    <div x-show="activeType === 'SRL'" x-cloak class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-3">
+                        <div>
+                            <p class="mb-2 text-sm font-semibold text-gray-700">Evaluated by:</p>
+                            <input type="text" x-model="srlEvaluatedBy" placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <textarea x-model="srlEvaluatedByPosition" rows="2"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                        </div>
+
+                        <div>
+                            <p class="mb-2 text-sm font-semibold text-gray-700">Reviewed by:</p>
+                            <input type="text" x-model="srlReviewedBy" placeholder="Input Name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <input type="text" x-model="srlReviewedByPosition"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                        </div>
+
+                        <div>
+                            <p class="mb-2 text-sm font-semibold text-gray-700">Noted by:</p>
+                            <input type="text" x-model="srlNotedBy" placeholder="Input name"
+                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <textarea x-model="srlNotedByPosition" rows="2"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                        </div>
+                    </div>
 
                     <div class="mt-6 flex flex-col gap-3 sm:flex-row">
                         <button type="button" @click="showClearConfirm = true" :disabled="! isDirty()"

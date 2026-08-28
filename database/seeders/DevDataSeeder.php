@@ -149,6 +149,44 @@ class DevDataSeeder extends Seeder
             ]);
         }
 
+        // GreenLoop Energy - Approved, second fully-evaluated founder
+        // account (same shape as EcoWatt Solutions above: minimal
+        // Information Sheet already marked Approved, factory team members,
+        // one readiness assessment).
+        $greenloopFounder = User::firstOrCreate(
+            ['email' => 'greenloop.founder@test.com'],
+            ['name' => 'GreenLoop Founder', 'password' => 'password', 'role' => 'Startup']
+        );
+        $greenloopFounder->update(['account_status' => 'Active', 'email_verified_at' => now()]);
+
+        $greenloop = Startup::firstOrCreate(
+            ['company_name' => 'GreenLoop Energy'],
+            [
+                'user_id' => $greenloopFounder->id,
+                'industry_sector' => 'CleanTech',
+                'cohort_number' => 3,
+                'contact_phone' => '09191234567',
+                'location' => 'Pasig City, PH',
+            ]
+        );
+
+        InformationSheet::firstOrCreate(
+            ['startup_id' => $greenloop->startup_id],
+            ['approval_status' => 'Approved', 'business_description' => 'Placeholder']
+        );
+
+        if (TeamMember::where('startup_id', $greenloop->startup_id)->count() === 0) {
+            TeamMember::factory()->count(2)->create(['startup_id' => $greenloop->startup_id]);
+        }
+
+        if (ReadinessLevelAssessment::where('startup_id', $greenloop->startup_id)->count() === 0) {
+            ReadinessLevelAssessment::create([
+                'startup_id' => $greenloop->startup_id,
+                'trl_score' => 6, 'mrl_score' => 5, 'tmrl_score' => 4, 'srl_score' => 4,
+                'overall_score' => 4.75, 'assessment_date' => now(),
+            ]);
+        }
+
         // Sample mentors
         Mentor::firstOrCreate(
             ['contact_email' => 'cruz@gmail.com'],
@@ -174,7 +212,7 @@ class DevDataSeeder extends Seeder
         $this->command->info('Dev data seeded successfully.');
         $this->command->info('Ready-to-login accounts (password: "password"):');
         $this->command->info('  Admin:   admin@pup.edu.ph');
-        $this->command->info('  Founder: founder@test.com (AgriSense PH), ecowatt.founder@test.com (EcoWatt Solutions)');
+        $this->command->info('  Founder: founder@test.com (AgriSense PH), ecowatt.founder@test.com (EcoWatt Solutions), greenloop.founder@test.com (GreenLoop Energy)');
         $this->command->info('For Pending/Rejected/unverified test accounts (to try the admin approval and verify-email screens), run: php artisan db:seed --class=FounderApplicationSeeder');
     }
 }

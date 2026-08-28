@@ -31,6 +31,39 @@ class AssessmentController extends Controller
             // Only ever submitted from the Pre-Assessment TRL tab (Section 1:
             // Startup & Technology Overview) — absent everywhere else.
             'trl_overview' => ['nullable', 'json'],
+            // Editable Date of Assessment picker — also only present on that
+            // same TRL Pre-Assessment tab; falls back to today when absent.
+            'assessment_date' => ['nullable', 'date'],
+            // Signatory block at the end of the form — shared across every
+            // RL type/stage, submitted once per save regardless of which
+            // tab is active.
+            'evaluated_by' => ['nullable', 'string', 'max:150'],
+            'reviewed_by' => ['nullable', 'string', 'max:150'],
+            'noted_by' => ['nullable', 'string', 'max:150'],
+            // TRL's own signatory block ("Prepared By" / "Noted By" /
+            // "Approved by") — distinct from the MRL block's fields above.
+            // "Approved by" is editable but arrives pre-filled with the
+            // director's fixed signature, so it's stored like its siblings.
+            'prepared_by' => ['nullable', 'string', 'max:150'],
+            'prepared_by_position' => ['nullable', 'string', 'max:150'],
+            'trl_noted_by' => ['nullable', 'string', 'max:150'],
+            'trl_noted_by_position' => ['nullable', 'string', 'max:150'],
+            'approved_by' => ['nullable', 'string', 'max:150'],
+            'approved_by_position' => ['nullable', 'string', 'max:1000'],
+            // Position/title lines under the MRL block's three names —
+            // editable-but-prefilled the same way as approved_by_position.
+            'evaluated_by_position' => ['nullable', 'string', 'max:1000'],
+            'reviewed_by_position' => ['nullable', 'string', 'max:150'],
+            'noted_by_position' => ['nullable', 'string', 'max:1000'],
+            // SRL's own Evaluated/Reviewed/Noted by block — distinct
+            // columns from the MRL/TMRL block above (different default
+            // "Reviewed by" title, so it can't share the same fields).
+            'srl_evaluated_by' => ['nullable', 'string', 'max:150'],
+            'srl_evaluated_by_position' => ['nullable', 'string', 'max:1000'],
+            'srl_reviewed_by' => ['nullable', 'string', 'max:150'],
+            'srl_reviewed_by_position' => ['nullable', 'string', 'max:150'],
+            'srl_noted_by' => ['nullable', 'string', 'max:150'],
+            'srl_noted_by_position' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $assessment = ReadinessLevelAssessment::firstOrNew([
@@ -47,8 +80,25 @@ class AssessmentController extends Controller
             $assessment->trl_overview = json_decode($validated['trl_overview'], true);
         }
 
-        $assessment->evaluated_by = $request->user()->name ?? $request->user()->email;
-        $assessment->assessment_date = now();
+        $assessment->evaluated_by = $validated['evaluated_by'] ?? ($request->user()->name ?? $request->user()->email);
+        $assessment->reviewed_by = $validated['reviewed_by'] ?? null;
+        $assessment->noted_by = $validated['noted_by'] ?? null;
+        $assessment->prepared_by = $validated['prepared_by'] ?? null;
+        $assessment->prepared_by_position = $validated['prepared_by_position'] ?? null;
+        $assessment->trl_noted_by = $validated['trl_noted_by'] ?? null;
+        $assessment->trl_noted_by_position = $validated['trl_noted_by_position'] ?? null;
+        $assessment->approved_by = $validated['approved_by'] ?? null;
+        $assessment->approved_by_position = $validated['approved_by_position'] ?? null;
+        $assessment->evaluated_by_position = $validated['evaluated_by_position'] ?? null;
+        $assessment->reviewed_by_position = $validated['reviewed_by_position'] ?? null;
+        $assessment->noted_by_position = $validated['noted_by_position'] ?? null;
+        $assessment->srl_evaluated_by = $validated['srl_evaluated_by'] ?? null;
+        $assessment->srl_evaluated_by_position = $validated['srl_evaluated_by_position'] ?? null;
+        $assessment->srl_reviewed_by = $validated['srl_reviewed_by'] ?? null;
+        $assessment->srl_reviewed_by_position = $validated['srl_reviewed_by_position'] ?? null;
+        $assessment->srl_noted_by = $validated['srl_noted_by'] ?? null;
+        $assessment->srl_noted_by_position = $validated['srl_noted_by_position'] ?? null;
+        $assessment->assessment_date = $validated['assessment_date'] ?? now();
         $assessment->recomputeScores();
         $assessment->save();
 
