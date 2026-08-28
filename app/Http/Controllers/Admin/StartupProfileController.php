@@ -14,12 +14,13 @@ class StartupProfileController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Startup::query()->with(['informationSheet', 'activeCoordinatorAssignment.coordinator']);
+        $query = Startup::query()->with(['informationSheet', 'activeCoordinatorAssignment.coordinator', 'evaluationSchedules']);
 
         $query = match ($request->query('tab', 'all')) {
             'active' => $query->active(),
             'assign-coordinator' => $query->needsCoordinator(),
-            'pending' => $query->pending(),
+            'pending' => $query->awaitingEvaluation(),
+            'onboarding' => $query->onboarding(),
             default => $query,
         };
 
@@ -32,7 +33,7 @@ class StartupProfileController extends Controller
                 'total' => Startup::count(),
                 'active' => Startup::active()->count(),
                 'needsCoordinator' => Startup::needsCoordinator()->count(),
-                'pending' => Startup::pending()->count(),
+                'pending' => Startup::awaitingEvaluation()->count(),
             ],
         ]);
     }

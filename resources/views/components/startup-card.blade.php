@@ -13,6 +13,7 @@ $badgeClasses = match ($startup->status) {
 'Assign Coordinator' => 'border-rose-300 text-rose-800',
 'Pending' => 'border-purple-300 text-purple-800',
 'Rejected' => 'border-red-300 text-red-800',
+'Onboarding' => 'border-amber-300 text-amber-800',
 default => 'border-gray-300 text-gray-700',
 };
 
@@ -99,7 +100,7 @@ $hasSecondAction = in_array($startup->status, ['Assign Coordinator', 'Pending'])
         <div class="mt-auto grid {{ $hasSecondAction ? 'grid-cols-2' : 'grid-cols-1' }} gap-2 pt-1">
             <a href="{{ route('admin.startups.show', array_merge(['startup' => $startup], request()->only('tab'))) }}"
                 class="flex min-h-[2rem] items-center justify-center rounded-lg border border-rose-800 px-2 text-center text-xs font-semibold leading-tight text-rose-900 transition-colors hover:bg-rose-50">
-                View
+                {{ $startup->status === 'Onboarding' ? 'View Status' : 'View' }}
             </a>
 
             @if ($startup->status === 'Assign Coordinator')

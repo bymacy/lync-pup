@@ -66,7 +66,8 @@
                     'all' => 'All',
                     'active' => 'Active',
                     'assign-coordinator' => 'Assign Coordinator',
-                    'pending' => 'Pending'
+                    'pending' => 'Pending',
+                    'onboarding' => 'Onboarding'
                     ] as $key => $label)
 
                     <a

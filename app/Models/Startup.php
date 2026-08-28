@@ -151,23 +151,101 @@ class Startup extends Model
     {
         $sheet = $this->informationSheet;
 
-        if (! $sheet || $sheet->approval_status === 'Pending') {
-            return 'Pending';
-        }
-
-        if ($sheet->approval_status === 'Rejected') {
+        if ($sheet && $sheet->approval_status === 'Rejected') {
             return 'Rejected';
         }
 
-        return $this->activeCoordinatorAssignment ? 'Active' : 'Assign Coordinator';
+        if ($sheet && $sheet->approval_status === 'Approved') {
+            return $this->activeCoordinatorAssignment ? 'Active' : 'Assign Coordinator';
+        }
+
+        // Not yet decided (no sheet, or approval_status still 'Pending'):
+        // per direct testing feedback, split into Onboarding vs Pending
+        // based on whether the startup has actually finished Profile Setup
+        // + the Information Sheet AND been scheduled for evaluation.
+        return $this->isReadyForEvaluation() ? 'Pending' : 'Onboarding';
     }
 
+    /**
+     * True once a startup has completed Profile Setup (industry, location,
+     * phone, photo) and the Information Sheet (business description +
+     * actually submitted, not just saved), AND has a non-cancelled
+     * evaluation scheduled. Backs both the 'Pending' branch of the status
+     * accessor above and scopeAwaitingEvaluation() below — kept as one
+     * source of truth so the card badge and the tab filter never disagree.
+     */
+    protected function isReadyForEvaluation(): bool
+    {
+        $sheet = $this->informationSheet;
+
+        $profileComplete = filled($this->industry_sector)
+            && filled($this->location)
+            && filled($this->contact_phone)
+            && filled($this->startup_photo_path)
+            && $sheet
+            && filled($sheet->business_description)
+            && filled($sheet->submission_date);
+
+        return $profileComplete && $this->hasScheduledEvaluation();
+    }
+
+    /**
+     * Broader "Pending" used by the Assessment Hub's "Awaiting Schedule"
+     * list — any startup not yet approved/rejected, including ones with no
+     * Information Sheet at all. Left as-is (not narrowed to match the
+     * Startup Profile page's stricter 'Pending' tab, see
+     * scopeAwaitingEvaluation()) since AssessmentHubController relies on
+     * this exact broad definition and then filters scheduling separately.
+     */
     public function scopePending(Builder $query): Builder
     {
         return $query->where(function ($q) {
             $q->whereHas('informationSheet', fn ($q2) => $q2->where('approval_status', 'Pending'))
                 ->orWhereDoesntHave('informationSheet');
         });
+    }
+
+    /**
+     * "Onboarding" tab on the Startup Profile page — not yet approved or
+     * rejected, and NOT (yet) ready for evaluation per isReadyForEvaluation()
+     * above: still missing Profile Setup fields, hasn't submitted the
+     * Information Sheet, or hasn't been scheduled for evaluation yet.
+     */
+    public function scopeOnboarding(Builder $query): Builder
+    {
+        return $query
+            ->whereDoesntHave('informationSheet', fn ($q) => $q->whereIn('approval_status', ['Approved', 'Rejected']))
+            ->where(function ($q) {
+                $q->whereNull('industry_sector')->orWhere('industry_sector', '')
+                    ->orWhereNull('location')->orWhere('location', '')
+                    ->orWhereNull('contact_phone')->orWhere('contact_phone', '')
+                    ->orWhereNull('startup_photo_path')->orWhere('startup_photo_path', '')
+                    ->orWhereDoesntHave('informationSheet', fn ($q2) => $q2
+                        ->whereNotNull('business_description')->where('business_description', '!=', '')
+                        ->whereNotNull('submission_date'))
+                    ->orWhereDoesntHave('evaluationSchedules', fn ($q2) => $q2->where('status', '!=', 'Cancelled'));
+            });
+    }
+
+    /**
+     * "Pending" tab on the Startup Profile page — the exact inverse of
+     * scopeOnboarding() within the not-yet-decided pool: Profile Setup and
+     * the Information Sheet are both complete, and an evaluation has been
+     * scheduled. Distinct from the broader scopePending() above, which the
+     * Assessment Hub still relies on.
+     */
+    public function scopeAwaitingEvaluation(Builder $query): Builder
+    {
+        return $query
+            ->whereDoesntHave('informationSheet', fn ($q) => $q->whereIn('approval_status', ['Approved', 'Rejected']))
+            ->whereNotNull('industry_sector')->where('industry_sector', '!=', '')
+            ->whereNotNull('location')->where('location', '!=', '')
+            ->whereNotNull('contact_phone')->where('contact_phone', '!=', '')
+            ->whereNotNull('startup_photo_path')->where('startup_photo_path', '!=', '')
+            ->whereHas('informationSheet', fn ($q) => $q
+                ->whereNotNull('business_description')->where('business_description', '!=', '')
+                ->whereNotNull('submission_date'))
+            ->whereHas('evaluationSchedules', fn ($q) => $q->where('status', '!=', 'Cancelled'));
     }
 
     public function scopeActive(Builder $query): Builder
