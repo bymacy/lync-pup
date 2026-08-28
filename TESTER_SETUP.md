@@ -29,7 +29,7 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-Now open `.env` and edit two blocks:
+Now open `.env` and edit the database block (mail is already set up — see below):
 
 **Database** — uncomment and fill in these lines with your local MySQL credentials:
 
@@ -43,14 +43,7 @@ DB_PASSWORD=your_local_mysql_password
 
 (Create the `lync` database in MySQL first if it doesn't exist yet.)
 
-**Mail (Mailtrap)** — the `MAIL_*` block is already templated in `.env.example`, but `MAIL_USERNAME` and `MAIL_PASSWORD` are left blank on purpose. Fill them in with the team's shared Mailtrap sandbox credentials:
-
-```
-MAIL_USERNAME=aaf719a9ae3712
-MAIL_PASSWORD=921cb8dad40268
-```
-
-Without this, registration/verification emails will silently do nothing (no error, but nothing sent either).
+**Mail** — nothing to do here. The `MAIL_*` block already has real, working credentials filled in (a shared sending account), so registration/verification emails send immediately, to whatever address you actually register with. Leave that block as-is.
 
 ## 4. Set up the database
 
@@ -102,12 +95,13 @@ composer run dev
 
 ## 8. Testing email verification
 
-Once your `.env` has the shared Mailtrap credentials (step 3), register a new Founder account through the app as normal. The verification email won't hit a real inbox — instead, ask Argee for access to the shared Mailtrap sandbox, and check it there. Everyone using the same credentials sees the same inbox.
+Register a new Founder account through the app using any real email address you can check — the verification email actually delivers there (mail is already configured, no setup needed).
 
 ## Common gotchas
 
 - Forgot to `cp .env.example .env` at all → app won't boot, or uses stale settings.
-- Copied `.env.example` but never edited the DB/mail values → migrations fail, or emails silently don't send.
+- Copied `.env.example` but never edited the DB values → migrations fail.
 - Skipped `php artisan storage:link` → uploaded/exported files 404 or show as broken images.
 - Skipped `php artisan key:generate` → "no application encryption key has been specified" error.
 - MySQL not actually running, or `lync` database doesn't exist yet → migration errors on step 4.
+- Verification email doesn't arrive at all (not even spam) → the shared sending account may have been flagged/locked by Google; let Argee know so it can be reset.

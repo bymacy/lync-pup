@@ -47,17 +47,15 @@ Registration sends a real email verification link, so `.env` needs a working
 mailer — the default `log` driver just writes it to
 `storage/logs/laravel.log` instead of sending it, with no error.
 
-For local testing, use the team's shared Mailtrap Sandbox inbox rather than
-a personal email account:
+The `MAIL_*` block in `.env.example` is already filled in with the shared
+sending account, so after `cp .env.example .env` there's nothing to
+configure — verification/reset emails send immediately and deliver to
+whatever address you register with.
 
-1. Sign up free at [mailtrap.io](https://mailtrap.io) (or get the existing
-   team sandbox's credentials from whoever set it up).
-2. Open Email Testing → Inboxes → your inbox → SMTP Settings.
-3. Copy the `MAIL_*` values into your local `.env` (see the commented
-   example in `.env.example`).
-
-Everyone using the same sandbox credentials will see all "sent"
-verification/reset emails land in that one shared Mailtrap inbox.
+Note: this intentionally uses one shared account for everyone, so all
+outgoing mail comes from the same address. If it ever gets flagged/locked
+by Google for unusual activity (multiple machines authenticating at once),
+mail stops working for everyone until it's reset.
 
 ## Contributing
 
