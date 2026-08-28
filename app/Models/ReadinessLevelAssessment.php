@@ -13,7 +13,13 @@ class ReadinessLevelAssessment extends Model
     protected $primaryKey = 'assessment_id';
 
     protected $fillable = [
-        'startup_id', 'stage', 'evaluated_by',
+        'startup_id', 'stage', 'evaluated_by', 'reviewed_by', 'noted_by',
+        'prepared_by', 'prepared_by_position', 'trl_noted_by', 'trl_noted_by_position',
+        'approved_by', 'approved_by_position',
+        'evaluated_by_position', 'reviewed_by_position', 'noted_by_position',
+        'srl_evaluated_by', 'srl_evaluated_by_position',
+        'srl_reviewed_by', 'srl_reviewed_by_position',
+        'srl_noted_by', 'srl_noted_by_position',
         'trl_score', 'trl_progress', 'trl_overview',
         'mrl_score', 'mrl_progress',
         'tmrl_score', 'tmrl_progress',

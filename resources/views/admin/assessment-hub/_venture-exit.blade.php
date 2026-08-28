@@ -36,6 +36,16 @@
             'remarks' => $storedRow['remarks'] ?? '',
         ];
     }
+
+    // Venture Exit's own signatory block — editable-but-prefilled the
+    // same way as the assessment form's own signatory blocks. Noted by
+    // has no title/position, per how it was given.
+    $veSeed['evaluated_by_name'] = $veData['evaluated_by_name'] ?? '';
+    $veSeed['evaluated_by_position'] = $veData['evaluated_by_position'] ?? 'Portfolio Coordinator, TBIDO';
+    $veSeed['reviewed_by_name'] = $veData['reviewed_by_name'] ?? '';
+    $veSeed['reviewed_by_position'] = $veData['reviewed_by_position'] ?? 'Incubation Management Chief, TBIDO';
+    $veSeed['noted_by_name'] = $veData['noted_by_name'] ?? '';
+    $veSeed['noted_by_position'] = $veData['noted_by_position'] ?? 'Director, TBIDO';
 @endphp
 
 <div
@@ -140,7 +150,24 @@
                                 <tr>
                                     <td class="border px-3 py-2">{{ $indicator }}</td>
                                     <td class="border px-3 py-2 text-center">
-                                        <input type="checkbox" x-model="ve.graduation_readiness['{{ $indicator }}'].status" class="h-4 w-4 rounded border-gray-300">
+                                        <div class="inline-flex overflow-hidden rounded-full border border-gray-300">
+                                            <button type="button" @click="ve.graduation_readiness['{{ $indicator }}'].status = true"
+                                                class="flex h-8 w-9 items-center justify-center border-r border-gray-300 transition"
+                                                :class="ve.graduation_readiness['{{ $indicator }}'].status ? 'bg-green-600 text-white' : 'bg-white text-gray-300 hover:bg-green-50 hover:text-green-600'"
+                                                aria-label="Mark met">
+                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </button>
+                                            <button type="button" @click="ve.graduation_readiness['{{ $indicator }}'].status = false"
+                                                class="flex h-8 w-9 items-center justify-center transition"
+                                                :class="! ve.graduation_readiness['{{ $indicator }}'].status ? 'bg-rose-600 text-white' : 'bg-white text-gray-300 hover:bg-rose-50 hover:text-rose-600'"
+                                                aria-label="Mark not met">
+                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </td>
                                     <td class="border p-1">
                                         <input type="text" x-model="ve.graduation_readiness['{{ $indicator }}'].remark"
@@ -207,6 +234,32 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <div class="mt-8 grid grid-cols-1 gap-6 border-t border-gray-200 pt-6 sm:grid-cols-3">
+                <div>
+                    <p class="mb-2 text-sm font-semibold text-gray-700">Evaluated by:</p>
+                    <input type="text" x-model="ve.evaluated_by_name" placeholder="Input Name"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                    <input type="text" x-model="ve.evaluated_by_position"
+                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                </div>
+
+                <div>
+                    <p class="mb-2 text-sm font-semibold text-gray-700">Reviewed by:</p>
+                    <input type="text" x-model="ve.reviewed_by_name" placeholder="Input Name"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                    <input type="text" x-model="ve.reviewed_by_position"
+                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                </div>
+
+                <div>
+                    <p class="mb-2 text-sm font-semibold text-gray-700">Noted by:</p>
+                    <input type="text" x-model="ve.noted_by_name" placeholder="Input Name"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                    <input type="text" x-model="ve.noted_by_position"
+                        class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
                 </div>
             </div>
 
