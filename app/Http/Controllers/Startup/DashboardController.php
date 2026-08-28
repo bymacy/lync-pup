@@ -49,7 +49,8 @@ class DashboardController extends Controller
             'assessment' => $assessment,
             'readinessStage' => $readinessStage,
             'overallLabel' => ReadinessRubric::overallLabel($assessment->overall_score ?? null),
-            'needsInformationSheet' => ! $startup->informationSheet,
+            'needsProfileSetup' => ! $startup->isProfileComplete(),
+            'needsInformationSheet' => $startup->isProfileComplete() && ! $this->informationSheetSubmitted($startup),
             'onboardingSteps' => $this->onboardingSteps($startup),
             'graduationSteps' => $this->graduationSteps($startup),
         ]);
@@ -68,11 +69,26 @@ class DashboardController extends Controller
         $approved = $sheet && $sheet->approval_status === 'Approved';
 
         return $this->stepsWithState([
-            'Completed Information Sheet' => (bool) $sheet,
+            'Setup Startup Profile' => $startup->isProfileComplete(),
+            'Completed Information Sheet' => $this->informationSheetSubmitted($startup),
             'Admin Review' => $startup->hasScheduledEvaluation() || $approved,
             'Schedule for Evaluation' => $startup->hasScheduledEvaluation(),
             'Approved' => $approved,
         ]);
+    }
+
+    /**
+     * True only once the founder has actually submitted the Information
+     * Sheet (submission_date gets stamped every time InformationSheetController
+     * ::update() saves it) — deliberately NOT just "a row exists", since one
+     * gets silently created as soon as the Startup Profile is saved (see
+     * StartupProfileController::update()'s updateOrCreate on business_description).
+     * Row-existence alone would mark this step "done" before the founder has
+     * ever opened the actual Information Sheet form.
+     */
+    protected function informationSheetSubmitted(Startup $startup): bool
+    {
+        return (bool) $startup->informationSheet?->submission_date;
     }
 
     /**

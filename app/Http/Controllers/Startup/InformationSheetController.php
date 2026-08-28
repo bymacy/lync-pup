@@ -22,7 +22,7 @@ class InformationSheetController extends Controller
 {
     use CompressesImages;
 
-    public function edit(): View
+    public function edit(): View|RedirectResponse
     {
         $startup = auth()->user()->startup->load([
             'informationSheet.incubationInvolvements',
@@ -30,6 +30,17 @@ class InformationSheetController extends Controller
             'informationSheet.references',
             'teamMembers',
         ]);
+
+        // The Information Sheet is a step that comes after the Startup
+        // Profile in the onboarding tracker — sent back to finish the
+        // Profile first rather than shown a form they can't meaningfully
+        // submit yet (their name/photo/contact details would still be
+        // missing from every generated export).
+        if (! $startup->isProfileComplete()) {
+            return redirect()
+                ->route('startup.profile.edit')
+                ->with('status', 'Please complete your Startup Profile first before filling out the Information Sheet.');
+        }
 
         return view('startup.information-sheet.edit', compact('startup'));
     }
@@ -39,6 +50,7 @@ class InformationSheetController extends Controller
         $startup = auth()->user()->startup;
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
 
+        abort_unless($startup->isProfileComplete(), 403, 'Please complete your Startup Profile first before filling out the Information Sheet.');
         abort_if($sheet->approval_status === 'Approved', 403, 'This Information Sheet is approved and locked. Contact your Coordinator for changes.');
         abort_if($startup->evaluationDayLockActive(), 403, 'This Information Sheet is locked because your evaluation day has started. Contact your Coordinator for changes.');
 

@@ -15,7 +15,24 @@
         </div>
 
         {{-- Action Required --}}
-        @if ($needsInformationSheet)
+        @if ($needsProfileSetup)
+            <div class="mb-6 flex flex-col gap-4 rounded-2xl bg-rose-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center gap-4">
+                    <span class="flex items-center justify-center rounded-xl bg-[#6D0D23] text-white" style="width: 44px; height: 44px;">
+                        <span class="icon-mask" style="width: 20px; height: 20px; --icon: url('{{ asset('images/icons/warning.svg') }}')"></span>
+                    </span>
+                    <div>
+                        <p class="font-bold text-gray-900">Action Required: Startup Profile</p>
+                        <p class="text-sm text-gray-600">Complete your Startup Profile before you can fill out the Information Sheet.</p>
+                    </div>
+                </div>
+                <a href="{{ route('startup.profile.edit') }}"
+                    class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-2.5 text-sm font-semibold text-white">
+                    <span class="icon-mask" style="width: 16px; height: 16px; --icon: url('{{ asset('images/icons/info-sheet.svg') }}')"></span>
+                    Open Profile
+                </a>
+            </div>
+        @elseif ($needsInformationSheet)
             <div class="mb-6 flex flex-col gap-4 rounded-2xl bg-rose-50 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div class="flex items-center gap-4">
                     <span class="flex items-center justify-center rounded-xl bg-[#6D0D23] text-white" style="width: 44px; height: 44px;">

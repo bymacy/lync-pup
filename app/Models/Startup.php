@@ -172,6 +172,25 @@ class Startup extends Model
     }
 
     /**
+     * True once the Startup Profile itself (company name, founder name,
+     * industry, location, phone, photo) has all of its required fields
+     * filled in — the gate for the founder-side Information Sheet module
+     * (see InformationSheetController) and the first step of the founder
+     * dashboard's "Startup Onboarding" tracker. Deliberately excludes the
+     * Information Sheet's own fields (business_description, submission_date)
+     * since those belong to the module this gates, not the profile itself.
+     */
+    public function isProfileComplete(): bool
+    {
+        return filled($this->company_name)
+            && filled($this->industry_sector)
+            && filled($this->user?->name)
+            && filled($this->contact_phone)
+            && filled($this->location)
+            && filled($this->startup_photo_path);
+    }
+
+    /**
      * True once a startup has completed Profile Setup (industry, location,
      * phone, photo) and the Information Sheet (business description +
      * actually submitted, not just saved), AND has a non-cancelled
@@ -183,10 +202,7 @@ class Startup extends Model
     {
         $sheet = $this->informationSheet;
 
-        $profileComplete = filled($this->industry_sector)
-            && filled($this->location)
-            && filled($this->contact_phone)
-            && filled($this->startup_photo_path)
+        $profileComplete = $this->isProfileComplete()
             && $sheet
             && filled($sheet->business_description)
             && filled($sheet->submission_date);
