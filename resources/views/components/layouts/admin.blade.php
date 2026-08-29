@@ -364,7 +364,6 @@
                 class="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
 
                 <div
-                    @click.outside="$store.navigation.showLeaveModal = false"
                     class="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
 
                     <button

@@ -158,7 +158,8 @@
             });
             this.showClearConfirm = false;
         },
-    }">
+    }"
+    x-init="$watch(() => isDirty(), value => { $store.navigation.hasUnsavedChanges = value; })">
 
     <div class="mb-6 grid grid-cols-3 overflow-hidden rounded-lg border border-gray-200">
         @foreach ([6 => 'Document 6', 7 => 'Document 7', 8 => 'Document 8'] as $num => $label)
@@ -174,7 +175,8 @@
         @endforeach
     </div>
 
-    <form method="POST" action="{{ route('admin.assessment-hub.assessments.update-documents', $selectedStartup) }}" id="active-assessment-form">
+    <form method="POST" action="{{ route('admin.assessment-hub.assessments.update-documents', $selectedStartup) }}" id="active-assessment-form"
+        @submit="$store.navigation.hasUnsavedChanges = false">
         @csrf
         @method('PUT')
         <input type="hidden" name="stage" value="Active-Assessment">
