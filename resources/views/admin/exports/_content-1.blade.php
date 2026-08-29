@@ -131,7 +131,7 @@
         </td>
         <td width="50%" style="vertical-align: top;">
             <span class="field-label">33. Startup Overview:</span>
-            <div style="border: 1px solid #000; padding: 6px; min-height: 40px; margin-top: 4px;">{!! nl2br($v($sheet?->business_description)) !!}</div>
+            <div style="border: 1px solid #000; padding: 6px; min-height: 40px; margin-top: 4px;">{!! nl2br($v(filled($sheet?->startup_overview) ? $sheet->startup_overview : $sheet?->business_description)) !!}</div>
         </td>
     </tr>
 </table>

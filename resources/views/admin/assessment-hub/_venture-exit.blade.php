@@ -137,11 +137,11 @@
             <div class="mb-8">
                 <p class="mb-2 font-bold text-gray-900">(1) Graduation Readiness Assessment</p>
                 <div class="overflow-x-auto">
-                    <table class="w-full border text-sm">
+                    <table class="w-full min-w-[640px] border text-sm">
                         <thead>
                             <tr class="bg-gray-50">
                                 <th class="border px-3 py-2 text-left">Indicator</th>
-                                <th class="w-24 border px-3 py-2 text-center">Status (&#10003; / &#10007;)</th>
+                                <th class="w-32 whitespace-nowrap border px-3 py-2 text-center">Status (&#10003; / &#10007;)</th>
                                 <th class="border px-3 py-2 text-left">Remark</th>
                             </tr>
                         </thead>
@@ -182,7 +182,8 @@
 
             <div class="mb-8">
                 <p class="mb-2 font-bold text-gray-900">(2) Final Evaluation and Exit Support Plan</p>
-                <table class="w-full border text-sm">
+                <div class="overflow-x-auto">
+                <table class="w-full min-w-[560px] border text-sm">
                     <tbody>
                         <tr>
                             <td class="w-56 border bg-gray-50 px-3 py-2 align-top font-semibold">Summary of Startup Progress</td>
@@ -204,6 +205,7 @@
                         </tr>
                     </tbody>
                 </table>
+                </div>
             </div>
 
             <div class="mb-2">

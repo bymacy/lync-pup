@@ -12,7 +12,7 @@ class InformationSheet extends Model
     protected $primaryKey = 'info_sheet_id';
 
     protected $fillable = [
-        'startup_id', 'business_description', 'target_market', 'problem_statement', 'solution_offered',
+        'startup_id', 'business_description', 'startup_overview', 'target_market', 'problem_statement', 'solution_offered',
         'submission_date', 'approval_status', 'evaluator_remarks',
         'surname', 'first_name', 'middle_name', 'name_extension', 'height_m', 'weight_kg', 'blood_type',
         'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'residential_address', 'permanent_address',
@@ -25,8 +25,8 @@ class InformationSheet extends Model
         'scholarships_academic_honors',
         'sec_registration', 'business_id_number', 'dti_registration_number', 'business_tin',
         'non_academic_distinctions', 'membership_associations',
-        'founder_signature_path', 'date_accomplished', 'portfolio_manager', 'cohort_no',
-        'endorsed_by', 'endorsement_date', 'director_signature_path', 'director_approval_date',
+        'date_accomplished', 'portfolio_manager', 'cohort_no',
+        'endorsed_by', 'endorsement_date', 'director_approval_date',
     ];
 
     protected function casts(): array
@@ -63,6 +63,35 @@ class InformationSheet extends Model
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->middle_name} {$this->surname} {$this->name_extension}");
+    }
+
+    /**
+     * Best-effort split of the profile's single "founder name" string into the
+     * sheet's four name columns — used ONLY to prefill empty fields the first
+     * time the sheet is opened. The sheet keeps its own copy from then on:
+     * editing a name here never writes back to the Startup Profile.
+     *
+     * @return array{surname: string, first_name: string, middle_name: string}
+     */
+    public static function splitFounderName(?string $name): array
+    {
+        $parts = collect(preg_split('/\s+/', trim((string) $name)))->filter()->values();
+
+        if ($parts->isEmpty()) {
+            return ['surname' => '', 'first_name' => '', 'middle_name' => ''];
+        }
+
+        if ($parts->count() === 1) {
+            return ['surname' => $parts->first(), 'first_name' => '', 'middle_name' => ''];
+        }
+
+        // Last token is the surname; first is the given name; anything in
+        // between is treated as middle name(s).
+        return [
+            'surname' => $parts->last(),
+            'first_name' => $parts->first(),
+            'middle_name' => $parts->slice(1, $parts->count() - 2)->implode(' '),
+        ];
     }
 
     /**

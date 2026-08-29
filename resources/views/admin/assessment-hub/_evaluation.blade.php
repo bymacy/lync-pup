@@ -1,11 +1,11 @@
 @php
 $gradient = 'bg-gradient-to-r from-[#6D0D23] to-[#11386A]';
 $thead = 'sticky top-0 z-10 '.$gradient;
-$th = 'px-4 py-3 text-center text-sm font-semibold tracking-wider text-white';
+$th = 'whitespace-nowrap px-4 py-3 text-center text-sm font-semibold tracking-wider text-white';
 $thC = $th;
 $shell = 'w-full border border-gray-200 rounded-xl overflow-hidden bg-white';
 $scroll = 'max-h-[60vh] overflow-y-auto overflow-x-auto';
-$table = 'w-full text-sm';
+$table = 'w-full min-w-[680px] text-sm';
 $btn = 'inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg text-[11px] font-semibold transition';
 $avatar = function ($startup) {
 $url = $startup->startup_photo_url ?? null;
@@ -18,6 +18,14 @@ return $url
 
 @php
 $initialStage = in_array(request('stage'), ['today', 'upcoming', 'missed']) ? request('stage') : 'today';
+
+// Startup cell width. The logo + name live in one fixed-width block so every
+// row's logo lands on the same vertical line; the width is derived from the
+// longest company name across all three stages (logo + gap + name) so the
+// block hugs its content and still reads as centered inside the column.
+$nameLen = collect($todayEvaluations)->concat($upcomingEvaluations)->concat($missedEvaluations)
+->map(fn ($row) => mb_strlen($row->startup->company_name ?? ''))->max() ?: 12;
+$startupCell = 'width: calc(1.75rem + 0.5rem + '.min(max($nameLen, 8), 34).'ch)';
 $months = $upcomingEvaluations->pluck('evaluation_date')
 ->map(fn ($d) => $d->format('Y-m'))->unique()->sort()
 ->mapWithKeys(fn ($m) => [$m => \Carbon\Carbon::createFromFormat('Y-m', $m)->format('F, Y')])
@@ -110,11 +118,16 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                         <tr x-data="{ rescheduleOpen: false }" class="border-b border-gray-100 last:border-0 hover:bg-gray-50/70">
                             <td class="px-4 py-3 whitespace-nowrap text-center text-gray-600">{{ $item->time_range_label }}</td>
                             <td class="px-4 py-3 text-center font-medium text-gray-900">
-                                <div class="flex items-center justify-center gap-2">
-                                    <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
-                                        {!! $avatar($item->startup) !!}
-                                    </span>
-                                    <span>{{ $item->startup->company_name }}</span>
+                                {{-- The cell stays centered, but the logo + name sit in a
+                                     fixed-width block so every row's avatar lines up on the
+                                     same vertical edge instead of drifting with name length. --}}
+                                <div class="flex justify-center">
+                                    <div class="inline-flex max-w-full items-center gap-2 text-left" style="{{ $startupCell }}">
+                                        <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
+                                            {!! $avatar($item->startup) !!}
+                                        </span>
+                                        <span class="min-w-0 flex-1 truncate" title="{{ $item->startup->company_name }}">{{ $item->startup->company_name }}</span>
+                                    </div>
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-center text-gray-600">{{ $item->startup->industry_sector }}</td>
@@ -182,11 +195,16 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
 
                             {{-- 2. Startup --}}
                             <td class="px-4 py-3 text-center font-medium text-gray-900">
-                                <div class="flex items-center justify-center gap-2">
-                                    <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
-                                        {!! $avatar($item->startup) !!}
-                                    </span>
-                                    <span>{{ $item->startup->company_name }}</span>
+                                {{-- The cell stays centered, but the logo + name sit in a
+                                     fixed-width block so every row's avatar lines up on the
+                                     same vertical edge instead of drifting with name length. --}}
+                                <div class="flex justify-center">
+                                    <div class="inline-flex max-w-full items-center gap-2 text-left" style="{{ $startupCell }}">
+                                        <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
+                                            {!! $avatar($item->startup) !!}
+                                        </span>
+                                        <span class="min-w-0 flex-1 truncate" title="{{ $item->startup->company_name }}">{{ $item->startup->company_name }}</span>
+                                    </div>
                                 </div>
                             </td>
 
@@ -202,7 +220,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                                     </a>
                                     <button type="button" @click="editOpen = true"
                                         class="inline-flex items-center justify-center whitespace-nowrap rounded-md bg-[#6C0E24] px-6 py-1 text-sm font-semibold text-white transition hover:opacity-90">
-                                        Edit
+                                        Reschedule
                                     </button>
                                 </div>
 
@@ -256,11 +274,16 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                         @forelse ($missedEvaluations as $item)
                         <tr x-data="{ rescheduleOpen: false }" class="border-b border-gray-100 last:border-0 hover:bg-gray-50/70">
                             <td class="px-4 py-3 text-center font-medium text-gray-900">
-                                <div class="flex items-center justify-center gap-2">
-                                    <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
-                                        {!! $avatar($item->startup) !!}
-                                    </span>
-                                    <span>{{ $item->startup->company_name }}</span>
+                                {{-- The cell stays centered, but the logo + name sit in a
+                                     fixed-width block so every row's avatar lines up on the
+                                     same vertical edge instead of drifting with name length. --}}
+                                <div class="flex justify-center">
+                                    <div class="inline-flex max-w-full items-center gap-2 text-left" style="{{ $startupCell }}">
+                                        <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
+                                            {!! $avatar($item->startup) !!}
+                                        </span>
+                                        <span class="min-w-0 flex-1 truncate" title="{{ $item->startup->company_name }}">{{ $item->startup->company_name }}</span>
+                                    </div>
                                 </div>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-center text-gray-600">

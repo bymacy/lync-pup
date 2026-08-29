@@ -12,6 +12,8 @@ use App\Models\IncubationInvolvement;
 use App\Models\LdIntervention;
 use App\Models\StartupReference;
 use App\Models\Mentor;
+use App\Models\EvaluationSchedule;
+use App\Support\ReadinessRubric;
 use Illuminate\Database\Seeder;
 
 class DevDataSeeder extends Seeder
@@ -142,17 +144,19 @@ class DevDataSeeder extends Seeder
         }
 
         if (ReadinessLevelAssessment::where('startup_id', $needsCoordinator->startup_id)->count() === 0) {
-            ReadinessLevelAssessment::create([
+            ReadinessLevelAssessment::create(array_merge([
                 'startup_id' => $needsCoordinator->startup_id,
+                'stage' => 'Pre-Assessment',
                 'trl_score' => 6, 'mrl_score' => 4, 'tmrl_score' => 5, 'srl_score' => 3,
                 'overall_score' => 4.5, 'assessment_date' => now(),
-            ]);
+            ], $this->rubricProgress(['TRL' => 6, 'MRL' => 4, 'TMRL' => 5, 'SRL' => 3])));
         }
 
-        // GreenLoop Energy - Approved, second fully-evaluated founder
-        // account (same shape as EcoWatt Solutions above: minimal
-        // Information Sheet already marked Approved, factory team members,
-        // one readiness assessment).
+        // GreenLoop Energy - Pending sheet with an UPCOMING evaluation.
+        // Deliberately NOT Approved: the Assessment Hub hides startups whose
+        // Information Sheet is already approved from the Evaluation tab, so an
+        // approved GreenLoop would never appear under "Upcoming". This is the
+        // fully-filled-in sheet to open from Evaluation -> Upcoming -> View.
         $greenloopFounder = User::firstOrCreate(
             ['email' => 'greenloop.founder@test.com'],
             ['name' => 'GreenLoop Founder', 'password' => 'password', 'role' => 'Startup']
@@ -169,23 +173,91 @@ class DevDataSeeder extends Seeder
                 'location' => 'Pasig City, PH',
             ]
         );
+        $greenloop->update(['user_id' => $greenloopFounder->id]);
 
-        InformationSheet::firstOrCreate(
+        $greenloopSheet = InformationSheet::firstOrCreate(
             ['startup_id' => $greenloop->startup_id],
-            ['approval_status' => 'Approved', 'business_description' => 'Placeholder']
+            ['approval_status' => 'Pending', 'business_description' => 'Placeholder']
         );
 
+        // Forced every run so an older seed (which created this sheet as
+        // Approved) gets repaired instead of staying off the Upcoming list.
+        $greenloopSheet->update([
+            'approval_status' => 'Pending',
+            'submission_date' => now()->subDays(21),
+            'business_description' => 'GreenLoop Energy converts household and market food waste into biogas cartridges for off-grid cooking.',
+            'target_market' => 'Off-grid and peri-urban households in Rizal and Laguna',
+            'problem_statement' => 'Rural households spend a large share of income on LPG while wet market food waste goes unprocessed.',
+            'solution_offered' => 'A community-scale digester plus a swap-and-refill cartridge network.',
+            'surname' => 'Navarro', 'first_name' => 'Elias', 'middle_name' => 'Bautista',
+            'name_extension' => 'N/A', 'height_m' => '1.72', 'weight_kg' => '68', 'blood_type' => 'B+',
+            'gsis_no' => '2233445566', 'pagibig_no' => '2233-4455-6677', 'philhealth_no' => '22-334455667-8',
+            'sss_no' => '22-3344556-7', 'residential_address' => '24 Kalayaan Ave., Pasig City',
+            'permanent_address' => '24 Kalayaan Ave., Pasig City', 'sex' => 'Male',
+            'civil_status' => 'Single', 'citizenship_by_birth' => 'Filipino', 'citizenship_dual' => 'N/A',
+            'place_of_birth' => 'Pasig City', 'date_of_birth' => '1996-09-08', 'mobile_no' => '09191234567',
+            'founder_email' => 'elias.navarro@greenloop.ph',
+            'secondary_school' => 'Rizal High School', 'secondary_degree_course' => 'N/A',
+            'secondary_highest_level_unit' => 'N/A', 'secondary_year_graduated' => '2012',
+            'vocational_school' => 'N/A', 'vocational_degree_course' => 'N/A',
+            'vocational_highest_level_unit' => 'N/A', 'vocational_year_graduated' => 'N/A',
+            'college_school' => 'Polytechnic University of the Philippines',
+            'college_degree_course' => 'BS Mechanical Engineering',
+            'college_highest_level_unit' => "Bachelor's Degree", 'college_year_graduated' => '2017',
+            'graduate_school' => 'N/A', 'graduate_degree_course' => 'N/A',
+            'graduate_highest_level_unit' => 'N/A', 'graduate_year_graduated' => 'N/A',
+            'scholarships_academic_honors' => "CHED Merit Scholar, 2013-2017\nDean's Lister, 2015-2017",
+            'sec_registration' => 'CS201954321', 'business_id_number' => 'BID-0041237',
+            'dti_registration_number' => 'DTI-0071188', 'business_tin' => '456-789-123-000',
+            'non_academic_distinctions' => 'Finalist, DOST CleanTech Challenge 2024',
+            'membership_associations' => 'Philippine Society of Mechanical Engineers',
+            'date_accomplished' => now()->subDays(21)->toDateString(),
+            'portfolio_manager' => 'Engr. Tristan Velardo',
+            'cohort_no' => 'Cohort 3', 'endorsed_by' => 'Sir Erwin',
+            'endorsement_date' => now()->subDays(20)->toDateString(),
+        ]);
+
         if (TeamMember::where('startup_id', $greenloop->startup_id)->count() === 0) {
-            TeamMember::factory()->count(2)->create(['startup_id' => $greenloop->startup_id]);
+            TeamMember::create(['startup_id' => $greenloop->startup_id, 'full_name' => 'Elias Navarro', 'designation' => 'CEO', 'role' => 'CEO', 'phone' => '09191234567', 'address' => 'Pasig City', 'date_of_birth' => '1996-09-08', 'email' => 'elias@greenloop.ph', 'citizenship' => 'Filipino', 'sex' => 'Male', 'civil_status' => 'Single']);
+            TeamMember::create(['startup_id' => $greenloop->startup_id, 'full_name' => 'Cathy Ramos', 'designation' => 'CTO', 'role' => 'CTO', 'phone' => '09192234567', 'address' => 'Cainta, Rizal', 'date_of_birth' => '1995-01-19', 'email' => 'cathy@greenloop.ph', 'citizenship' => 'Filipino', 'sex' => 'Female', 'civil_status' => 'Married']);
+            TeamMember::create(['startup_id' => $greenloop->startup_id, 'full_name' => 'Mark Salazar', 'designation' => 'Field Operations Lead', 'role' => 'Operations', 'phone' => '09193234567', 'address' => 'Taytay, Rizal', 'date_of_birth' => '1998-06-27', 'email' => 'mark@greenloop.ph', 'citizenship' => 'Filipino', 'sex' => 'Male', 'civil_status' => 'Single']);
+        }
+
+        if (IncubationInvolvement::where('info_sheet_id', $greenloopSheet->info_sheet_id)->count() === 0) {
+            IncubationInvolvement::create(['info_sheet_id' => $greenloopSheet->info_sheet_id, 'organization_name_address' => 'DOST-PCIEERD, Taguig', 'date_from' => '2024-02-01', 'date_to' => '2024-07-31', 'number_of_hours' => '100', 'incubation_program_focus' => 'CleanTech Prototyping']);
+            IncubationInvolvement::create(['info_sheet_id' => $greenloopSheet->info_sheet_id, 'organization_name_address' => 'PUP-TBIDO, Sta. Mesa, Manila', 'date_from' => '2024-08-01', 'date_to' => '2025-01-31', 'number_of_hours' => '140', 'incubation_program_focus' => 'Market Validation']);
+        }
+
+        if (LdIntervention::where('info_sheet_id', $greenloopSheet->info_sheet_id)->count() === 0) {
+            LdIntervention::create(['info_sheet_id' => $greenloopSheet->info_sheet_id, 'title' => 'Circular Economy Business Models', 'date_from' => '2024-05-06', 'date_to' => '2024-05-08', 'number_of_hours' => '24', 'conducted_sponsored_by' => 'DOST']);
+            LdIntervention::create(['info_sheet_id' => $greenloopSheet->info_sheet_id, 'title' => 'Investor Readiness Workshop', 'date_from' => '2024-11-12', 'date_to' => '2024-11-13', 'number_of_hours' => '16', 'conducted_sponsored_by' => 'PUP-TBIDO']);
+        }
+
+        if (StartupReference::where('info_sheet_id', $greenloopSheet->info_sheet_id)->count() === 0) {
+            StartupReference::create(['info_sheet_id' => $greenloopSheet->info_sheet_id, 'name' => 'Engr. Rowena Diaz', 'contact' => '09221234567', 'email' => 'rowena.diaz@pup.edu.ph', 'address' => 'PUP Sta. Mesa, Manila']);
+            StartupReference::create(['info_sheet_id' => $greenloopSheet->info_sheet_id, 'name' => 'Mr. Alfonso Yu', 'contact' => '09231234567', 'email' => 'alfonso.yu@dost.gov.ph', 'address' => 'DOST Taguig']);
         }
 
         if (ReadinessLevelAssessment::where('startup_id', $greenloop->startup_id)->count() === 0) {
-            ReadinessLevelAssessment::create([
+            ReadinessLevelAssessment::create(array_merge([
                 'startup_id' => $greenloop->startup_id,
+                'stage' => 'Pre-Assessment',
                 'trl_score' => 6, 'mrl_score' => 5, 'tmrl_score' => 4, 'srl_score' => 4,
                 'overall_score' => 4.75, 'assessment_date' => now(),
-            ]);
+            ], $this->rubricProgress(['TRL' => 6, 'MRL' => 5, 'TMRL' => 4, 'SRL' => 4])));
         }
+
+        // The upcoming evaluation itself — always pushed to a future date so
+        // re-seeding an old database still lands GreenLoop under "Upcoming"
+        // rather than "Missed".
+        $greenloopEvaluation = EvaluationSchedule::firstOrNew(['startup_id' => $greenloop->startup_id]);
+        $greenloopEvaluation->fill([
+            'evaluation_date' => now()->addDays(7)->toDateString(),
+            'start_time' => '10:00',
+            'end_time' => '11:00',
+            'status' => 'Scheduled',
+            'notes' => 'Initial evaluation for Cohort 3 endorsement.',
+        ])->save();
 
         // Sample mentors
         Mentor::firstOrCreate(
@@ -212,7 +284,35 @@ class DevDataSeeder extends Seeder
         $this->command->info('Dev data seeded successfully.');
         $this->command->info('Ready-to-login accounts (password: "password"):');
         $this->command->info('  Admin:   admin@pup.edu.ph');
-        $this->command->info('  Founder: founder@test.com (AgriSense PH), ecowatt.founder@test.com (EcoWatt Solutions), greenloop.founder@test.com (GreenLoop Energy)');
+        $this->command->info('  Founder: founder@test.com (AgriSense PH), ecowatt.founder@test.com (EcoWatt Solutions), greenloop.founder@test.com (GreenLoop Energy — Pending sheet + upcoming evaluation)');
         $this->command->info('For Pending/Rejected/unverified test accounts (to try the admin approval and verify-email screens), run: php artisan db:seed --class=FounderApplicationSeeder');
+    }
+
+    /**
+     * Builds the *_progress JSON that matches a seeded score, so the rubric
+     * checkboxes agree with the badge instead of showing "6/9" over an
+     * untouched form. A score is the COUNT of levels with any criterion
+     * checked (see ReadinessRubric::scoreFromProgress), so levels 1..score
+     * get all of their criteria ticked and the rest stay false.
+     *
+     * @param  array<string,int>  $scores  e.g. ['TRL' => 6, 'MRL' => 4, ...]
+     * @return array<string,array<int,array<int,bool>>>
+     */
+    private function rubricProgress(array $scores): array
+    {
+        $progress = [];
+
+        foreach ($scores as $type => $score) {
+            $levels = [];
+
+            foreach (ReadinessRubric::levels($type) as $level => $definition) {
+                $checked = $level <= $score;
+                $levels[$level] = array_fill(0, count($definition['criteria']), $checked);
+            }
+
+            $progress[strtolower($type).'_progress'] = $levels;
+        }
+
+        return $progress;
     }
 }

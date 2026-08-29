@@ -48,7 +48,7 @@
             @endphp
 
             <div class="flex items-center justify-between mb-4">
-                <a href="{{ $backUrl }}" class="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Startup Profile</a>
+                <a href="{{ $backUrl }}" class="text-sm text-gray-500 hover:text-gray-700">&larr; Back</a>
             </div>
 
             <div class="rounded-2xl overflow-hidden mb-8 shadow-sm">

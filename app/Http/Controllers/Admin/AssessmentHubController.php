@@ -76,9 +76,12 @@ class AssessmentHubController extends Controller
             ? $assessableStartups->firstWhere('startup_id', (int) $assessmentStartupParam)
             : null;
 
+        // Arriving from the sidebar (no query string) always lands on
+        // Overview + "All Startup" — the assessment tab never resumes some
+        // previously visited stage.
         $selectedStage = in_array($request->query('stage'), [...ReadinessRubric::STAGES, 'Overview', 'Reports'], true)
             ? $request->query('stage')
-            : 'Pre-Assessment';
+            : 'Overview';
 
         // Not persisted until Save Assessment is actually clicked —
         // firstOrNew (not firstOrCreate) so simply viewing an unscored

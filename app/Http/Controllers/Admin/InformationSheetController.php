@@ -17,15 +17,11 @@ use App\Models\LdIntervention;
 use App\Models\StartupReference;
 use App\Models\Startup;
 use App\Models\TeamMember;
-use App\Traits\CompressesImages;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class InformationSheetController extends Controller
 {
-    use CompressesImages;
-
     public function show(Startup $startup): View
     {
         $startup->load([
@@ -36,7 +32,20 @@ class InformationSheetController extends Controller
             'user',
         ]);
 
-        return view('admin.information-sheets.show', compact('startup'));
+        $nameParts = \App\Models\InformationSheet::splitFounderName($startup->user?->name);
+
+        return view('admin.information-sheets.show', [
+            'startup' => $startup,
+            // Seeds empty fields from the Startup Profile — display only, never
+            // written until the sheet itself is saved.
+            'prefill' => [
+                'surname' => $nameParts['surname'],
+                'first_name' => $nameParts['first_name'],
+                'middle_name' => $nameParts['middle_name'],
+                'mobile_no' => (string) $startup->contact_phone,
+                'founder_email' => (string) $startup->user?->email,
+            ],
+        ]);
     }
 
     public function approve(Startup $startup): RedirectResponse
@@ -65,20 +74,12 @@ class InformationSheetController extends Controller
         abort_if($sheet->approval_status === 'Approved', 403, 'This Information Sheet is approved and locked.');
 
         $data = $request->validated();
-        unset($data['founder_signature'], $data['director_signature']);
 
-        if ($request->hasFile('founder_signature')) {
-            if ($sheet->founder_signature_path) {
-                Storage::disk('public')->delete($sheet->founder_signature_path);
-            }
-            $data['founder_signature_path'] = $this->compressAndStoreImage($request->file('founder_signature'), 'signatures');
-        }
-
-        if ($request->hasFile('director_signature')) {
-            if ($sheet->director_signature_path) {
-                Storage::disk('public')->delete($sheet->director_signature_path);
-            }
-            $data['director_signature_path'] = $this->compressAndStoreImage($request->file('director_signature'), 'signatures');
+        // Admin edits are corrections made on the founder's behalf, so they
+        // must not re-date the founder's declaration. Only fill it when the
+        // sheet has never been accomplished.
+        if (! $sheet->date_accomplished) {
+            $data['date_accomplished'] = now();
         }
 
         $sheet->update($data);

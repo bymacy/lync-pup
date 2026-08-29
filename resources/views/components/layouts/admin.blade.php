@@ -226,7 +226,7 @@
                     </div>
                 </aside>
 
-                <main class="relative flex-1 h-screen overflow-y-auto">
+                <main class="relative flex-1 min-w-0 h-screen overflow-y-auto">
 
                     {{-- Mobile top bar --}}
                     <div class="lg:hidden sticky top-0 z-30 flex items-center gap-3 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-4 py-3 shadow-sm">
@@ -349,7 +349,7 @@
 
                     </div>
 
-                    <div class="p-4 sm:p-6 lg:p-8">
+                    <div class="min-w-0 max-w-full p-4 sm:p-6 lg:p-8">
                         {{ $slot }}
                     </div>
                 </main>

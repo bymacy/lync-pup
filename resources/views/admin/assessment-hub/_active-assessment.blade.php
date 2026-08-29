@@ -161,13 +161,13 @@
     }"
     x-init="$watch(() => isDirty(), value => { $store.navigation.hasUnsavedChanges = value; })">
 
-    <div class="mb-6 grid grid-cols-3 overflow-hidden rounded-lg border border-gray-200">
+    <div class="mb-4 grid grid-cols-3 overflow-hidden rounded-lg border border-gray-200">
         @foreach ([6 => 'Document 6', 7 => 'Document 7', 8 => 'Document 8'] as $num => $label)
             <button type="button" @click="activeDoc = {{ $num }}"
-                class="border-t-2 border-r border-gray-200 px-4 py-3 text-center transition last:border-r-0"
+                class="border-t-2 border-r border-gray-200 px-1.5 py-2 text-center transition last:border-r-0 sm:px-3"
                 :class="activeDoc === {{ $num }} ? 'border-t-[#6C0E24] bg-[#6C0E24]/5' : 'border-t-transparent bg-white hover:bg-[#6C0E24]/5'">
-                <p class="font-bold" :class="activeDoc === {{ $num }} ? 'text-[#6C0E24]' : 'text-gray-900'">{{ $label }}</p>
-                <p class="mt-1 flex items-center justify-center gap-1.5 text-xs {{ $docHasData[$num] ? 'text-green-600' : 'text-gray-400' }}">
+                <p class="whitespace-nowrap text-xs font-bold leading-tight sm:text-base" :class="activeDoc === {{ $num }} ? 'text-[#6C0E24]' : 'text-gray-900'">{{ $label }}</p>
+                <p class="mt-0.5 flex items-center justify-center gap-1 whitespace-nowrap text-[11px] leading-tight sm:gap-1.5 sm:text-xs {{ $docHasData[$num] ? 'text-green-600' : 'text-gray-400' }}">
                     <span class="h-1.5 w-1.5 shrink-0 rounded-full {{ $docHasData[$num] ? 'bg-green-500' : 'bg-gray-300' }}"></span>
                     {{ $docHasData[$num] ? 'Started' : 'Not Started' }}
                 </p>
@@ -508,7 +508,8 @@
 
                 <div class="mt-6">
                     <p class="mb-2 font-bold text-gray-900">Summary</p>
-                    <table class="w-full border text-sm">
+                    <div class="overflow-x-auto">
+                    <table class="w-full min-w-[480px] border text-sm">
                         <thead>
                             <tr class="bg-gray-50">
                                 <th class="border px-3 py-2 text-left">Category</th>
@@ -532,6 +533,7 @@
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
 
                 <div class="mt-6">

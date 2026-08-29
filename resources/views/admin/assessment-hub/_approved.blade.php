@@ -34,6 +34,11 @@ return [
         month: 'all',
         page: 1,
         perPage: 3,
+        // Width of the logo + name block: sized to the longest name so the
+        // logos align across rows while the block stays centered in the cell.
+        get nameCh() {
+            return Math.min(Math.max(8, ...this.startups.map(s => (s.name || '').length)) + 1, 32);
+        },
         get months() {
             return [...new Map(this.startups.map(s => [s.month_key, s.month_label])).entries()];
         },
@@ -84,29 +89,33 @@ return [
             </template>
         </div>
     </div>
-    <table class="w-full text-sm border rounded-xl overflow-hidden">
+    <div class="overflow-x-auto rounded-xl border">
+    <table class="w-full min-w-[620px] text-sm">
         <thead>
             <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-center">
-                <th class="px-4 py-3 text-sm font-semibold tracking-wider">Startup</th>
-                <th class="px-4 py-3 text-sm font-semibold tracking-wider">Approved Date</th>
-                <th class="px-4 py-3 text-sm font-semibold tracking-wider">Category</th>
-                <th class="px-4 py-3 text-sm font-semibold tracking-wider">Action</th>
+                <th class="whitespace-nowrap px-4 py-3 text-sm font-semibold tracking-wider">Startup</th>
+                <th class="whitespace-nowrap px-4 py-3 text-sm font-semibold tracking-wider">Approved Date</th>
+                <th class="whitespace-nowrap px-4 py-3 text-sm font-semibold tracking-wider">Category</th>
+                <th class="whitespace-nowrap px-4 py-3 text-sm font-semibold tracking-wider">Action</th>
             </tr>
         </thead>
         <tbody>
             <template x-for="s in paged" :key="s.id">
                 <tr class="border-b">
                     <td class="px-4 py-3 text-center">
-                        <div class="flex items-center justify-center gap-3">
-                            <div class="h-9 w-9 rounded-full overflow-hidden bg-gradient-to-br from-rose-900 to-blue-950 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                                <template x-if="s.photo_url">
-                                    <img :src="s.photo_url" class="h-full w-full object-cover">
-                                </template>
-                                <template x-if="!s.photo_url">
-                                    <span x-text="s.initial"></span>
-                                </template>
+                        <div class="flex justify-center">
+                            <div class="inline-flex max-w-full items-center gap-3 text-left"
+                                :style="`width: calc(2.25rem + 0.75rem + ${nameCh}ch)`">
+                                <div class="h-9 w-9 rounded-full overflow-hidden bg-gradient-to-br from-rose-900 to-blue-950 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+                                    <template x-if="s.photo_url">
+                                        <img :src="s.photo_url" class="h-full w-full object-cover">
+                                    </template>
+                                    <template x-if="!s.photo_url">
+                                        <span x-text="s.initial"></span>
+                                    </template>
+                                </div>
+                                <span class="min-w-0 flex-1 truncate" :title="s.name" x-text="s.name"></span>
                             </div>
-                            <span x-text="s.name"></span>
                         </div>
                     </td>
                     <td class="px-4 py-3 text-center" x-text="s.approved_date"></td>
@@ -126,6 +135,7 @@ return [
             </template>
         </tbody>
     </table>
+    </div>
 
     <div class="flex items-center justify-between mt-4 text-sm text-gray-600" x-show="filtered.length > 0">
         <div class="flex items-center gap-2">

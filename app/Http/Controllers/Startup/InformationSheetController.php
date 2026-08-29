@@ -13,15 +13,11 @@ use App\Http\Requests\Startup\UpdateStartupReferenceRequest;
 use App\Models\IncubationInvolvement;
 use App\Models\LdIntervention;
 use App\Models\StartupReference;
-use App\Traits\CompressesImages;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class InformationSheetController extends Controller
 {
-    use CompressesImages;
-
     public function edit(): View|RedirectResponse
     {
         $startup = auth()->user()->startup->load([
@@ -42,7 +38,10 @@ class InformationSheetController extends Controller
                 ->with('status', 'Please complete your Startup Profile first before filling out the Information Sheet.');
         }
 
-        return view('startup.information-sheet.edit', compact('startup'));
+        return view('startup.information-sheet.edit', [
+            'startup' => $startup,
+            'prefill' => $this->prefillFromProfile($startup),
+        ]);
     }
 
     public function update(UpdateInformationSheetRequest $request): RedirectResponse
@@ -56,19 +55,41 @@ class InformationSheetController extends Controller
 
         $data = $request->validated();
 
-        if ($request->hasFile('founder_signature')) {
-            if ($sheet->founder_signature_path) {
-                Storage::disk('public')->delete($sheet->founder_signature_path);
-            }
-            $data['founder_signature_path'] = $this->compressAndStoreImage($request->file('founder_signature'), 'signatures');
-        }
-
         $data['approval_status'] = 'Pending';
         $data['submission_date'] = now();
+
+        // "Date accomplished" is the day the founder filled the form in, so it
+        // is stamped here rather than typed — every save re-dates the sheet,
+        // matching submission_date above.
+        $data['date_accomplished'] = now();
 
         $sheet->update($data);
 
         return redirect()->route('startup.information-sheet.edit')->with('status', 'Information Sheet saved and submitted for review.');
+    }
+
+    /**
+     * Values used to pre-fill sheet fields that are still empty, taken from
+     * the Startup Profile the founder already completed. Nothing is written to
+     * the database here — these only seed the inputs, so the founder reviews
+     * and corrects them before the first save.
+     *
+     * One-way on purpose: the sheet's copy is its own record (the founder can
+     * edit it freely here) and saving it never writes back to the Startup
+     * Profile or the user account. Fields whose shapes don't match (profile
+     * "location" is a city, the sheet wants a street address) are left out.
+     */
+    private function prefillFromProfile($startup): array
+    {
+        $name = \App\Models\InformationSheet::splitFounderName($startup->user?->name);
+
+        return [
+            'surname' => $name['surname'],
+            'first_name' => $name['first_name'],
+            'middle_name' => $name['middle_name'],
+            'mobile_no' => (string) $startup->contact_phone,
+            'founder_email' => (string) $startup->user?->email,
+        ];
     }
 
     // Incubation Involvement

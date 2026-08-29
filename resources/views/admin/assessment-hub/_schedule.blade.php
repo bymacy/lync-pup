@@ -4,6 +4,16 @@ $gradient = 'bg-gradient-to-r from-[#6D0D23] to-[#11386A]';
 // works whether the controller passed a paginator or a plain collection
 $isPaginated = $pendingStartups instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
+// Startup cell widths — a fixed block per table keeps every row's logo on the
+// same vertical line, sized to that table's longest company name so the block
+// stays snug and reads as centered in the column.
+$pendingRows = $isPaginated ? collect($pendingStartups->items()) : collect($pendingStartups);
+$pendingNameLen = $pendingRows->map(fn ($s) => mb_strlen($s->company_name ?? ''))->max() ?: 12;
+$pendingCell = 'width: calc(1.5rem + 0.5rem + '.min(max($pendingNameLen, 8), 30).'ch)';
+
+$todayNameLen = collect($scheduledToday)->map(fn ($i) => mb_strlen($i->startup->company_name ?? ''))->max() ?: 12;
+$todayCell = 'width: calc(1.25rem + 0.375rem + '.min(max($todayNameLen, 8), 26).'ch)';
+
 // avatar renderer — falls back to an initial if there's no logo
 $avatar = function ($startup) {
 $url = $startup->startup_photo_url ?? null;
@@ -38,11 +48,13 @@ return $url
                         @forelse ($pendingStartups as $startup)
                         <tr x-data="{ scheduleOpen: false }" class="border-b border-gray-100 last:border-0">
                             <td class="px-3 py-2 text-center">
-                                <div class="flex items-center justify-center gap-2">
-                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
-                                        {!! $avatar($startup) !!}
-                                    </span>
-                                    <span class="text-xs font-medium text-gray-900">{{ $startup->company_name }}</span>
+                                <div class="flex justify-center">
+                                    <div class="inline-flex max-w-full items-center gap-2 text-left text-xs" style="{{ $pendingCell }}">
+                                        <span class="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
+                                            {!! $avatar($startup) !!}
+                                        </span>
+                                        <span class="min-w-0 flex-1 truncate text-xs font-medium text-gray-900" title="{{ $startup->company_name }}">{{ $startup->company_name }}</span>
+                                    </div>
                                 </div>
                             </td>
                             <td class="px-3 py-2 whitespace-nowrap text-center text-xs text-gray-600">
@@ -138,13 +150,15 @@ return $url
                                     {{ $item->time_range_label ?? '—' }}
                                 </td>
                                 <td class="px-2.5 py-1.5 text-center">
-                                    <div class="flex items-center justify-center gap-1.5">
-                                        <span class="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
-                                            {!! $item->startup ? $avatar($item->startup) : '' !!}
-                                        </span>
-                                        <span class="whitespace-nowrap text-xs font-medium text-gray-900">
-                                            {{ $item->startup->company_name ?? '—' }}
-                                        </span>
+                                    <div class="flex justify-center">
+                                        <div class="inline-flex max-w-full items-center gap-1.5 text-left text-xs" style="{{ $todayCell }}">
+                                            <span class="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
+                                                {!! $item->startup ? $avatar($item->startup) : '' !!}
+                                            </span>
+                                            <span class="min-w-0 flex-1 truncate text-xs font-medium text-gray-900" title="{{ $item->startup->company_name ?? '' }}">
+                                                {{ $item->startup->company_name ?? '—' }}
+                                            </span>
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="px-2.5 py-1.5 text-center">

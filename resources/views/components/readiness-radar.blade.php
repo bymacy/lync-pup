@@ -14,27 +14,45 @@
     [$rightX, $rightY] = $point($mrl, 90);
     [$bottomX, $bottomY] = $point($tmrl, 180);
     [$leftX, $leftY] = $point($srl, 270);
+
+    $ink = '#7f1d3a';
 @endphp
 
 {{--
     viewBox is padded beyond the 0..$size box (rather than shrinking $r) so
-    the axis labels — "SRL 0/9", "TMRL 0/9", etc, wider than "TRL"/"MRL" —
-    have room to render without being clipped by the SVG's own edge. cx/cy/r
-    stay anchored to the original $size-based coordinate system, so the
-    diamond itself is unaffected; only the visible margin around it grows.
+    the two-line axis labels — the RL name over its "n/9" score — have room
+    to render without being clipped by the SVG's own edge. cx/cy/r stay
+    anchored to the original $size-based coordinate system, so the diamond
+    itself is unaffected; only the visible margin around it grows.
 --}}
-<svg viewBox="-32 -22 {{ $size + 64 }} {{ $size + 44 }}" class="w-full h-auto">
-    @foreach ([0.33, 0.66, 1] as $ring)
+<svg viewBox="-36 -34 {{ $size + 72 }} {{ $size + 72 }}" class="h-auto w-full">
+    {{-- Grid: four evenly spaced rings plus the two axes --}}
+    @foreach ([0.25, 0.5, 0.75, 1] as $ring)
         <circle cx="{{ $cx }}" cy="{{ $cy }}" r="{{ $r * $ring }}" fill="none" stroke="#e5e7eb" stroke-width="1" />
     @endforeach
     <line x1="{{ $cx }}" y1="{{ $cy - $r }}" x2="{{ $cx }}" y2="{{ $cy + $r }}" stroke="#e5e7eb" />
     <line x1="{{ $cx - $r }}" y1="{{ $cy }}" x2="{{ $cx + $r }}" y2="{{ $cy }}" stroke="#e5e7eb" />
 
+    {{-- Score shape --}}
     <polygon points="{{ $topX }},{{ $topY }} {{ $rightX }},{{ $rightY }} {{ $bottomX }},{{ $bottomY }} {{ $leftX }},{{ $leftY }}"
-             fill="#7f1d3a" fill-opacity="0.2" stroke="#7f1d3a" stroke-width="2" />
+             fill="{{ $ink }}" fill-opacity="0.2" stroke="{{ $ink }}" stroke-width="2"
+             stroke-linejoin="round" />
 
-    <text x="{{ $cx }}" y="{{ $cy - $r - 12 }}" text-anchor="middle" class="fill-gray-500 text-xs">TRL {{ $trl }}/9</text>
-    <text x="{{ $cx + $r + 12 }}" y="{{ $cy + 4 }}" text-anchor="start" class="fill-gray-500 text-xs">MRL {{ $mrl }}/9</text>
-    <text x="{{ $cx }}" y="{{ $cy + $r + 22 }}" text-anchor="middle" class="fill-gray-500 text-xs">TMRL {{ $tmrl }}/9</text>
-    <text x="{{ $cx - $r - 12 }}" y="{{ $cy + 4 }}" text-anchor="end" class="fill-gray-500 text-xs">SRL {{ $srl }}/9</text>
+    {{-- Vertex dots, so each axis reads as a plotted value rather than a corner --}}
+    @foreach ([[$topX, $topY], [$rightX, $rightY], [$bottomX, $bottomY], [$leftX, $leftY]] as [$px, $py])
+        <circle cx="{{ $px }}" cy="{{ $py }}" r="3.5" fill="{{ $ink }}" />
+    @endforeach
+
+    {{-- Axis labels: name on top, score underneath --}}
+    <text x="{{ $cx }}" y="{{ $cy - $r - 24 }}" text-anchor="middle" class="fill-gray-800 text-[13px] font-bold">TRL</text>
+    <text x="{{ $cx }}" y="{{ $cy - $r - 10 }}" text-anchor="middle" class="fill-gray-400 text-[11px]">{{ $trl }}/9</text>
+
+    <text x="{{ $cx + $r + 14 }}" y="{{ $cy - 2 }}" text-anchor="start" class="fill-gray-800 text-[13px] font-bold">MRL</text>
+    <text x="{{ $cx + $r + 14 }}" y="{{ $cy + 12 }}" text-anchor="start" class="fill-gray-400 text-[11px]">{{ $mrl }}/9</text>
+
+    <text x="{{ $cx }}" y="{{ $cy + $r + 24 }}" text-anchor="middle" class="fill-gray-800 text-[13px] font-bold">TMRL</text>
+    <text x="{{ $cx }}" y="{{ $cy + $r + 38 }}" text-anchor="middle" class="fill-gray-400 text-[11px]">{{ $tmrl }}/9</text>
+
+    <text x="{{ $cx - $r - 14 }}" y="{{ $cy - 2 }}" text-anchor="end" class="fill-gray-800 text-[13px] font-bold">SRL</text>
+    <text x="{{ $cx - $r - 14 }}" y="{{ $cy + 12 }}" text-anchor="end" class="fill-gray-400 text-[11px]">{{ $srl }}/9</text>
 </svg>

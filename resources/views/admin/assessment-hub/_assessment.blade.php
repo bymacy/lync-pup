@@ -128,7 +128,7 @@ for ($i = 0; $i < $count; $i++) {
         </div>
 
         <div class="flex flex-wrap items-center gap-3 mb-6">
-            <div class="relative inline-block w-56" x-data="{ open: false }"
+            <div class="relative inline-block w-full sm:w-56" x-data="{ open: false }"
                 @click.outside="open = false" @keydown.escape="open = false">
                 <button type="button" @click="open = !open"
                     class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-2 text-sm font-medium text-gray-700 transition hover:border-gray-400">
@@ -161,11 +161,11 @@ for ($i = 0; $i < $count; $i++) {
                 </div>
             </div>
 
-            <div class="flex w-full overflow-hidden rounded-lg border border-gray-200">
+            <div class="flex w-full overflow-x-auto rounded-lg border border-gray-200">
                 @foreach ($allStages as $stageOption)
                     <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $stageOption, 'assessment_startup' => $selectedStartup?->startup_id]) }}"
                         @click="if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
-                        class="flex-1 px-4 py-1.5 text-center text-sm font-semibold transition {{ $selectedStage === $stageOption ? 'bg-[#6C0E24] text-white' : 'text-gray-600 hover:bg-gray-50' }}">
+                        class="flex-none whitespace-nowrap px-3 py-1.5 text-center text-xs font-semibold transition sm:flex-1 sm:px-4 sm:text-sm {{ $selectedStage === $stageOption ? 'bg-[#6C0E24] text-white' : 'text-gray-600 hover:bg-gray-50' }}">
                         {{ $stageOption }}
                     </a>
                 @endforeach
@@ -181,7 +181,7 @@ for ($i = 0; $i < $count; $i++) {
         @else
         <div class="overflow-hidden rounded-xl border border-gray-200">
             <div class="overflow-x-auto">
-                <table class="w-full table-fixed text-sm">
+                <table class="w-full min-w-[820px] table-fixed text-sm">
                     <thead>
                         <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-center text-white">
                             <th class="w-14 px-4 py-3 font-semibold whitespace-nowrap">#</th>
@@ -192,20 +192,29 @@ for ($i = 0; $i < $count; $i++) {
                         </tr>
                     </thead>
                     <tbody>
+                        @php
+                        // Same trick as the other hub tables: one fixed-width block
+                        // per column so the logos align, sized to the longest name.
+                        $overviewNameLen = collect($overviewRows)
+                        ->map(fn ($r) => mb_strlen($r['startup']->company_name ?? ''))->max() ?: 12;
+                        $overviewCell = 'width: calc(1.5rem + 0.5rem + '.min(max($overviewNameLen, 8), 24).'ch)';
+                        @endphp
                         @foreach ($overviewRows as $i => $row)
                         <tr class="border-b border-gray-100 last:border-0 align-middle">
                             <td class="px-4 py-4 text-center">{{ $i + 1 }}</td>
                             <td class="px-4 py-4">
                                 <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $selectedStage === 'Overview' ? 'Pre-Assessment' : $selectedStage, 'assessment_startup' => $row['startup']->startup_id]) }}"
-                                    class="flex items-center justify-center gap-2 font-medium text-gray-900 hover:text-rose-900 hover:underline">
-                                    @if ($row['startup']->startup_photo_url)
-                                    <img src="{{ $row['startup']->startup_photo_url }}" alt="" class="h-6 w-6 shrink-0 rounded-full object-cover">
-                                    @else
-                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-900 text-xs font-semibold text-white">
-                                        {{ strtoupper(substr($row['startup']->company_name, 0, 1)) }}
+                                    class="flex justify-center font-medium text-gray-900 hover:text-rose-900 hover:underline">
+                                    <span class="inline-flex max-w-full items-center gap-2 text-left" style="{{ $overviewCell }}">
+                                        @if ($row['startup']->startup_photo_url)
+                                        <img src="{{ $row['startup']->startup_photo_url }}" alt="" class="h-6 w-6 shrink-0 rounded-full object-cover">
+                                        @else
+                                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-900 text-xs font-semibold text-white">
+                                            {{ strtoupper(substr($row['startup']->company_name, 0, 1)) }}
+                                        </span>
+                                        @endif
+                                        <span class="min-w-0 flex-1 truncate" title="{{ $row['startup']->company_name }}">{{ $row['startup']->company_name }}</span>
                                     </span>
-                                    @endif
-                                    {{ $row['startup']->company_name }}
                                 </a>
                             </td>
                             <td class="px-4 py-4 text-center font-semibold text-gray-700">{{ $row['not_started_count'] }}</td>
@@ -363,16 +372,16 @@ for ($i = 0; $i < $count; $i++) {
 
             <div>
                 {{-- ============ RL type header (tab strip) ============ --}}
-                <div class="mb-6 grid grid-cols-2 overflow-hidden rounded-lg border border-gray-200 sm:grid-cols-4">
+                <div class="mb-4 grid grid-cols-4 overflow-hidden rounded-lg border border-gray-200">
                     @foreach ($rubricMeta as $type => $meta)
                         @php $isSavedComplete = $currentAssessment?->scoreFor($type) === 9; @endphp
                         <button type="button" @click="activeType = '{{ $type }}'"
-                            class="border-t-2 border-r border-gray-200 px-4 py-3 text-center transition last:border-r-0"
+                            class="border-t-2 border-r border-gray-200 px-1.5 py-2 text-center transition last:border-r-0 sm:px-3"
                             :class="activeType === '{{ $type }}' ? 'border-t-[#6C0E24] bg-[#6C0E24]/5' : 'border-t-transparent bg-white hover:bg-[#6C0E24]/5'">
-                            <p class="text-xs font-semibold uppercase tracking-wide" :class="activeType === '{{ $type }}' ? 'text-[#6C0E24]' : 'text-gray-400'">
+                            <p class="text-[10px] font-semibold uppercase leading-tight tracking-wide sm:text-xs" :class="activeType === '{{ $type }}' ? 'text-[#6C0E24]' : 'text-gray-400'">
                                 {{ $type }}
                             </p>
-                            <p class="mt-1 flex items-center justify-center gap-1.5 text-sm font-bold"
+                            <p class="mt-0.5 flex items-center justify-center gap-1 whitespace-nowrap text-[11px] font-bold leading-tight sm:text-sm sm:gap-1.5"
                                 :class="{{ $isSavedComplete ? 'true' : 'false' }} ? 'text-green-600' : (scoreFor('{{ $type }}') ? 'text-[#6C0E24]' : 'text-gray-400')">
                                 <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="{{ $isSavedComplete ? 'true' : 'false' }} ? 'bg-green-500' : (scoreFor('{{ $type }}') ? 'bg-[#6C0E24]' : 'bg-gray-300')"></span>
                                 <span x-text="scoreFor('{{ $type }}') ? scoreFor('{{ $type }}') + '/9' : 'Not Started'"></span>
