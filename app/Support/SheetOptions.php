@@ -45,16 +45,16 @@ class SheetOptions
 
     public static function sexes(): array
     {
-        return ['FEMALE', 'MALE'];
+        return ['MALE', 'FEMALE'];
     }
 
     /**
-     * The standard Philippine civil-status set. Divorce is not recognised
-     * locally, so "ANNULLED" covers that case instead.
+     * "DIVORCED" is included for founders whose divorce was granted abroad -
+     * local divorce is not recognised, so an annulment here reads as SINGLE.
      */
     public static function civilStatuses(): array
     {
-        return ['SINGLE', 'MARRIED', 'WIDOWED', 'SEPARATED', 'ANNULLED'];
+        return ['SINGLE', 'MARRIED', 'SEPARATED', 'DIVORCED', 'WIDOWED'];
     }
 
     /** Graduation years, newest first, back to 1960. */

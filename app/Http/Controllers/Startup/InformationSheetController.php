@@ -51,7 +51,7 @@ class InformationSheetController extends Controller
 
         abort_unless($startup->isProfileComplete(), 403, 'Please complete your Startup Profile first before filling out the Information Sheet.');
         abort_if($sheet->approval_status === 'Approved', 403, 'This Information Sheet is approved and locked. Contact your Coordinator for changes.');
-        abort_if($startup->evaluationDayLockActive(), 403, 'This Information Sheet is locked because your evaluation day has started. Contact your Coordinator for changes.');
+        abort_if($startup->evaluationDayLockActive(), 403, 'This Information Sheet is locked for today - your evaluation is scheduled today. It reopens tomorrow if the evaluation does not push through.');
 
         $data = $request->validated();
 

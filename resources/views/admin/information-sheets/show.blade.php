@@ -278,9 +278,9 @@
                     class="h-6 w-6 flex-shrink-0">
                 <ul class="list-disc pl-4 space-y-0.5 italic marker:text-[#11386A]">
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">This is the founder's submitted copy of PUP-TBIDO Form No. 001.</span> Use Edit to correct entries on their behalf.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Every field marked <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> must be answered.</span> Where something does not apply, enter <span class="font-bold">N/A</span> - do not leave it blank.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Fields marked <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> must be answered.</span> Where one does not apply, enter <span class="font-bold">N/A</span> - except dates, email, phone, height and weight, which need a real value. Anything without a <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> may be left empty.</li>
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Approving locks the sheet for everyone.</span> The founder is told to contact their Coordinator for changes, and a scheduled evaluation is required before you can approve.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">The founder loses edit access on their evaluation day.</span> You keep yours, so late corrections go through this screen.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">The founder loses edit access on their evaluation day only.</span> It reopens the next day if the evaluation is missed. You keep yours throughout, so corrections always go through this screen.</li>
                 </ul>
                 </div>
 
@@ -503,17 +503,17 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
 
                 {{-- 22. Educational Background --}}
                 <div class="mb-6">
-                    <p class="text-xs font-semibold text-gray-700 mb-1">22. EDUCATIONAL BACKGROUND</p>
+                    <p class="text-xs font-semibold text-gray-700 mb-1">22. EDUCATIONAL BACKGROUND <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></p>
                     @php $eduCell = 'w-full border-0 px-2 py-1.5 text-sm read-only:bg-transparent read-only:text-gray-500 placeholder:text-gray-300 focus:outline-none'; @endphp
                     <div class="overflow-x-auto">
                     <table class="w-full min-w-[720px] text-sm border border-collapse">
                         <thead class="bg-gray-50 text-left text-xs">
                             <tr>
                                 <th class="border px-3 py-2">LEVEL</th>
-                                <th class="border px-3 py-2">NAME OF SCHOOL</th>
-                                <th class="border px-3 py-2">EDUCATIONAL/DEGREE/COURSE</th>
-                                <th class="border px-3 py-2">HIGHEST LEVEL UNIT</th>
-                                <th class="border px-3 py-2">YEAR GRADUATED</th>
+                                <th class="border px-3 py-2">NAME OF SCHOOL <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
+                                <th class="border px-3 py-2">EDUCATIONAL/DEGREE/COURSE <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
+                                <th class="border px-3 py-2">HIGHEST LEVEL UNIT <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
+                                <th class="border px-3 py-2">YEAR GRADUATED <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -645,7 +645,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             {{-- Header --}}
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold text-gray-800 uppercase tracking-wide">
                                 @foreach ($teamCols as $col)
-                                <div class="px-3 py-3 flex-shrink-0 leading-tight {{ $loop->last ? '' : 'border-r border-gray-200' }} {{ $col['w'] }}">{{ $col['label'] }}</div>
+                                <div class="px-3 py-3 flex-shrink-0 leading-tight {{ $loop->last ? '' : 'border-r border-gray-200' }} {{ $col['w'] }}">{{ $col['label'] }} <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></div>
                                 @endforeach
                                 {{-- gutter, always present so columns don't shift between view and edit mode --}}
                                 <div class="w-10 flex-shrink-0"></div>
@@ -879,7 +879,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                 </div>
                             </div>
                             @empty
-                            <p class="text-sm text-gray-400 px-3 py-3">None listed yet.</p>
+                            {{-- Sections III, IV and 35 are optional. An empty table is a real answer -
+                                     "nothing to declare" - so it reads as the N/A the paper form asks for
+                                     rather than as an unanswered blank. Nothing is stored for it. --}}
+                            <p class="text-sm text-gray-500 px-3 py-3">N/A</p>
                             @endforelse
 
                             {{-- Add new --}}
@@ -1027,7 +1030,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                 </div>
                             </div>
                             @empty
-                            <p class="text-sm text-gray-400 px-3 py-3">None listed yet.</p>
+                            <p class="text-sm text-gray-500 px-3 py-3">N/A</p>
                             @endforelse
 
                             {{-- Add new --}}
@@ -1395,7 +1398,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             </div>
                         </div>
                         @empty
-                        <p class="text-sm text-gray-400 px-3 py-3">None listed yet.</p>
+                        <p class="text-sm text-gray-500 px-3 py-3">N/A</p>
                         @endforelse
 
                         {{-- Add new --}}

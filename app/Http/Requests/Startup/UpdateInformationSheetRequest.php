@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Startup;
 
+use App\Support\SheetOptions;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -65,6 +66,50 @@ class UpdateInformationSheetRequest extends FormRequest
 
         if ($payload) {
             $this->merge($payload);
+        }
+
+        // Items 23, 31 and 34 are optional row tables. Emptying one is a real
+        // answer - "nothing to declare" - so it is stored as the N/A the paper
+        // form asks for, rather than as a blank that reads as "unanswered" in
+        // the exports. Only touched when the field was actually submitted, so
+        // a partial request cannot wipe an existing entry.
+        $blankIsNotApplicable = [
+            'scholarships_academic_honors',
+            'non_academic_distinctions',
+            'membership_associations',
+        ];
+
+        foreach ($blankIsNotApplicable as $field) {
+            if ($this->has($field) && trim((string) $this->input($field)) === '') {
+                $this->merge([$field => 'N/A']);
+            }
+        }
+
+        // 5 & 6. The founder types a number and picks its unit; the sheet stores
+        // metres and kilograms, which is what the column names promise and what
+        // the PDF prints. Converting here means every rule below - and
+        // blankedFields() - only ever sees the canonical value.
+        $measurements = [
+            'height_m' => ['input' => 'height_input', 'unit' => 'height_unit', 'factors' => ['cm' => 0.01, 'in' => 0.0254, 'm' => 1.0, 'ft' => 0.3048]],
+            'weight_kg' => ['input' => 'weight_input', 'unit' => 'weight_unit', 'factors' => ['kg' => 1.0, 'lb' => 0.45359237]],
+        ];
+
+        foreach ($measurements as $target => $spec) {
+            if (! $this->has($spec['input'])) {
+                continue;
+            }
+
+            $raw = trim((string) $this->input($spec['input']));
+            $factor = $spec['factors'][$this->input($spec['unit'])] ?? null;
+
+            // A blank, a non-number or an unknown unit is passed through
+            // untouched so the rules below produce the message, rather than
+            // silently storing a zero.
+            $this->merge([
+                $target => ($raw === '' || ! is_numeric($raw) || $factor === null)
+                    ? $raw
+                    : (string) round((float) $raw * $factor, 2),
+            ]);
         }
     }
 
@@ -162,6 +207,14 @@ class UpdateInformationSheetRequest extends FormRequest
             'regex:/^[^<>{}|\\^~]*$/u',
         ];
 
+        // Items 23, 31 and 34 are row tables the founder may genuinely have
+        // nothing to put in, so they are the one place on this sheet where a
+        // blank is an answer. Anything typed is still shape-checked.
+        $optionalProse = fn (int $max) => [
+            'nullable', 'string', 'max:'.$max,
+            'regex:/^[^<>{}|\\^~]*$/u',
+        ];
+
         // Registration codes are deliberately mixed — "CS201812345",
         // "DTI-0054321", "07-000123-4". Letters and digits are both fine; what
         // is rejected is punctuation that never appears in a real reference
@@ -171,8 +224,6 @@ class UpdateInformationSheetRequest extends FormRequest
             'regex:/^(n\/a|[A-Za-z0-9][A-Za-z0-9\s\-\/\.]*)$/i',
         ];
 
-        // "N/A" or a number (e.g. 1.65 / 58)
-        $measurement = ['required', 'string', 'max:20', 'regex:/^(n\/a|\d+(\.\d+)?)$/i'];
 
         // "N/A" or a 4-digit year
         $year = ['required', 'string', 'max:10', 'regex:/^(n\/a|(19|20)\d{2})$/i'];
@@ -187,8 +238,18 @@ class UpdateInformationSheetRequest extends FormRequest
             'first_name' => $name(100),
             'middle_name' => $name(100),
             'name_extension' => $name(20),
-            'height_m' => $measurement,
-            'weight_kg' => $measurement,
+            // The two boxes the founder actually types in, plus the unit each
+            // one is in. Digits only - the control strips anything else, and
+            // this rejects whatever slips past it.
+            'height_input' => ['required', 'string', 'max:20', 'regex:/^\d+(\.\d+)?$/'],
+            'height_unit' => ['required', 'in:cm,in,m,ft'],
+            'weight_input' => ['required', 'string', 'max:20', 'regex:/^\d+(\.\d+)?$/'],
+            'weight_unit' => ['required', 'in:kg,lb'],
+
+            // Derived above, then range-checked so a slipped decimal point
+            // (17.5 m, 5 kg) is caught before it reaches the export.
+            'height_m' => ['required', 'numeric', 'between:0.5,2.5'],
+            'weight_kg' => ['required', 'numeric', 'between:20,500'],
             'blood_type' => $bloodType,
             'gsis_no' => $idNumber(50),
             'pagibig_no' => $idNumber(50),
@@ -196,12 +257,17 @@ class UpdateInformationSheetRequest extends FormRequest
             'sss_no' => $idNumber(50),
             'residential_address' => $address(255),
             'permanent_address' => $address(255),
-            'sex' => $words(20),
-            'civil_status' => $words(30),
+            // Both come from a fixed control now (segmented buttons / a dropdown),
+            // so the list itself is the rule - no spelling variants reach the
+            // exports. SheetOptions is the single source of truth for both.
+            'sex' => ['required', 'string', 'in:'.implode(',', SheetOptions::sexes())],
+            'civil_status' => ['required', 'string', 'in:'.implode(',', SheetOptions::civilStatuses())],
             'citizenship_by_birth' => $words(100),
             'citizenship_dual' => $words(100),
             'place_of_birth' => $place(150),
-            'date_of_birth' => ['required', 'date', 'before:today', 'after:1900-01-01'],
+            // The picker is capped at the same bounds (see $dobMin / $dobMax in the
+            // view). Repeated here because a request can arrive without it.
+            'date_of_birth' => ['required', 'date', 'before:2010-01-01', 'after:1900-01-01'],
             'mobile_no' => ['required', 'string', 'max:20', 'regex:/^(\+63|0)9\d{2}[ -]?\d{3}[ -]?\d{4}$/'],
             'founder_email' => ['required', 'email', 'max:150'],
 
@@ -221,14 +287,14 @@ class UpdateInformationSheetRequest extends FormRequest
             'graduate_degree_course' => $institution(150),
             'graduate_highest_level_unit' => $institution(100),
             'graduate_year_graduated' => $year,
-            'scholarships_academic_honors' => $prose(2000),
+            'scholarships_academic_honors' => $optionalProse(2000),
 
             'sec_registration' => $code(100),
             'business_id_number' => $code(100),
             'dti_registration_number' => $code(100),
             'business_tin' => $idNumber(100),
-            'non_academic_distinctions' => $prose(2000),
-            'membership_associations' => $prose(2000),
+            'non_academic_distinctions' => $optionalProse(2000),
+            'membership_associations' => $optionalProse(2000),
 
             // Stamped by the controller on save — never typed, so it is not
             // validated as user input.
@@ -248,10 +314,21 @@ class UpdateInformationSheetRequest extends FormRequest
             'name_extension.required' => 'Enter a name extension such as Jr., Sr. or III, or N/A if there is none.',
             'name_extension.regex' => 'Name extension can only contain letters and periods.',
 
-            'height_m.required' => 'Enter the height in meters, for example 1.65.',
-            'height_m.regex' => 'Height must be a number in meters, for example 1.65.',
-            'weight_kg.required' => 'Enter the weight in kilograms, for example 58.',
-            'weight_kg.regex' => 'Weight must be a number in kilograms, for example 58.',
+            'height_input.required' => 'Enter the height.',
+            'height_input.regex' => 'Height must be a number - digits only, for example 175.',
+            'height_unit.required' => 'Choose cm, in, m or ft for the height.',
+            'height_unit.in' => 'Choose cm, in, m or ft for the height.',
+            'height_m.required' => 'Enter the height.',
+            'height_m.numeric' => 'Height must be a number, for example 175.',
+            'height_m.between' => 'Check the height - that is not a realistic measurement.',
+
+            'weight_input.required' => 'Enter the weight.',
+            'weight_input.regex' => 'Weight must be a number - digits only, for example 58.',
+            'weight_unit.required' => 'Choose kg or lb for the weight.',
+            'weight_unit.in' => 'Choose kg or lb for the weight.',
+            'weight_kg.required' => 'Enter the weight.',
+            'weight_kg.numeric' => 'Weight must be a number, for example 58.',
+            'weight_kg.between' => 'Check the weight - that is not a realistic measurement.',
             'blood_type.required' => 'Enter the blood type, for example O+.',
 
             'gsis_no.required' => 'Enter the GSIS number, or N/A if there is none.',
@@ -267,8 +344,8 @@ class UpdateInformationSheetRequest extends FormRequest
             'residential_address.regex' => 'Use letters, numbers and normal address punctuation only (. , - # / & ).',
             'permanent_address.regex' => 'Use letters, numbers and normal address punctuation only (. , - # / & ).',
             'blood_type.regex' => 'Enter a blood type such as O+, A-, AB+.',
-            'sex.regex' => 'Use letters only.',
-            'civil_status.regex' => 'Use letters only, for example Single or Married.',
+            'sex.in' => 'Choose Male or Female.',
+            'civil_status.in' => 'Choose one of the listed civil statuses.',
             'citizenship_by_birth.regex' => 'Use letters only, for example Filipino.',
             'citizenship_dual.regex' => 'Use letters only, or N/A if there is none.',
             'place_of_birth.regex' => 'Use letters, commas and periods only, for example Sta. Mesa, Manila.',
@@ -277,14 +354,14 @@ class UpdateInformationSheetRequest extends FormRequest
             'membership_associations.regex' => 'Remove the < > { } | \\ ^ ~ characters.',
             'startup_overview.regex' => 'Remove the < > { } | \\ ^ ~ characters.',
             'permanent_address.required' => 'Enter the permanent address. Repeat the residential address if they are the same.',
-            'sex.required' => 'Enter the sex as written on official records.',
-            'civil_status.required' => 'Enter the civil status, for example Single or Married.',
+            'sex.required' => 'Choose Male or Female.',
+            'civil_status.required' => 'Choose a civil status.',
             'citizenship_by_birth.required' => 'Enter the citizenship by birth, for example Filipino.',
             'citizenship_dual.required' => 'Enter the second citizenship, or N/A if there is none.',
             'place_of_birth.required' => 'Enter the city or municipality of birth.',
             'date_of_birth.required' => 'Select the date of birth.',
             'date_of_birth.date' => 'Enter the date of birth as a valid date.',
-            'date_of_birth.before' => 'Date of birth must be in the past.',
+            'date_of_birth.before' => 'Date of birth must be 2009 or earlier.',
             'date_of_birth.after' => 'Check the date of birth — the year looks too early.',
 
             'mobile_no.required' => 'Enter an active mobile number, for example 09171234567.',
@@ -303,9 +380,6 @@ class UpdateInformationSheetRequest extends FormRequest
             'dti_registration_number.regex' => 'DTI registration can only contain letters, numbers, dashes and slashes.',
 
             // Long-form entries
-            'scholarships_academic_honors.required' => 'List any scholarships or academic honors received, or write N/A if there are none.',
-            'non_academic_distinctions.required' => 'Add at least one non-academic distinction, or one row containing N/A.',
-            'membership_associations.required' => 'Add at least one membership in an association or organization, or one row containing N/A.',
             'startup_overview.required' => 'Describe what the startup does.',
 
             // Declaration
@@ -341,7 +415,11 @@ class UpdateInformationSheetRequest extends FormRequest
     {
         return [
             'height_m' => 'height',
+            'height_input' => 'height',
+            'height_unit' => 'height unit',
             'weight_kg' => 'weight',
+            'weight_input' => 'weight',
+            'weight_unit' => 'weight unit',
             'gsis_no' => 'GSIS no.',
             'pagibig_no' => 'Pag-IBIG no.',
             'philhealth_no' => 'PhilHealth no.',

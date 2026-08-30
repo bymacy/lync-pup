@@ -139,15 +139,23 @@ class Startup extends Model
     }
 
     /**
-     * True from the calendar day of a (non-cancelled) evaluation onward —
-     * drives the founder-side Information Sheet lock. Admin retains edit
-     * access so revisions can still be made during/around the evaluation.
+     * True only on the calendar day of a (non-cancelled) evaluation — drives
+     * the founder-side Information Sheet lock, so the sheet is frozen while
+     * the evaluators are reading it and reopens by itself the next morning.
+     *
+     * Deliberately the day itself and not "from the day onward": an
+     * evaluation nobody attended used to lock the founder out permanently,
+     * with no path back except a coordinator noticing the Missed tab. A
+     * missed evaluation now simply releases the sheet.
+     *
+     * Admin retains edit access throughout, and an Approved sheet stays
+     * locked on its own separate check.
      */
     public function evaluationDayLockActive(): bool
     {
         return $this->evaluationSchedules()
             ->where('status', '!=', 'Cancelled')
-            ->whereDate('evaluation_date', '<=', now()->toDateString())
+            ->whereDate('evaluation_date', now()->toDateString())
             ->exists();
     }
 

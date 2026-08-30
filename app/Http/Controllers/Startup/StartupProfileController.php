@@ -120,6 +120,14 @@ class StartupProfileController extends Controller
     {
         abort_unless($teamMember->startup_id === auth()->user()->startup->startup_id, 403);
 
+        // The Information Sheet's Core Team table is the only caller of this
+        // route, and Section II must never be left empty.
+        abort_if(
+            $teamMember->startup->teamMembers()->count() <= 1,
+            422,
+            'The Core Team table must keep at least one entry. Replace this one instead of removing it.'
+        );
+
         $teamMember->delete();
 
         return redirect()->route('startup.profile.edit')->with('status', 'Team member removed.');

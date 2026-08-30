@@ -97,7 +97,10 @@
         <td>{!! $v($row->incubation_program_focus) !!}</td>
     </tr>
     @empty
-    <tr><td colspan="5" class="muted">None listed yet.</td></tr>
+    {{-- Sections III, IV and 35 are optional. An empty table is a real answer -
+             "nothing to declare" - so it reads as the N/A the paper form asks for
+             rather than as an unanswered blank. Nothing is stored for it. --}}
+    <tr>@for ($i = 0; $i < 5; $i++)<td>N/A</td>@endfor</tr>
     @endforelse
 </table>
 
@@ -113,7 +116,7 @@
         <td>{!! $v($row->conducted_sponsored_by) !!}</td>
     </tr>
     @empty
-    <tr><td colspan="5" class="muted">None listed yet.</td></tr>
+    <tr>@for ($i = 0; $i < 5; $i++)<td>N/A</td>@endfor</tr>
     @endforelse
 </table>
 
@@ -160,7 +163,7 @@
         <td>{!! $v($ref->address) !!}</td>
     </tr>
     @empty
-    <tr><td colspan="4" class="muted">None listed yet.</td></tr>
+    <tr>@for ($i = 0; $i < 4; $i++)<td>N/A</td>@endfor</tr>
     @endforelse
 </table>
 

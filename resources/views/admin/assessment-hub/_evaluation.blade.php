@@ -292,10 +292,22 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                             </td>
                             <td class="px-4 py-3 text-center text-gray-600">{{ $item->startup->industry_sector }}</td>
                             <td class="px-4 py-3 text-center">
-                                <button type="button" @click="rescheduleOpen = true"
-                                    class="{{ $btn }} w-[110px] bg-rose-900 text-white hover:bg-rose-800">
-                                    Reschedule
-                                </button>
+                                <div class="flex justify-center gap-2">
+                                    {{-- The founder's sheet reopens the day after a missed
+                                         evaluation, so this always renders whatever they have
+                                         saved since. Approve lives on that page: the schedule
+                                         row is still Scheduled, so hasScheduledEvaluation()
+                                         is satisfied and the sheet can be approved without
+                                         booking another day. --}}
+                                    <a href="{{ route('admin.information-sheet.show', ['startup' => $item->startup, 'from' => 'assessment-hub', 'tab' => 'evaluation', 'stage' => 'missed']) }}"
+                                        class="inline-flex items-center justify-center whitespace-nowrap rounded-md border border-[#6D0D23] px-6 py-1 text-sm font-semibold text-[#6D0D23] transition hover:bg-[#6D0D23]/5">
+                                        View
+                                    </a>
+                                    <button type="button" @click="rescheduleOpen = true"
+                                        class="{{ $btn }} w-[110px] bg-rose-900 text-white hover:bg-rose-800">
+                                        Reschedule
+                                    </button>
+                                </div>
     
 
                                 <div x-show="rescheduleOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;">

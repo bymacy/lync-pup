@@ -6,10 +6,17 @@
 
     @php
         $sheet = $startup->informationSheet;
+
+        // Date-of-birth bounds, shared by the founder's field and every Core
+        // Team row. The picker itself refuses anything outside these, so a
+        // future date or a 2010-or-later birth year can never be chosen; the
+        // request classes repeat both rules for anything that skips the UI.
+        $dobMin = '1900-01-01';
+        $dobMax = '2009-12-31';
         $lockReason = $sheet?->approval_status === 'Approved'
             ? 'Approved & Locked — contact your Coordinator for changes'
             : ($startup->evaluationDayLockActive()
-                ? 'Locked — your evaluation day has started. Contact your Coordinator for changes'
+                ? 'Locked for today — your evaluation is scheduled today. Contact your Coordinator for changes'
                 : null);
     @endphp
 
@@ -57,55 +64,27 @@ pendingRemoval: [],
         this.pendingRemoval = this.pendingRemoval.filter(k => !k.startsWith(prefix));
     },
  
-    answeredCount: 0,
-
-    // Ring geometry: r=52 in a 120x120 viewBox.
-    ringLength: 2 * Math.PI * 52,
-
-    get ringOffset() {
-        const done = this.totalCount ? this.answeredCount / this.totalCount : 0;
-        return this.ringLength - (this.ringLength * done);
+    // How many rows each table starts with, so the last remaining one can be
+    // protected from the x without another trip to the server.
+    savedCounts: {
+        team: {{ $startup->teamMembers?->count() ?? 0 }},
+        inc: {{ $sheet?->incubationInvolvements?->count() ?? 0 }},
+        ld: {{ $sheet?->ldInterventions?->count() ?? 0 }},
+        ref: {{ $sheet?->references?->count() ?? 0 }},
     },
 
-    totalCount: 0,
-
-    // Every field that has to be answered: the required controls plus the three
-    // row tables, whose value lives in a hidden textarea that can't be required.
-    countableFields() {
-        const form = document.getElementById('info-sheet-form');
-        if (! form) return [];
-
-        const packed = ['scholarships_academic_honors', 'non_academic_distinctions', 'membership_associations'];
-        const seen = new Set();
-
-        return Array.from(form.elements).filter((el) => {
-            if (! el.name || seen.has(el.name)) return false;
-            if (! el.required && ! packed.includes(el.name)) return false;
-            seen.add(el.name);
-            return true;
-        });
+    // Rows that would still exist after this save: what loaded, minus anything
+    // marked for removal, plus any blank rows just added.
+    remainingRows(section) {
+        return this.savedCounts[section]
+            - this.removalCount(section + '-')
+            + this.newRows[section].length;
     },
 
-    recount() {
-        const fields = this.countableFields();
-        this.totalCount = fields.length;
-        this.answeredCount = fields.filter((el) => (el.value || '').trim() !== '').length;
-    },
-
-    jumpToFirstUnanswered() {
-        const target = this.countableFields().find((el) => (el.value || '').trim() === '');
-        if (! target) return;
-
-        if (! this.isLocked) this.editing = true;
-
-        this.$nextTick(() => {
-            // A row table's value sits in a hidden textarea — scroll to the table.
-            const box = document.querySelector(`[data-packed-box='${target.name}']`);
-            const el = box || target;
-
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            if (! box && typeof target.focus === 'function') target.focus({ preventScroll: true });
-        });
+    // The x is refused when it would empty the table. A row that is already
+    // marked stays clickable, otherwise the founder could never undo it.
+    canRemoveRow(section, key) {
+        return this.isRemoving(key) || this.remainingRows(section) > 1;
     },
 
     // Grows a one-row textarea to fit its content, so a long answer wraps
@@ -124,6 +103,26 @@ pendingRemoval: [],
     },
 
     async saveAll() {
+        // Nothing leaves the browser until every required box holds something.
+        // Without this the main sheet could save while a table row is broken,
+        // leaving half the form in and half out.
+        const problems = window.validateInfoSheetForms(this.$root, {
+            team: this.remainingRows('team'),
+            inc: this.remainingRows('inc'),
+            ld: this.remainingRows('ld'),
+            ref: this.remainingRows('ref'),
+        });
+
+        if (problems > 0) {
+            Alpine.store('toast').error(
+                'Save Failed',
+                problems === 1
+                    ? '1 field needs fixing - see the message on the form.'
+                    : problems + ' fields need fixing - see the messages on the form.'
+            );
+            return;
+        }
+
         this.saving = true;
  
         try {
@@ -185,14 +184,11 @@ pendingRemoval: [],
     "
 
         x-init="
-        $nextTick(() => { growAll(); recount(); });
+        $nextTick(() => { growAll(); });
 
-        // Row tables write their packed value through x-effect rather than a
-        // real input event, so the recount waits a tick.
-        document.addEventListener('input', () => $nextTick(() => recount()));
         window.addEventListener('load', () => growAll());
         window.addEventListener('resize', () => growAll());
-        $watch('editing', () => $nextTick(() => { growAll(); recount(); }));
+        $watch('editing', () => $nextTick(() => { growAll(); }));
 
         $watch('dirty', value => {
             $store.navigation.hasUnsavedChanges = value;
@@ -233,74 +229,13 @@ pendingRemoval: [],
                     <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
                 <ul class="list-disc pl-4 space-y-0.5 italic marker:text-[#11386A]">
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Answer every field marked <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span>.</span> If something does not apply to you, type <span class="font-bold">N/A</span> - do not leave it blank.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">You can save and come back anytime.</span> Each save sends the latest version to TBIDO for review - nothing is final until they approve it.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Fields marked <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> are required.</span> Type <span class="font-bold">N/A</span> where one does not apply - except dates, email, phone, height and weight, which need a real value. Anything without a <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> can be left empty.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">You can save and come back anytime before your evaluation day.</span> Each save sends the latest version to TBIDO for review - nothing is final until they approve it.</li>
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Your name, mobile and email start from your Startup Profile.</span> Edit them here freely - your Profile will not change.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">The sheet locks on your evaluation day and again once approved.</span> After that, message your Coordinator for changes.</li>
+                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">The sheet locks on your evaluation day, then reopens the next day if the evaluation does not push through.</span> Once approved it stays locked - message your Coordinator for changes.</li>
                 </ul>
                 </div>
 
-            {{-- Progress. Kept to a single row: ring, count, action. --}}
-                    <div class="w-full shrink-0 rounded-xl border border-blue-100 bg-white px-4 py-3 shadow-sm lg:w-72">
-                        <div class="flex flex-wrap items-center gap-x-3 gap-y-2.5">
-
-                            {{-- Ring --}}
-                            <div class="relative h-14 w-14 shrink-0">
-                                <svg viewBox="0 0 120 120" class="h-full w-full -rotate-90">
-                                    <defs>
-                                        <linearGradient id="sheetRing" x1="0%" y1="0%" x2="100%" y2="100%">
-                                            <stop offset="0%" stop-color="#6D0D23" />
-                                            <stop offset="100%" stop-color="#11386A" />
-                                        </linearGradient>
-                                    </defs>
-                                    <circle cx="60" cy="60" r="52" fill="none" stroke="#e5e7eb" stroke-width="12" />
-                                    <circle cx="60" cy="60" r="52" fill="none" stroke="url(#sheetRing)" stroke-width="12"
-                                        stroke-linecap="round"
-                                        :stroke-dasharray="ringLength"
-                                        :stroke-dashoffset="ringOffset"
-                                        style="transition: stroke-dashoffset .45s ease" />
-                                </svg>
-
-                                <div class="absolute inset-0 flex items-center justify-center">
-                                    <span class="text-[11px] font-bold text-gray-900"
-                                        x-text="`${totalCount ? Math.round((answeredCount / totalCount) * 100) : 0}%`"></span>
-                                </div>
-                            </div>
-
-                            {{-- Count --}}
-                            <div class="min-w-0 leading-tight">
-                                <p class="text-[11px] font-bold uppercase tracking-wide text-[#11386A]">Your progress</p>
-                                <p class="text-sm font-bold text-gray-900">
-                                    <span x-text="answeredCount"></span> of <span x-text="totalCount"></span> answered
-                                </p>
-                                <p class="text-[11px] text-gray-500"
-                                    x-show="totalCount && answeredCount < totalCount"
-                                    x-text="(totalCount - answeredCount) + ' to go' + ((totalCount - answeredCount) <= 5 ? ' - almost there' : ' - N/A counts as an answer')"></p>
-                                <p class="text-[11px] font-semibold text-green-600"
-                                    x-show="totalCount > 0 && answeredCount === totalCount" x-cloak>Ready to save.</p>
-                            </div>
-
-                            {{-- Action --}}
-                            <template x-if="totalCount && answeredCount < totalCount">
-                                <button type="button" @click="jumpToFirstUnanswered()"
-                                    class="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#11386A] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#6D0D23]">
-                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m0 0l-6-6m6 6l6-6" />
-                                    </svg>
-                                    Jump to first unanswered
-                                </button>
-                            </template>
-
-                            <template x-if="totalCount > 0 && answeredCount === totalCount">
-                                <span class="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 ring-1 ring-green-200">
-                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    All answered
-                                </span>
-                            </template>
-                        </div>
-                    </div>
             </div>
 
 
@@ -363,11 +298,19 @@ pendingRemoval: [],
                     'portfolio_manager', 'cohort_no', 'endorsed_by',
                     ];
 
-$field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $prefill, $hints, $upperFields) {
+$field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $prefill, $hints, $upperFields, $dobMin, $dobMax) {
                     // Falls back to the Startup Profile value only while the column is
                     // still empty — a prefill the user reviews, never an overwrite.
                     $stored = $sheet?->{$name};
                     $value = old($name, filled($stored) ? $stored : ($prefill[$name] ?? ''));
+
+                    // A `date` cast hands back a Carbon, and its string form is
+                    // "2000-05-15 00:00:00". An <input type="date"> cannot parse
+                    // that, so it renders empty - which looks exactly like the
+                    // value was never saved, even though it is in the database.
+                    if ($type === 'date' && $value instanceof \DateTimeInterface) {
+                        $value = $value->format('Y-m-d');
+                    }
                     $numHtml = $number ? "<span class='font-semibold'>{$number}.</span> " : '';
                     $upperClass = in_array($name, $upperFields, true) ? 'uppercase placeholder:normal-case' : '';
                     $placeholder = $type === 'date' ? '' : ($hints[$name] ?? '');
@@ -378,6 +321,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                     // textarea. Enter is swallowed so these stay single-value fields.
                     $control = $type === 'date'
                     ? "<input type=\"date\" name=\"{$name}\" value=\"".e($value)."\" form=\"info-sheet-form\" required
+                                min=\"{$dobMin}\" max=\"{$dobMax}\"
                                 :readonly=\"!editing\"
                                 class='w-full border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500'
                                 @click=\"if(!editing){ lastClickedInput=\$el.name }\" @input=\"dirty=true\">"
@@ -396,6 +340,112 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                         </div>
                     </div>";
                     };
+
+                    // 5 & 6. Height and weight. The founder types digits in whichever
+                    // unit they think in and picks it with a toggle; the sheet still
+                    // stores metres and kilograms, because that is what the column
+                    // names promise and what the PDF prints. The conversion happens
+                    // in UpdateInformationSheetRequest::prepareForValidation(), from
+                    // the *_input and *_unit fields this control submits alongside.
+                    $unitField = function ($target, $label, $number, $units, $placeholder) use ($sheet) {
+                    $inputName = str_replace(['_m', '_kg'], '', $target) . '_input';
+                    $unitName = str_replace(['_m', '_kg'], '', $target) . '_unit';
+                    $defaultUnit = array_key_first($units);
+
+                    // What to show in the box: whatever they last typed if the save
+                    // bounced, otherwise the stored canonical value converted into
+                    // the default unit (1.75 m reads back as 175 cm).
+                    $stored = $sheet?->{$target};
+                    $typed = old($inputName);
+
+                    if ($typed !== null) {
+                    $value = $typed;
+                    $unit = old($unitName, $defaultUnit);
+                    } else {
+                    $unit = $defaultUnit;
+                    $value = is_numeric($stored)
+                    ? rtrim(rtrim(sprintf('%.2f', (float) $stored / $units[$defaultUnit]), '0'), '.')
+                    : '';
+                    }
+
+                    $config = e(json_encode([
+                    'units' => array_keys($units),
+                    'factors' => $units,
+                    'unit' => $unit,
+                    'value' => (string) $value,
+                    ], JSON_UNESCAPED_SLASHES));
+
+                    return "<div class='flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-start sm:gap-2'>
+                        <label class='w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5'><span class='font-semibold'>{$number}.</span> " . e($label) . ": <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span></label>
+                        <div class='flex-1 min-w-0'>
+                            <div x-data=\"unitField({$config})\" data-field-anchor=\"{$target}\" class='flex flex-wrap items-center gap-2'>
+                                <input type=\"text\" name=\"{$inputName}\" form=\"info-sheet-form\" required
+                                    inputmode=\"decimal\" autocomplete=\"off\" placeholder=\"{$placeholder}\"
+                                    x-model=\"value\" @input=\"clean(); dirty = true\"
+                                    :readonly=\"!editing\"
+                                    @click=\"if(!editing){ lastClickedInput='{$inputName}' }\"
+                                    class='w-24 border rounded px-3 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300'>
+
+                                <input type=\"hidden\" name=\"{$unitName}\" form=\"info-sheet-form\" x-effect=\"\$el.value = unit\">
+
+                                <div class='inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-white p-1 shadow-sm'>
+                                    <template x-for=\"u in units\" :key=\"u\">
+                                        <button type=\"button\" x-text=\"u\"
+                                            @click=\"if (editing) { pick(u); dirty = true }\"
+                                            :disabled=\"!editing\"
+                                            :class=\"unit === u
+                                                ? 'bg-[#6C0E24] text-white shadow-sm'
+                                                : 'text-gray-400 hover:text-gray-600'\"
+                                            class='h-6 min-w-[2.25rem] rounded-md px-2.5 text-xs font-bold uppercase tracking-wide transition disabled:cursor-not-allowed disabled:opacity-60'></button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>";
+                    };
+
+                    // 15. Sex. Two answers, shown as pickable cards rather than a text
+                    // box - one tap, nothing to spell. The value rides on a hidden
+                    // input; the wrapper is the error anchor, since a hidden field has
+                    // nowhere to show a message.
+                    $optionCards = function ($name, $label, $number, $options) use ($sheet) {
+                    $value = old($name, mb_strtoupper((string) $sheet?->{$name}));
+                    $list = "['" . implode("','", $options) . "']";
+
+                    $person = "<svg class='h-4 w-4 flex-shrink-0' fill='none' stroke='currentColor' stroke-width='1.7' viewBox='0 0 24 24'><circle cx='12' cy='8' r='3.25'/><path stroke-linecap='round' d='M4.5 19.5c0-3.4 3.4-5.4 7.5-5.4s7.5 2 7.5 5.4'/></svg>";
+                    $check = "<svg class='h-2.5 w-2.5' fill='none' stroke='currentColor' stroke-width='4' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' d='M5 13l4 4L19 7'/></svg>";
+
+                    return "<div class='flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-start sm:gap-2'>
+                        <label class='w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5'><span class='font-semibold'>{$number}.</span> " . e($label) . ": <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span></label>
+                        <div class='flex-1 min-w-0'>
+                            <div x-data=\"{ options: {$list}, value: '" . e($value) . "' }\" data-field-anchor=\"{$name}\">
+                                <input type=\"hidden\" name=\"{$name}\" form=\"info-sheet-form\" required x-effect=\"\$el.value = value\">
+
+                                <div class='flex flex-wrap gap-2'>
+                                    <template x-for=\"o in options\" :key=\"o\">
+                                        <button type=\"button\"
+                                            @click=\"if (editing) { value = o; dirty = true }\"
+                                            :disabled=\"!editing\"
+                                            :class=\"value === o
+                                                ? 'border-[#6C0E24] bg-[#6C0E24]/5 text-[#6C0E24] ring-1 ring-[#6C0E24]'
+                                                : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'\"
+                                            class='flex flex-1 min-w-[9rem] items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60'>
+                                            {$person}
+                                            <span class='flex-1 text-sm font-medium capitalize' x-text=\"o.toLowerCase()\"></span>
+                                            <span :class=\"value === o
+                                                    ? 'border-[#6C0E24] bg-[#6C0E24] text-white'
+                                                    : 'border-gray-300 text-transparent'\"
+                                                class='flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 transition'>
+                                                {$check}
+                                            </span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>";
+                    };
+
                     @endphp
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8">
@@ -405,8 +455,8 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                             {!! $field('first_name', 'FIRST NAME', 2) !!}
                             {!! $field('middle_name', 'MIDDLE NAME', 3) !!}
                             {!! $field('name_extension', 'NAME EXTENSION', 4) !!}
-                            {!! $field('height_m', 'HEIGHT (M)', 5) !!}
-                            {!! $field('weight_kg', 'WEIGHT (KG)', 6) !!}
+                            {!! $unitField('height_m', 'HEIGHT', 5, ['cm' => 0.01, 'in' => 0.0254, 'm' => 1, 'ft' => 0.3048], 'e.g. 175') !!}
+                            {!! $unitField('weight_kg', 'WEIGHT', 6, ['kg' => 1, 'lb' => 0.45359237], 'e.g. 58') !!}
                             {!! $field('blood_type', 'BLOOD TYPE', 7) !!}
                             {!! $field('gsis_no', 'GSIS ID NO.', 8) !!}
                             {!! $field('pagibig_no', 'PAG-IBIG NO.', 9) !!}
@@ -418,8 +468,16 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
 
                         {{-- Right column --}}
                         <div>
-                            {!! $field('sex', 'SEX', 15) !!}
-                            {!! $field('civil_status', 'CIVIL STATUS', 16) !!}
+                            {!! $optionCards('sex', 'SEX', 15, \App\Support\SheetOptions::sexes()) !!}
+                            <div class="flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-start sm:gap-2">
+                                <label class="w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5"><span class="font-semibold">16.</span> CIVIL STATUS: <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></label>
+                                <div class="flex-1 min-w-0">
+                                    <x-sheet-select name="civil_status"
+                                        :value="mb_strtoupper((string) old('civil_status', $sheet?->civil_status))"
+                                        :options="\App\Support\SheetOptions::civilStatuses()"
+                                        placeholder="Select civil status" />
+                                </div>
+                            </div>
 
                             <div class="flex items-start gap-2 py-1.5 text-sm">
                                 <label class="w-48 flex-shrink-0 text-gray-800"><span class="font-semibold">17.</span> CITIZENSHIP: <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></label>
@@ -459,16 +517,16 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
 
                 {{-- 22. Educational Background --}}
                 <div class="mb-6">
-                    <p class="text-xs font-semibold text-gray-700 mb-1">22. EDUCATIONAL BACKGROUND</p>
+                    <p class="text-xs font-semibold text-gray-700 mb-1">22. EDUCATIONAL BACKGROUND <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></p>
                     <div class="overflow-x-auto">
                     <table class="w-full min-w-[720px] text-sm border border-collapse">
                         <thead class="bg-gray-50 text-left text-xs">
                             <tr>
                                 <th class="border px-3 py-2">LEVEL</th>
-                                <th class="border px-3 py-2">NAME OF SCHOOL</th>
-                                <th class="border px-3 py-2">EDUCATIONAL/DEGREE/COURSE</th>
-                                <th class="border px-3 py-2">HIGHEST LEVEL UNIT</th>
-                                <th class="border px-3 py-2">YEAR GRADUATED</th>
+                                <th class="border px-3 py-2">NAME OF SCHOOL <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
+                                <th class="border px-3 py-2">EDUCATIONAL/DEGREE/COURSE <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
+                                <th class="border px-3 py-2">HIGHEST LEVEL UNIT <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
+                                <th class="border px-3 py-2">YEAR GRADUATED <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -532,7 +590,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
 
                         <div data-packed-box="scholarships_academic_honors" class="border border-gray-200 rounded-md overflow-hidden divide-y divide-gray-200 bg-white">
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
-                                <div class="flex-1 px-3 py-3 leading-tight">SCHOLARSHIP / ACADEMIC HONORS RECEIVED <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></div>
+                                <div class="flex-1 px-3 py-3 leading-tight">SCHOLARSHIP / ACADEMIC HONORS RECEIVED</div>
                                 <div class="w-10 flex-shrink-0"></div>
                             </div>
 
@@ -597,8 +655,8 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                     ['w' => 'w-[130px]', 'label' => 'DATE OF BIRTH'],
                     ['w' => 'w-[180px]', 'label' => 'EMAIL'],
                     ['w' => 'w-[130px]', 'label' => 'CITIZENSHIP'],
-                    ['w' => 'w-[70px]', 'label' => 'SEX'],
-                    ['w' => 'w-[130px]', 'label' => 'CIVIL STATUS'],
+                    ['w' => 'w-[120px]', 'label' => 'SEX'],
+                    ['w' => 'w-[170px]', 'label' => 'CIVIL STATUS'],
                     ];
 
                     $canAddTeam = Route::has('startup.team-members.store');
@@ -612,7 +670,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                             {{-- Header --}}
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold text-gray-800 uppercase tracking-wide">
                                 @foreach ($teamCols as $col)
-                                <div class="px-3 py-3 flex-shrink-0 leading-tight {{ $loop->last ? '' : 'border-r border-gray-200' }} {{ $col['w'] }}">{{ $col['label'] }}</div>
+                                <div class="px-3 py-3 flex-shrink-0 leading-tight {{ $loop->last ? '' : 'border-r border-gray-200' }} {{ $col['w'] }}">{{ $col['label'] }} <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></div>
                                 @endforeach
                                 {{-- gutter, always present so columns don't shift between view and edit mode --}}
                                 <div class="w-10 flex-shrink-0"></div>
@@ -639,7 +697,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                         <textarea name="address" placeholder="Address" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->address ?? '' }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
-                                        <input type="date" name="date_of_birth" value="{{ $member->date_of_birth ?? '' }}" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                        <input type="date" name="date_of_birth" value="{{ $member->date_of_birth?->format('Y-m-d') }}" min="{{ $dobMin }}" max="{{ $dobMax }}" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
                                         <input type="email" name="email" value="{{ $member->email }}" placeholder="Email" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
@@ -648,10 +706,14 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                         <textarea name="citizenship" placeholder="Citizenship" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->citizenship ?? '' }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
-                                        <textarea name="sex" placeholder="Sex" :readonly="!editing" class="{{ $teamCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->sex ?? '' }}</textarea>
+                                        <div class="px-2 py-1.5">
+                                            <x-sheet-select name="sex" :value="mb_strtoupper((string) $member->sex)" :options="\App\Support\SheetOptions::sexes()" :form="false" placeholder="Sex" compact />
+                                        </div>
                                     </div>
                                     <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
-                                        <textarea name="civil_status" placeholder="Civil Status" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->civil_status ?? '' }}</textarea>
+                                        <div class="px-2 py-1.5">
+                                            <x-sheet-select name="civil_status" :value="mb_strtoupper((string) $member->civil_status)" :options="\App\Support\SheetOptions::civilStatuses()" :form="false" placeholder="Civil Status" compact />
+                                        </div>
                                     </div>
                                 </form>
 
@@ -669,7 +731,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                 <div class="w-10 flex-shrink-0 flex items-center justify-center">
                                     @if ($canDeleteTeam)
                                     <button type="button" x-show="editing" x-cloak
-                                        @click="toggleRemoval('{{ $rowKey }}')"
+                                        @click="canRemoveRow('team', '{{ $rowKey }}') && toggleRemoval('{{ $rowKey }}')" :disabled="! canRemoveRow('team', '{{ $rowKey }}')" :class="! canRemoveRow('team', '{{ $rowKey }}') && 'text-gray-300 cursor-not-allowed hover:text-gray-300'" :title="canRemoveRow('team', '{{ $rowKey }}') ? 'Remove entry' : 'At least one entry is required'"
                                         title="Remove entry"
                                         aria-label="Remove entry"
                                         class="text-red-600 hover:text-red-800 text-base leading-none">
@@ -702,7 +764,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                             <textarea name="address" placeholder="Address" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
-                                            <input type="date" name="date_of_birth" class="{{ $teamCell }}" @input="dirty = true">
+                                            <input type="date" name="date_of_birth" min="{{ $dobMin }}" max="{{ $dobMax }}" class="{{ $teamCell }}" @input="dirty = true">
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
                                             <input type="email" name="email" placeholder="Email" class="{{ $teamCell }}" @input="dirty = true">
@@ -711,17 +773,21 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                             <textarea name="citizenship" placeholder="Citizenship" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
-                                            <textarea name="sex" placeholder="Sex" class="{{ $teamCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <div class="px-2 py-1.5">
+                                                <x-sheet-select name="sex" :value="''" :options="\App\Support\SheetOptions::sexes()" :form="false" placeholder="Sex" compact />
+                                            </div>
                                         </div>
                                         <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
-                                            <textarea name="civil_status" placeholder="Civil Status" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <div class="px-2 py-1.5">
+                                                <x-sheet-select name="civil_status" :value="''" :options="\App\Support\SheetOptions::civilStatuses()" :form="false" placeholder="Civil Status" compact />
+                                            </div>
                                         </div>
                                     </form>
 
                                     {{-- Pareho ng gutter ng saved rows para hindi mag-shift ang columns --}}
                                     <div class="w-10 flex-shrink-0 flex items-center justify-center">
                                         <button type="button"
-                                            @click="discardRow('team', row.id)"
+                                            @click="remainingRows('team') > 1 && discardRow('team', row.id)" :disabled="! (remainingRows('team') > 1)" :class="! (remainingRows('team') > 1) && 'text-gray-300 cursor-not-allowed hover:text-gray-300'" :title="remainingRows('team') > 1 ? 'Discard entry' : 'At least one entry is required'"
                                             title="Discard entry"
                                             aria-label="Discard entry"
                                             class="text-red-600 hover:text-red-800 text-base leading-none">
@@ -741,6 +807,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                             class="text-sm font-medium text-[#11386A] hover:text-[#6D0D23] hover:underline transition">
                             + Add Entry
                         </button>
+                        <span data-table-error="team" class="hidden text-xs font-medium" style="color:#dc2626"></span>
                         @endif
 
                         @if ($canDeleteTeam)
@@ -787,7 +854,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                             </div>
 
                             {{-- Saved rows --}}
-                            @forelse ($sheet?->incubationInvolvements ?? [] as $item)
+                            @foreach ($sheet?->incubationInvolvements ?? [] as $item)
                             @php $rowKey = 'inc-' . $item->id; @endphp {{-- ← NEW (1 of 4): the row's queue key --}}
 
                             {{-- ← NEW (2 of 4): x-show makes the row vanish the moment × is clicked --}}
@@ -847,9 +914,13 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                     </button>
                                 </div>
                             </div>
-                            @empty
-                            <p class="text-sm text-gray-400 px-3 py-3">None listed yet.</p>
-                            @endforelse
+                            @endforeach
+
+                            {{-- Sections III, IV and 35 are optional, so an empty table reads as the
+                                 N/A the paper form asks for - nothing is stored for it. Driven by
+                                 remainingRows() rather than the loop's empty branch, so adding a row replaces the
+                                 N/A straight away and x-ing the last one brings it back. --}}
+                            <p class="text-sm text-gray-500 px-3 py-3" x-show="remainingRows('inc') === 0" x-cloak>N/A</p>
 
                             {{-- Add new. No submit button: js-addform means Save picks it up, and the
                      existing isBlank() guard skips it when nothing was typed. --}}
@@ -938,7 +1009,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                             </div>
 
                             {{-- Saved rows --}}
-                            @forelse ($sheet?->ldInterventions ?? [] as $item)
+                            @foreach ($sheet?->ldInterventions ?? [] as $item)
                             @php $rowKey = 'ld-' . $item->id; @endphp
                             <div class="flex items-stretch" x-show="!isRemoving('{{ $rowKey }}')">
                                 <form method="POST" action="{{ route('startup.ld.update', $item) }}"
@@ -987,9 +1058,9 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                     </button>
                                 </div>
                             </div>
-                            @empty
-                            <p class="text-sm text-gray-400 px-3 py-3">None listed yet.</p>
-                            @endforelse
+                            @endforeach
+
+                            <p class="text-sm text-gray-500 px-3 py-3" x-show="remainingRows('ld') === 0" x-cloak>N/A</p>
 
                             {{-- Add new --}}
                             <template x-for="row in newRows.ld" :key="row.id">
@@ -1163,7 +1234,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                             {{-- Header. flex-1 label + fixed w-10 gutter, the same shape every row uses,
                  so nothing shifts between view and edit mode. --}}
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
-                                <div class="flex-1 px-3 py-3 leading-tight">NON-ACADEMIC DISTINCTIONS / RECOGNITION / ELIGIBILITIES <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></div>
+                                <div class="flex-1 px-3 py-3 leading-tight">NON-ACADEMIC DISTINCTIONS / RECOGNITION / ELIGIBILITIES</div>
                                 <div class="w-10 flex-shrink-0"></div>
                             </div>
 
@@ -1240,7 +1311,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
 
                             {{-- Header --}}
                             <div class="flex bg-gray-50/70 text-[11px] font-semibold uppercase tracking-wide text-gray-800">
-                                <div class="flex-1 px-3 py-3 leading-tight">MEMBERSHIP IN ASSOCIATION/ORGANIZATION <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></div>
+                                <div class="flex-1 px-3 py-3 leading-tight">MEMBERSHIP IN ASSOCIATION/ORGANIZATION</div>
                                 <div class="w-10 flex-shrink-0"></div>
                             </div>
 
@@ -1304,7 +1375,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                         </div>
 
                         {{-- Saved rows --}}
-                        @forelse ($sheet?->references ?? [] as $reference)
+                        @foreach ($sheet?->references ?? [] as $reference)
                         @php $rowKey = 'ref-' . $reference->id; @endphp
                         <div class="flex items-stretch" x-show="!isRemoving('{{ $rowKey }}')">
                             <form method="POST" action="{{ route('startup.references.update', $reference) }}"
@@ -1357,9 +1428,9 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                 </button>
                             </div>
                         </div>
-                        @empty
-                        <p class="text-sm text-gray-400 px-3 py-3">None listed yet.</p>
-                        @endforelse
+                        @endforeach
+
+                        <p class="text-sm text-gray-500 px-3 py-3" x-show="remainingRows('ref') === 0" x-cloak>N/A</p>
 
                         {{-- Add new. js-subform is on the FORM now, not the inner div, so Save
              actually picks it up. No + button — same flow as the other sections. --}}
@@ -1399,7 +1470,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                 class="text-sm font-medium text-[#11386A] hover:text-[#6D0D23] hover:underline transition">
                                 + Add Entry
                             </button>
-
+    
                             <span x-show="removalCount('ref-') > 0" x-cloak class="text-xs text-gray-500">
                                 <span x-text="removalCount('ref-')"></span> marked for removal on save.
                                 <button type="button" @click="restoreRemovals('ref-')" class="underline hover:text-gray-700">Restore</button>
@@ -1531,6 +1602,11 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                 slot.textContent = '';
                 slot.classList.add('hidden');
             });
+
+            document.querySelectorAll('[data-table-error]').forEach((slot) => {
+                slot.textContent = '';
+                slot.classList.add('hidden');
+            });
         };
 
         window.showInfoSheetFieldErrors = function (errors) {
@@ -1568,6 +1644,17 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                 }
 
                 if (! control) control = document.querySelector('[name="' + field + '"]');
+
+                // Derived fields (height_m, weight_kg) are computed server-side from
+                // the *_input + *_unit pair, so nothing on the page carries their
+                // name. The control that produced them marks itself as the anchor.
+                if (! control) control = document.querySelector('[data-field-anchor="' + field + '"]');
+
+                // A dropdown submits through a hidden input, which cannot show a
+                // message - hand it to the wrapper that owns it.
+                if (control && control.type === 'hidden') {
+                    control = control.closest('[data-field-anchor]') || control;
+                }
                 if (! control) return;
 
                 flag(control);
@@ -1588,6 +1675,161 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
             }
 
             return !! first;
+        };
+
+        // Everything the founder must fill in, checked before a single request
+        // leaves the browser. The server re-checks all of it - this exists so a
+        // blank box is caught instantly, and so a valid main form never saves
+        // while a table row is still broken.
+
+        // The unit toggle behind items 5 and 6. Keeps the box to digits only and
+        // converts what is already typed when the founder switches unit, so they
+        // never have to do the arithmetic. `factors` maps each unit to its
+        // multiplier toward the stored canonical unit (metres, kilograms).
+        window.unitField = function (config) {
+            return {
+                units: config.units,
+                factors: config.factors,
+                unit: config.unit,
+                value: config.value,
+
+                // Digits and at most one decimal point. Runs on every input, so a
+                // pasted "175 cm" or "5'9" is stripped rather than submitted.
+                clean() {
+                    let v = String(this.value).replace(/[^0-9.]/g, '');
+                    const parts = v.split('.');
+
+                    if (parts.length > 2) {
+                        v = parts.shift() + '.' + parts.join('');
+                    }
+
+                    this.value = v;
+                },
+
+                pick(next) {
+                    if (next === this.unit || ! this.factors[next]) return;
+
+                    const n = parseFloat(this.value);
+
+                    if (! isNaN(n)) {
+                        const converted = n * this.factors[this.unit] / this.factors[next];
+                        this.value = String(Math.round(converted * 100) / 100);
+                    }
+
+                    this.unit = next;
+                },
+            };
+        };
+
+        window.validateInfoSheetForms = function (root, remaining) {
+            root = root || document;
+
+            window.clearInfoSheetFieldErrors();
+
+            let count = 0;
+            let first = null;
+
+            const blank = (el) => (el.value || '').trim() === '';
+
+            // "Type N/A" only makes sense for the free-text boxes. A date or
+            // email input cannot hold N/A - the server rejects it there too -
+            // so those get wording that matches what they actually accept.
+            const requiredMessage = (el, fallback) => {
+                if (el.type === 'date') return 'Select a date.';
+                if (el.type === 'email') return 'Enter a valid email address.';
+                return fallback;
+            };
+
+            const flag = (input, message) => {
+                // The segmented controls submit through a hidden input, which has
+                // nowhere to show a message. The visible wrapper that feeds it
+                // marks itself as the anchor.
+                // closest(), not querySelector(): every Core Team row carries a
+                // field called "sex", so a global lookup would flag row one.
+                const el = input.type === 'hidden'
+                    ? (input.closest('[data-field-anchor]') || input)
+                    : input;
+
+                el.style.borderColor = INFO_SHEET_ERROR_BORDER;
+                el.style.boxShadow = INFO_SHEET_ERROR_RING;
+                el.setAttribute('data-field-invalid', '');
+
+                const note = document.createElement('p');
+                note.setAttribute('data-field-error', input.name || 'row');
+                note.className = 'mt-1 text-xs';
+                note.style.color = '#dc2626';
+                note.textContent = message;
+                el.insertAdjacentElement('afterend', note);
+
+                count++;
+                if (! first) first = el;
+            };
+
+            // 1. The main sheet. Items 23, 31 and 34 are optional, and their
+            //    hidden packed textareas carry no `required`, so they fall out
+            //    of this loop on their own.
+            const mainForm = document.getElementById('info-sheet-form');
+
+            if (mainForm) {
+                const seen = new Set();
+
+                Array.from(mainForm.elements).forEach((el) => {
+                    if (! el.name || seen.has(el.name)) return;
+                    if (! el.required) return;
+                    seen.add(el.name);
+                    if (! blank(el)) return;
+
+                    flag(el, requiredMessage(el, 'This field is required. Enter N/A if it does not apply.'));
+                });
+            }
+
+            // 2. Table rows. Every column of a row must be answered. A row that
+            //    is completely blank is dropped before saving rather than
+            //    flagged, matching the skip in submitInfoSheetForms().
+            const rowIsBlank = (form) => Array.from(form.elements)
+                .filter((el) => el.name && ! ['_token', '_method'].includes(el.name))
+                .every(blank);
+
+            Array.from(root.querySelectorAll('form.js-subform')).forEach((form) => {
+                if (form.classList.contains('js-deleteform')) return;
+                if (form.classList.contains('js-skip')) return;
+                if (form.classList.contains('js-addform') && rowIsBlank(form)) return;
+
+                Array.from(form.elements).forEach((el) => {
+                    if (! el.name || ['_token', '_method'].includes(el.name)) return;
+                    if (! blank(el)) return;
+                    flag(el, requiredMessage(el, 'Required. Type N/A if it does not apply.'));
+                });
+            });
+
+            // 3. Core Team keeps at least one row - a startup always has at
+            //    least its founder. Sections III, IV and 35 are optional and may
+            //    be left empty. The count comes from Alpine, the only place that
+            //    knows about rows marked with the x but not deleted yet.
+            const tables = {
+                team: 'Core Team Formation',
+            };
+
+            Object.keys(tables).forEach((section) => {
+                if (! remaining || remaining[section] === undefined) return;
+                if (remaining[section] > 0) return;
+
+                const slot = document.querySelector('[data-table-error="' + section + '"]');
+                if (! slot) return;
+
+                slot.textContent = tables[section] + ' needs at least one entry.';
+                slot.classList.remove('hidden');
+
+                count++;
+                if (! first) first = slot;
+            });
+
+            if (first) {
+                first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (typeof first.focus === 'function') first.focus({ preventScroll: true });
+            }
+
+            return count;
         };
 
         window.submitInfoSheetForms = async function(root) {

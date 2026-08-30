@@ -2,27 +2,11 @@
 
 namespace App\Http\Requests\Startup;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class UpdateTeamMemberDetailsRequest extends FormRequest
+/**
+ * The saved Core Team rows on the Information Sheet PATCH through this. Same
+ * every-column-required rules as adding a new row, so a row cannot be saved
+ * complete and then emptied out one cell at a time.
+ */
+class UpdateTeamMemberDetailsRequest extends StoreTeamMemberRequest
 {
-    public function authorize(): bool
-    {
-        return $this->user()->isStartup();
-    }
-
-    public function rules(): array
-    {
-        return [
-            'full_name' => ['required', 'string', 'max:150'],
-            'designation' => ['nullable', 'string', 'max:100'],
-            'phone' => ['nullable', 'string', 'max:20'],
-            'address' => ['nullable', 'string', 'max:255'],
-            'date_of_birth' => ['nullable', 'date'],
-            'email' => ['nullable', 'email', 'max:150'],
-            'citizenship' => ['nullable', 'string', 'max:100'],
-            'sex' => ['nullable', 'string', 'max:20'],
-            'civil_status' => ['nullable', 'string', 'max:30'],
-        ];
-    }
 }
