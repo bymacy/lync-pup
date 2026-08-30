@@ -110,16 +110,20 @@ class ReadinessRubric
     /**
      * Maps an overall readiness score (0-9, the average of TRL/MRL/TMRL/SRL)
      * to a plain-language stage label for the founder-facing Readiness
-     * Result page. No such mapping exists elsewhere in the app — these
-     * bands are a new, deliberately simple invention (not derived from any
-     * official PUP-TBIDO rubric document), split into even-ish quarters of
-     * the 0-9 scale.
+     * Result page and the admin Average Readiness Level card. No such
+     * mapping exists elsewhere in the app — these bands are a new,
+     * deliberately simple invention (not derived from any official
+     * PUP-TBIDO rubric document). The Ideation cutoff is set at 2 (rather
+     * than an even quarter-split at 2.25) so a 2.0 average — e.g. a mostly-
+     * unassessed cohort's "honest" whole-cohort average — reads as
+     * "Development" rather than "Ideation", per the admin dashboard's
+     * worked-example spec.
      */
     public static function overallLabel(?float $score): string
     {
         return match (true) {
             $score === null => 'Not Assessed',
-            $score < 3 => 'Ideation',
+            $score < 2 => 'Ideation',
             $score < 6 => 'Development',
             $score < 8 => 'Validation',
             default => 'Growth',
