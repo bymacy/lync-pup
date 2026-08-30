@@ -11,6 +11,7 @@ use App\Traits\CompressesImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class MentorController extends Controller
@@ -34,7 +35,13 @@ class MentorController extends Controller
         }
 
         if ($request->hasFile('mentor_photo')) {
-            $data['mentor_photo_path'] = $this->compressAndStoreImage($request->file('mentor_photo'), 'mentors');
+            try {
+                $data['mentor_photo_path'] = $this->compressAndStoreImage($request->file('mentor_photo'), 'mentors');
+            } catch (\RuntimeException $e) {
+                throw ValidationException::withMessages([
+                    'mentor_photo' => "That photo couldn't be processed ({$e->getMessage()}). Please try a different file.",
+                ]);
+            }
         }
 
         Mentor::create($data);
@@ -52,10 +59,21 @@ class MentorController extends Controller
         }
 
         if ($request->hasFile('mentor_photo')) {
+            // Compress the new photo *before* touching the old one — if
+            // processing fails, the mentor keeps their existing photo
+            // instead of ending up with none at all.
+            try {
+                $newPhotoPath = $this->compressAndStoreImage($request->file('mentor_photo'), 'mentors');
+            } catch (\RuntimeException $e) {
+                throw ValidationException::withMessages([
+                    'mentor_photo' => "That photo couldn't be processed ({$e->getMessage()}). Please try a different file.",
+                ]);
+            }
+
             if ($mentor->mentor_photo_path) {
                 Storage::disk('public')->delete($mentor->mentor_photo_path);
             }
-            $data['mentor_photo_path'] = $this->compressAndStoreImage($request->file('mentor_photo'), 'mentors');
+            $data['mentor_photo_path'] = $newPhotoPath;
         }
 
         $mentor->update($data);

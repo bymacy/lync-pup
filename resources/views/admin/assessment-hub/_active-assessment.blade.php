@@ -92,7 +92,7 @@
 
 <div
     x-data="{
-        activeDoc: 6,
+        activeDoc: @js($initialActiveDoc ?? 6),
         doc6: @js($doc6Seed),
         doc7: @js($doc7Seed),
         doc8: @js($doc8Seed),
@@ -101,10 +101,48 @@
         initialDoc8: @js($doc8Seed),
         showClearConfirm: false,
         showSaved: @js($justSaved ?? false),
+        // Document 8's rating tables aren't required by anything server-side
+        // (AssessmentController::updateDocuments() stores whatever JSON it is
+        // given), so per direct testing feedback this is enforced client-side
+        // instead: a category with any unrated statement blocks Save, jumps
+        // to Document 8, and scrolls to that specific table rather than a
+        // generic error banner. doc8ValidationAttempted only flips true
+        // after a blocked save attempt no red borders on a first-time
+        // blank form but once it has, each table's own completeness
+        // re-evaluates live as the admin fills it in, so the border/message
+        // clear on their own without another failed Save.
+        doc8ValidationAttempted: false,
+        doc8InvalidCategory: null,
         isDirty() {
             return JSON.stringify(this.doc6) !== JSON.stringify(this.initialDoc6)
                 || JSON.stringify(this.doc7) !== JSON.stringify(this.initialDoc7)
                 || JSON.stringify(this.doc8) !== JSON.stringify(this.initialDoc8);
+        },
+        doc8CategoryIncomplete(category) {
+            return this.doc8.ratings[category].some(v => v === null || v === '');
+        },
+        // Gates the shared Save button: Document 6/7 have no completeness
+        // rule (unchanged), but Document 8's 6 rating tables must each be
+        // fully rated. Blocks on the FIRST incomplete category (in the same
+        // order the tables render) rather than listing every offender, since
+        // the scroll-to-table only makes sense one at a time.
+        trySubmit(event) {
+            this.doc8ValidationAttempted = true;
+            const firstIncomplete = Object.keys(this.doc8.ratings).find(cat => this.doc8CategoryIncomplete(cat));
+
+            if (firstIncomplete) {
+                event.preventDefault();
+                this.doc8InvalidCategory = firstIncomplete;
+                this.activeDoc = 8;
+                this.$nextTick(() => {
+                    document.getElementById('doc8-cat-' + firstIncomplete)
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
+                return;
+            }
+
+            this.doc8InvalidCategory = null;
+            this.$store.navigation.hasUnsavedChanges = false;
         },
         addRow(doc, section, columns) {
             const blank = {};
@@ -156,6 +194,8 @@
             Object.keys(this.doc8.ratings).forEach(cat => {
                 this.doc8.ratings[cat] = this.doc8.ratings[cat].map(() => null);
             });
+            this.doc8ValidationAttempted = false;
+            this.doc8InvalidCategory = null;
             this.showClearConfirm = false;
         },
     }"
@@ -176,10 +216,11 @@
     </div>
 
     <form method="POST" action="{{ route('admin.assessment-hub.assessments.update-documents', $selectedStartup) }}" id="active-assessment-form"
-        @submit="$store.navigation.hasUnsavedChanges = false">
+        @submit="trySubmit($event)">
         @csrf
         @method('PUT')
         <input type="hidden" name="stage" value="Active-Assessment">
+        <input type="hidden" name="active_document" :value="activeDoc">
         <input type="hidden" name="document_6" :value="JSON.stringify(doc6)">
         <input type="hidden" name="document_7" :value="JSON.stringify(doc7)">
         <input type="hidden" name="document_8" :value="JSON.stringify(doc8)">
@@ -469,39 +510,57 @@
 
                 <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                     @foreach (\App\Support\ActiveAssessmentForms::document8RatingCategories() as $catKey => $cat)
-                        <div class="overflow-x-auto">
-                            <table class="w-full border text-sm">
-                                <thead>
-                                    <tr class="bg-gray-50">
-                                        <th class="w-8 border px-2 py-2">No.</th>
-                                        <th class="border px-3 py-2 text-left">{{ $cat['title'] }}</th>
-                                        @foreach ([5, 4, 3, 2, 1] as $n)
-                                            <th class="w-8 border px-2 py-2 text-center">{{ $n }}</th>
-                                        @endforeach
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($cat['criteria'] as $i => $criterion)
-                                        <tr>
-                                            <td class="border px-2 py-2 text-center">{{ $i + 1 }}</td>
-                                            <td class="border px-3 py-2">{{ $criterion }}</td>
+                        <div>
+                            <div class="overflow-x-auto rounded"
+                                id="doc8-cat-{{ $catKey }}"
+                                :class="doc8ValidationAttempted && doc8CategoryIncomplete('{{ $catKey }}') ? 'ring-2 ring-rose-600' : ''">
+                                <table class="w-full border text-sm">
+                                    <thead>
+                                        <tr class="bg-gray-50">
+                                            <th class="w-8 border px-2 py-2">No.</th>
+                                            <th class="border px-3 py-2 text-left">{{ $cat['title'] }}</th>
                                             @foreach ([5, 4, 3, 2, 1] as $n)
-                                                <td class="border px-2 py-2 text-center">
-                                                    <input type="radio" x-model.number="doc8.ratings.{{ $catKey }}[{{ $i }}]" value="{{ $n }}" class="h-4 w-4">
-                                                </td>
+                                                <th class="w-8 border px-2 py-2 text-center">{{ $n }}</th>
                                             @endforeach
                                         </tr>
-                                    @endforeach
-                                    <tr class="bg-gray-50 font-semibold">
-                                        <td class="border px-3 py-2" colspan="2">Total Average Score</td>
-                                        <td class="border px-2 py-2 text-center" colspan="5" x-text="avgFor('{{ $catKey }}') ?? '—'"></td>
-                                    </tr>
-                                    <tr class="bg-gray-50 font-semibold">
-                                        <td class="border px-3 py-2" colspan="2">Score Interpretation</td>
-                                        <td class="border px-2 py-2 text-center" colspan="5" x-text="interpretationFor('{{ $catKey }}') || '—'"></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($cat['criteria'] as $i => $criterion)
+                                            <tr>
+                                                <td class="border px-2 py-2 text-center">{{ $i + 1 }}</td>
+                                                <td class="border px-3 py-2">{{ $criterion }}</td>
+                                                @foreach ([5, 4, 3, 2, 1] as $n)
+                                                    <td class="border px-2 py-2 text-center">
+                                                        {{-- Click-to-toggle rather than a plain native radio group: clicking
+                                                             the already-selected value clears the row back to unrated
+                                                             (native radios can't be unchecked by clicking themselves,
+                                                             per direct testing feedback that a wrong click had no way
+                                                             back without touching every other option first). :checked
+                                                             is driven entirely from doc8.ratings so this radio never
+                                                             manages its own state. --}}
+                                                        <input type="radio" name="doc8-{{ $catKey }}-row{{ $i }}"
+                                                            :checked="doc8.ratings.{{ $catKey }}[{{ $i }}] === {{ $n }}"
+                                                            @click="doc8.ratings.{{ $catKey }}[{{ $i }}] = (doc8.ratings.{{ $catKey }}[{{ $i }}] === {{ $n }} ? null : {{ $n }})"
+                                                            class="h-4 w-4">
+                                                    </td>
+                                                @endforeach
+                                            </tr>
+                                        @endforeach
+                                        <tr class="bg-gray-50 font-semibold">
+                                            <td class="border px-3 py-2" colspan="2">Total Average Score</td>
+                                            <td class="border px-2 py-2 text-center" colspan="5" x-text="avgFor('{{ $catKey }}') ?? '—'"></td>
+                                        </tr>
+                                        <tr class="bg-gray-50 font-semibold">
+                                            <td class="border px-3 py-2" colspan="2">Score Interpretation</td>
+                                            <td class="border px-2 py-2 text-center" colspan="5" x-text="interpretationFor('{{ $catKey }}') || '—'"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p x-show="doc8ValidationAttempted && doc8CategoryIncomplete('{{ $catKey }}')" x-cloak
+                                class="mt-1.5 text-xs font-semibold text-rose-600">
+                                Please rate every statement in this section before saving.
+                            </p>
                         </div>
                     @endforeach
                 </div>

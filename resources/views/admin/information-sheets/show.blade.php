@@ -141,7 +141,7 @@
         const target = this.countableFields().find((el) => (el.value || '').trim() === '');
         if (! target) return;
 
-        if (! this.isLocked) this.editing = true;
+        this.editing = true;
 
         this.$nextTick(() => {
             const box = document.querySelector(`[data-packed-box='${target.name}']`);
@@ -216,7 +216,7 @@
     }
 }"
         @click.capture="
-        if (!editing && !isLocked && $event.target.matches('input, textarea, select')) {
+        if (!editing && $event.target.matches('input, textarea, select')) {
             lastClickedInput = $event.target.name;
 
             $nextTick(() => {
@@ -1510,21 +1510,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                 <div class="sticky bottom-0 z-20 -mx-4 mt-10 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6"
                     :class="editing || isLocked ? '' : 'border-transparent bg-transparent backdrop-blur-none'">
 
-                    {{-- Locked --}}
-                    <template x-if="isLocked">
-                        <div class="flex gap-3">
-                            <a href="{{ $backUrl }}"
-                                class="flex-1 text-center border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition">
-                                Back
-                            </a>
-                            <div class="flex-1 text-center bg-gray-100 text-gray-500 rounded-lg py-2.5 text-sm font-medium">
-                                Approved &amp; Locked{{ $sheet?->approved_at ? ' — ' . $sheet->approved_at->format('m/d/Y') : '' }}
-                            </div>
-                        </div>
-                    </template>
-
-                    {{-- View mode: Back / Edit / Approve & Lock --}}
-                    <div class="flex gap-3" x-show="!isLocked && !editing && !confirmingApprove" x-cloak>
+                    {{-- View mode: Back / Edit / Approve & Lock (or an "Approved &
+                         Locked" badge in that slot once approved — approval only
+                         locks the founder out, an admin can still Edit here). --}}
+                    <div class="flex gap-3" x-show="!editing && !confirmingApprove" x-cloak>
                         <a href="{{ $backUrl }}"
                             class="flex-1 text-center border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition">
                             Back
@@ -1554,12 +1543,23 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                         </div>
                         @endif
 
-                        @if ($approveUrl)
-                        @php $canApprove = $startup->hasScheduledEvaluation(); @endphp
+                        @if ($isLocked)
+                        <div class="flex-1 text-center bg-gray-100 text-gray-500 rounded-lg py-2.5 text-sm font-medium">
+                            Approved &amp; Locked{{ $sheet?->approved_at ? ' — ' . $sheet->approved_at->format('m/d/Y') : '' }}
+                        </div>
+                        @elseif ($approveUrl)
+                        @php
+                            $canApprove = $startup->evaluationReached();
+                            $approveDisabledReason = $canApprove
+                                ? ''
+                                : ($startup->hasScheduledEvaluation()
+                                    ? 'This startup\'s evaluation is still upcoming — approval unlocks on the scheduled day.'
+                                    : 'Schedule an evaluation for this startup before approving.');
+                        @endphp
                         <button type="button"
                             @click="{{ $canApprove ? 'confirmingApprove = true' : '' }}"
                             @disabled(! $canApprove)
-                            title="{{ $canApprove ? '' : 'Schedule an evaluation for this startup before approving.' }}"
+                            title="{{ $approveDisabledReason }}"
                             class="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white
                                    bg-gradient-to-r from-[#6D0D23] to-[#11386A]
                                    hover:opacity-95 transition
@@ -1598,7 +1598,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     @endif
 
                     {{-- Edit mode: Cancel / Save --}}
-                    <div class="flex gap-3" x-show="editing && !isLocked" x-cloak>
+                    <div class="flex gap-3" x-show="editing" x-cloak>
                         <button
                             type="button"
                             @click="editing = false; dirty = false; pendingRemoval = []"

@@ -316,7 +316,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                                 this.highlighted = (this.highlighted + step + count) % count;
                             },
                         }"
-                        @click.outside="open = false; blurValidate()"
+                        @click.outside="if (open) { open = false; blurValidate() }"
                         @keydown.escape.window="open = false">
 
                         <input type="hidden" name="problem_category" :value="category">
@@ -498,6 +498,20 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                     </div>
 
                     <p x-show="fileError" x-cloak class="mt-2 max-w-md text-xs text-red-600" x-text="fileError"></p>
+
+                    {{-- Server-side failure (e.g. a rejected file type/size, or a file
+                         that fails to process on the backend) — this is a real submit
+                         attempt's error, flashed back via the session, not a client-side
+                         add-attempt rejection like fileError above. "supporting_files" is
+                         the key used for a processing failure (RoadblockController);
+                         "supporting_files.*" covers a per-file validation rejection
+                         (StoreRoadblockRequest). --}}
+                    @error('supporting_files')
+                        <p class="mt-2 max-w-md text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+                    @error('supporting_files.*')
+                        <p class="mt-2 max-w-md text-xs text-red-600">{{ $message }}</p>
+                    @enderror
 
                     <p class="mt-2 max-w-md text-xs text-gray-500"
                         x-text="`Up to ${limits.maxFiles} files, 5MB each. Images, PDF, Word, or Excel.`"></p>

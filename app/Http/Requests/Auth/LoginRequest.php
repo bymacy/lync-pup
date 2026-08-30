@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -40,9 +41,19 @@ class LoginRequest extends FormRequest
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
-            throw ValidationException::withMessages([
-                'email' => trans('auth.failed'),
-            ]);
+            // A recognized email with the wrong password surfaces under the
+            // Password field instead of Email — the founder/admin typed the
+            // right account, just the wrong password, so that's where their
+            // eye goes next. An email that doesn't match any account at all
+            // still surfaces under Email, since there's nothing wrong with
+            // "the password" to point at.
+            $emailExists = User::where('email', $this->input('email'))->exists();
+
+            throw ValidationException::withMessages(
+                $emailExists
+                    ? ['password' => 'These credentials do not match our records. Invalid password.']
+                    : ['email' => trans('auth.failed')]
+            );
         }
 
 

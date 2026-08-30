@@ -10,7 +10,25 @@ $oldFor = fn (string $field, $default) => $isErroredRoadblock ? old($field, $def
 $originalAssignee = $roadblock->coordinator_id
 ? 'coordinator-'.$roadblock->coordinator_id
 : ($roadblock->mentor_id ? 'mentor-'.$roadblock->mentor_id : '');
-$selectedAssignee = $oldFor('assignee', $originalAssignee);
+
+// Reschedule is opened after a meeting already FAILED — its old date/time/
+// platform/link/assignee are the details that didn't work out, not a
+// still-valid starting point, so the modal should come up blank rather
+// than quietly re-showing them as if nothing needs to change. Assign
+// (brand-new) already has no roadblock data to show; only Edit should
+// still pre-fill the record's real current values.
+$prefillExisting = $mode !== 'reschedule';
+$assigneeDefault = $prefillExisting ? $originalAssignee : '';
+// '' rather than null for the x-model-bound fields below — Alpine's
+// x-model on a <select> (meeting_platform) doesn't reliably land on the
+// placeholder option when handed a null initial value, it can end up
+// selecting whatever the first real <option> happens to be instead. '' is
+// the placeholder option's own value, so it always matches correctly.
+$meetingDateDefault = $prefillExisting ? $roadblock->meeting_date?->format('Y-m-d') : '';
+$platformDefault = $prefillExisting ? $roadblock->meeting_platform : '';
+$linkDefault = $prefillExisting ? $roadblock->meeting_link : '';
+
+$selectedAssignee = $oldFor('assignee', $assigneeDefault);
 
 
 $resetFormJs = "
@@ -64,6 +82,9 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         return substr((string) $value, 0, 5); // "14:30:00" -> "14:30"
         };
 
+        $meetingStartDefault = $prefillExisting ? $asTime($roadblock->meeting_start_time) : null;
+        $meetingEndDefault = $prefillExisting ? $asTime($roadblock->meeting_end_time) : null;
+
         // One class string so every preview detail row stays identical
         $previewRow = 'flex items-center gap-2';
         $previewDisc = 'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-white/15';
@@ -109,7 +130,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
                         <div class="relative rounded-xl border p-3 sm:p-4" x-data="{ previewId: null }">
                             <p class="mb-3 text-sm font-medium sm:text-base">1. Assign Mentor or Coordinator</p>
-                            <select name="assignee" autocomplete="off" data-original="{{ $originalAssignee }}" class="{{ $fieldCls }} mb-4">
+                            <select name="assignee" autocomplete="off" data-original="{{ $assigneeDefault }}" class="{{ $fieldCls }} mb-4">
                                 <option value="" disabled hidden @selected($selectedAssignee === '')>Select Mentor or Coordinator</option>
                                 @if ($mentors->isNotEmpty())
                                 <option disabled>── Mentors ──</option>
@@ -261,24 +282,26 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         </div>
 
                         @php
-                        // Only a brand-new assignment needs to be floored at
-                        // "today"/"now" — editing or rescheduling an existing
-                        // roadblock pre-fills its own already-valid date/time,
-                        // and clamping those with the *current* clock was
-                        // rejecting them as "in the past" the moment real time
-                        // moved past the original value, forcing the admin to
-                        // manually re-click the field before it would submit
-                        // even when nothing was actually being changed.
-                        $enforceFutureOnly = $mode === 'assign';
+                        // A brand-new assignment has no date to clamp against
+                        // yet, so it's floored at "today"/"now". Editing an
+                        // existing (still-upcoming) roadblock pre-fills its
+                        // own already-valid date/time, and clamping those with
+                        // the *current* clock was rejecting them as "in the
+                        // past" the moment real time moved past the original
+                        // value. Reschedule now starts blank too (see
+                        // $prefillExisting above) — its old date already
+                        // failed, so it needs the same future-only floor as a
+                        // fresh assignment, not the edit-mode exemption.
+                        $enforceFutureOnly = $mode === 'assign' || $mode === 'reschedule';
                         @endphp
                         <div class="rounded-xl border p-3 sm:p-4"
                             @form-cleared.window="if ($event.detail === '{{ $formId }}') { meetingDate = ''; platform = $el.querySelector('[name=meeting_platform]').value; }"
                             @form-reverted.window="if ($event.detail.id === '{{ $formId }}') { meetingDate = $event.detail.date; platform = $el.querySelector('[name=meeting_platform]').value; }"
                             x-data="{
-                    meetingDate: @js($oldFor('meeting_date', $roadblock->meeting_date?->format('Y-m-d'))),
+                    meetingDate: @js($oldFor('meeting_date', $meetingDateDefault)),
                     todayStr: @js(now()->format('Y-m-d')),
                     nowTime: @js(now()->format('H:i')),
-                    platform: @js($oldFor('meeting_platform', $roadblock->meeting_platform)),
+                    platform: @js($oldFor('meeting_platform', $platformDefault)),
                     linkPlaceholders: {
                         'Google Meet': 'e.g., https://google.com',
                         'Zoom': 'e.g., https://zoom.us',
@@ -292,8 +315,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             <label class="{{ $lblCls }}">Date</label>
                             <input type="date" name="meeting_date" autocomplete="off" x-model="meetingDate"
                                 @if ($enforceFutureOnly) :min="todayStr" @endif
-                                value="{{ $oldFor('meeting_date', $roadblock->meeting_date?->format('Y-m-d')) }}"
-                                data-original="{{ $roadblock->meeting_date?->format('Y-m-d') }}"
+                                value="{{ $oldFor('meeting_date', $meetingDateDefault) }}"
+                                data-original="{{ $meetingDateDefault }}"
                                 class="{{ $fieldCls }} mb-3">
                             @if ($isErroredRoadblock) @error('meeting_date') <p class="mb-3 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
 
@@ -302,26 +325,26 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <label class="{{ $lblCls }}">Start Time</label>
                                     <input type="time" name="meeting_start_time" autocomplete="off"
                                         @if ($enforceFutureOnly) :min="meetingDate === todayStr ? nowTime : null" @endif
-                                        value="{{ $oldFor('meeting_start_time', $asTime($roadblock->meeting_start_time)) }}"
-                                        data-original="{{ $asTime($roadblock->meeting_start_time) }}"
+                                        value="{{ $oldFor('meeting_start_time', $meetingStartDefault) }}"
+                                        data-original="{{ $meetingStartDefault }}"
                                         class="{{ $fieldCls }}">
                                     @if ($isErroredRoadblock) @error('meeting_start_time') <p class="mt-1 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
                                 </div>
                                 <div>
                                     <label class="{{ $lblCls }}">End Time</label>
                                     <input type="time" name="meeting_end_time" autocomplete="off"
-                                        value="{{ $oldFor('meeting_end_time', $asTime($roadblock->meeting_end_time)) }}"
-                                        data-original="{{ $asTime($roadblock->meeting_end_time) }}"
+                                        value="{{ $oldFor('meeting_end_time', $meetingEndDefault) }}"
+                                        data-original="{{ $meetingEndDefault }}"
                                         class="{{ $fieldCls }}">
                                     @if ($isErroredRoadblock) @error('meeting_end_time') <p class="mt-1 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
                                 </div>
                             </div>
 
                             <label class="{{ $lblCls }}">Platform</label>
-                            <select name="meeting_platform" autocomplete="off" x-model="platform" data-original="{{ $roadblock->meeting_platform }}" class="{{ $fieldCls }} mb-3">
-                                <option value="" disabled hidden @selected(! $oldFor('meeting_platform', $roadblock->meeting_platform))>Select Platform</option>
+                            <select name="meeting_platform" autocomplete="off" x-model="platform" data-original="{{ $platformDefault }}" class="{{ $fieldCls }} mb-3">
+                                <option value="" disabled hidden @selected(! $oldFor('meeting_platform', $platformDefault))>Select Platform</option>
                                 @foreach (['Google Meet', 'Zoom', 'Microsoft Teams', 'Location', 'Custom Link'] as $platform)
-                                <option value="{{ $platform }}" @selected($oldFor('meeting_platform', $roadblock->meeting_platform) === $platform)>{{ $platform }}</option>
+                                <option value="{{ $platform }}" @selected($oldFor('meeting_platform', $platformDefault) === $platform)>{{ $platform }}</option>
                                 @endforeach
                             </select>
                             @if ($isErroredRoadblock) @error('meeting_platform') <p class="mb-3 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
@@ -329,8 +352,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             <label class="{{ $lblCls }}">Meeting Link / Location</label>
                             <textarea name="meeting_link" autocomplete="off" rows="3"
                                 :placeholder="linkPlaceholders[platform] || 'Input Meeting Link / Address'"
-                                data-original="{{ $roadblock->meeting_link }}"
-                                class="{{ $fieldCls }}">{{ $oldFor('meeting_link', $roadblock->meeting_link) }}</textarea>
+                                data-original="{{ $linkDefault }}"
+                                class="{{ $fieldCls }}">{{ $oldFor('meeting_link', $linkDefault) }}</textarea>
                             @if ($isErroredRoadblock) @error('meeting_link') <p class="mt-1 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
                         </div>
                     </div>

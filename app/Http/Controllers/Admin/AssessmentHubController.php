@@ -83,6 +83,18 @@ class AssessmentHubController extends Controller
             ? $request->query('stage')
             : 'Overview';
 
+        // Which RL type (TRL/MRL/TMRL/SRL) sub-tab / which Active-Assessment
+        // document sub-tab should be open on load — carried through as a
+        // query param (either from an Overview pill's link, or echoed back
+        // by the redirect after Save) so it isn't always reset to the first
+        // sub-tab. Falls back to the very first one of each when absent/invalid.
+        $initialActiveType = in_array($request->query('rl_type'), ReadinessRubric::TYPES, true)
+            ? $request->query('rl_type')
+            : ReadinessRubric::TYPES[0];
+        $initialActiveDoc = in_array((int) $request->query('active_doc'), [6, 7, 8], true)
+            ? (int) $request->query('active_doc')
+            : 6;
+
         // Not persisted until Save Assessment is actually clicked —
         // firstOrNew (not firstOrCreate) so simply viewing an unscored
         // startup/stage combo doesn't write an empty row.
@@ -179,7 +191,13 @@ class AssessmentHubController extends Controller
 
                 $pills = collect($pillDefinitions)->map(function ($def) use ($byStage, $byDocument) {
                     if (! empty($def['document'])) {
-                        return ['label' => $def['label'], 'completed' => $byDocument->has($def['document']), 'nav_stage' => $def['nav_stage']];
+                        return [
+                            'label' => $def['label'],
+                            'completed' => $byDocument->has($def['document']),
+                            'nav_stage' => $def['nav_stage'],
+                            'nav_document' => $def['document'],
+                            'nav_type' => null,
+                        ];
                     }
 
                     $row = $byStage->get($def['stage']);
@@ -188,7 +206,13 @@ class AssessmentHubController extends Controller
                         ? (bool) ($row && collect(ReadinessRubric::TYPES)->contains(fn ($t) => $row->scoreFor($t) !== null))
                         : (bool) ($row && $row->scoreFor($def['type']) !== null);
 
-                    return ['label' => $def['label'], 'completed' => $completed, 'nav_stage' => $def['nav_stage']];
+                    return [
+                        'label' => $def['label'],
+                        'completed' => $completed,
+                        'nav_stage' => $def['nav_stage'],
+                        'nav_document' => null,
+                        'nav_type' => $def['type'],
+                    ];
                 });
 
                 return [
@@ -247,6 +271,8 @@ class AssessmentHubController extends Controller
             'rubricLevels' => ReadinessRubric::all(),
             'stages' => ReadinessRubric::STAGES,
             'overviewRows' => $overviewRows,
+            'initialActiveType' => $initialActiveType,
+            'initialActiveDoc' => $initialActiveDoc,
         ]);
     }
 }

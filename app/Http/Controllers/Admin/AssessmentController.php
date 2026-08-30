@@ -115,7 +115,16 @@ class AssessmentController extends Controller
             $startup->user?->notify(new ReadinessResultsReleased($validated['stage']));
         }
 
-        return back()->with('status', 'assessment-saved')
+        // Redirect back to the exact same RL type sub-tab the admin was on
+        // (not just the same stage) — plain back() would land on the right
+        // URL too, but a fresh page load still resets Alpine's activeType
+        // to its default unless it's carried forward as a query param here.
+        return redirect()->route('admin.assessment-hub.index', [
+            'main' => 'assessment',
+            'stage' => $validated['stage'],
+            'assessment_startup' => $startup->startup_id,
+            'rl_type' => $request->input('active_type'),
+        ])->with('status', 'assessment-saved')
             ->with('assessed_startup', $startup->startup_id)
             ->with('assessed_stage', $validated['stage']);
     }
@@ -180,7 +189,16 @@ class AssessmentController extends Controller
             }
         }
 
-        return back()->with('status', 'assessment-saved')
+        // Same as update() above — echo back which document sub-tab (6/7/8)
+        // was open so Active-Assessment doesn't snap back to Document 6 on
+        // reload. Venture Exit's single-document save has no sub-tab to
+        // preserve, hence array_filter dropping the param when it's absent.
+        return redirect()->route('admin.assessment-hub.index', array_filter([
+            'main' => 'assessment',
+            'stage' => $validated['stage'],
+            'assessment_startup' => $startup->startup_id,
+            'active_doc' => $validated['stage'] === 'Active-Assessment' ? $request->input('active_document') : null,
+        ]))->with('status', 'assessment-saved')
             ->with('assessed_startup', $startup->startup_id)
             ->with('assessed_stage', $validated['stage']);
     }

@@ -8,6 +8,8 @@ use App\Models\AssessmentDocument;
 use App\Models\Roadblock;
 use App\Traits\CompressesImages;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class RoadblockController extends Controller
 {
@@ -62,27 +64,39 @@ class RoadblockController extends Controller
     {
         $startup = Auth::user()->startup;
 
-        $roadblock = Roadblock::create([
-            'startup_id' => $startup->startup_id,
-            'problem_category' => $request->validated('problem_category'),
-            'problem_category_other' => $request->validated('problem_category_other'),
-            'description' => $request->validated('description'),
-            'status' => 'Pending',
-        ]);
-
-        foreach ($request->file('supporting_files', []) as $file) {
-            $isImage = str_starts_with($file->getMimeType(), 'image/');
-
-            $path = $isImage
-                ? $this->compressAndStoreImage($file, "roadblocks/{$roadblock->roadblock_id}")
-                : $file->store("roadblocks/{$roadblock->roadblock_id}", 'public');
-
-            $roadblock->files()->create([
-                'file_path' => $path,
-                'original_filename' => $file->getClientOriginalName(),
-                'is_image' => $isImage,
+        // Wrapped in a transaction so a file that fails to process (an
+        // unreadable image, say) rolls back the Roadblock row along with
+        // it, instead of leaving a half-submitted roadblock with some
+        // files silently missing and no error ever surfaced to the founder.
+        DB::transaction(function () use ($request, $startup) {
+            $roadblock = Roadblock::create([
+                'startup_id' => $startup->startup_id,
+                'problem_category' => $request->validated('problem_category'),
+                'problem_category_other' => $request->validated('problem_category_other'),
+                'description' => $request->validated('description'),
+                'status' => 'Pending',
             ]);
-        }
+
+            foreach ($request->file('supporting_files', []) as $file) {
+                $isImage = str_starts_with($file->getMimeType(), 'image/');
+
+                try {
+                    $path = $isImage
+                        ? $this->compressAndStoreImage($file, "roadblocks/{$roadblock->roadblock_id}")
+                        : $file->store("roadblocks/{$roadblock->roadblock_id}", 'public');
+                } catch (\RuntimeException $e) {
+                    throw ValidationException::withMessages([
+                        'supporting_files' => "\"{$file->getClientOriginalName()}\" couldn't be processed ({$e->getMessage()}). Please try a different file.",
+                    ]);
+                }
+
+                $roadblock->files()->create([
+                    'file_path' => $path,
+                    'original_filename' => $file->getClientOriginalName(),
+                    'is_image' => $isImage,
+                ]);
+            }
+        });
 
         return redirect()
             ->route('startup.submissions.index', ['tab' => 'roadblock'])

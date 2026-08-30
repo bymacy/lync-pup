@@ -20,13 +20,28 @@ $title = match ($mode) {
 default => 'Schedule',
 };
 
-$initialDate = old('evaluation_date', $schedule?->evaluation_date?->format('Y-m-d') ?? now()->format('Y-m-d'));
+// old() isn't scoped per row — every "Reschedule"/"Add" modal on this page
+// calls old('evaluation_date', ...) with the same key, so without this guard
+// a validation failure on ONE row's submission would flash its half-typed
+// date/time/notes into every OTHER row's modal too the next time the page
+// rendered (each modal's x-data is only ever evaluated once — see the
+// x-show note below — so that stale "draft" would then just sit there).
+// $rowKey below identifies which modal the flashed input actually belongs
+// to; old() is only trusted when it matches this row's own key.
+$rowKey = $schedule?->evaluation_schedule_id ?? $startup?->startup_id ?? 'new';
+$oldMatchesThisRow = old('schedule_row_key') !== null && (string) old('schedule_row_key') === (string) $rowKey;
+
+$initialDate = $oldMatchesThisRow
+    ? old('evaluation_date')
+    : ($schedule?->evaluation_date?->format('Y-m-d') ?? now()->format('Y-m-d'));
 // No $schedule (i.e. mode="add") means there's nothing to prefill from — leave
 // the time slot blank so the modal always opens with nothing pre-selected,
 // instead of always defaulting to the first slot (08:00) regardless of
 // whether it's actually available on whatever date ends up chosen.
-$initialStart = old('start_time', $schedule ? substr($schedule->start_time, 0, 5) : null);
-$initialNotes = old('notes', $schedule?->notes);
+$initialStart = $oldMatchesThisRow
+    ? old('start_time')
+    : ($schedule ? substr($schedule->start_time, 0, 5) : null);
+$initialNotes = $oldMatchesThisRow ? old('notes') : $schedule?->notes;
 $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($startup?->startup_id ?? '0');
 @endphp
 
@@ -112,6 +127,7 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
             @if ($startup)
             <input type="hidden" name="startup_id" value="{{ $startup->startup_id }}">
             @endif
+            <input type="hidden" name="schedule_row_key" value="{{ $rowKey }}">
             <input type="hidden" name="evaluation_date" x-bind:value="date">
             <input type="hidden" name="start_time" x-bind:value="startTime">
             @endif

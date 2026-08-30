@@ -40,7 +40,6 @@ class StoreMentorRequest extends FormRequest
             'contact_number' => ['nullable', 'regex:/^09\d{9}$/'],
             'mentor_photo' => [
                 'nullable',
-                'image',
                 'max:20480', // 20MB raw upload cap; gets compressed to ~2MB on save
                 function ($attribute, $value, $fail) {
                     // A file that's present but !isValid() usually means the
@@ -50,6 +49,28 @@ class StoreMentorRequest extends FormRequest
                     // clearly instead of silently dropping the photo.
                     if ($value instanceof UploadedFile && ! $value->isValid()) {
                         $fail('That photo could not be uploaded — it may be too large for the server to accept. Please try a smaller file.');
+                    }
+                },
+                function ($attribute, $value, $fail) {
+                    // Laravel's built-in "image" rule content-sniffs the MIME
+                    // type (via Symfony's finfo-based getMimeType()) and
+                    // rejects anything that doesn't map cleanly to a known
+                    // image type. Some perfectly normal PNGs/JPEGs — depending
+                    // on the phone, app, or export tool that produced them —
+                    // get sniffed as an alternate/legacy MIME string, so
+                    // "image" silently rejected them even though nothing was
+                    // actually wrong with the file. Trusting the file's own
+                    // extension instead avoids that false rejection;
+                    // CompressesImages separately guards against a genuinely
+                    // unreadable image at the processing step.
+                    if (! $value instanceof UploadedFile) {
+                        return;
+                    }
+                    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                    $ext = strtolower($value->getClientOriginalExtension());
+
+                    if (! in_array($ext, $allowed, true)) {
+                        $fail('That file is not a supported image format (JPG, PNG, GIF, or WEBP).');
                     }
                 },
             ],
@@ -64,7 +85,6 @@ class StoreMentorRequest extends FormRequest
             'contact_email.email' => 'Please enter a valid email address, e.g. example@email.com.',
             'contact_email.regex' => 'Please enter a valid email address, e.g. example@email.com.',
             'contact_number.regex' => 'Please enter a valid mobile number in the format 09XX-XXX-XXXX.',
-            'mentor_photo.image' => 'That file is not a supported image format (JPG, PNG, GIF, or WEBP).',
             'mentor_photo.max' => 'Photo must be 20MB or smaller.',
         ];
     }

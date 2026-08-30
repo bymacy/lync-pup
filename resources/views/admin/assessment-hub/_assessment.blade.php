@@ -222,7 +222,13 @@ for ($i = 0; $i < $count; $i++) {
                             <td class="px-4 py-4">
                                 <div class="flex flex-wrap justify-center gap-2">
                                     @foreach (($selectedStage === 'Overview' ? $row['pills'] : $row['pills']->where('nav_stage', $selectedStage)) as $pill)
-                                    <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $pill['nav_stage'], 'assessment_startup' => $row['startup']->startup_id]) }}"
+                                    <a href="{{ route('admin.assessment-hub.index', array_filter([
+                                            'main' => 'assessment',
+                                            'stage' => $pill['nav_stage'],
+                                            'assessment_startup' => $row['startup']->startup_id,
+                                            'rl_type' => $pill['nav_type'],
+                                            'active_doc' => $pill['nav_document'],
+                                        ])) }}"
                                         class="whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold transition hover:opacity-75
                                                 {{ $pill['completed'] ? 'border-green-400 text-green-700 bg-green-50' : 'border-rose-200 text-rose-500 bg-rose-50' }}">
                                         {{ $pill['label'] }}
@@ -250,7 +256,7 @@ for ($i = 0; $i < $count; $i++) {
         @else
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]"
             x-data="{
-            activeType: 'TRL',
+            activeType: @js($initialActiveType),
             expanded: { TRL: null, MRL: null, TMRL: null, SRL: null },
             progress: @js($seedProgress),
             trlOverview: @js($trlOverviewSeed),
@@ -296,6 +302,26 @@ for ($i = 0; $i < $count; $i++) {
             initialSrlNotedByPosition: @js($overviewSrlNotedByPosition),
             showClearConfirm: false,
             showSaved: @js($justSaved),
+            pendingType: null,
+            showTypeSwitchConfirm: false,
+            switchType(type) {
+                if (this.activeType === type) return;
+                if (this.isDirty()) {
+                    this.pendingType = type;
+                    this.showTypeSwitchConfirm = true;
+                } else {
+                    this.activeType = type;
+                }
+            },
+            confirmSwitchType() {
+                this.activeType = this.pendingType;
+                this.pendingType = null;
+                this.showTypeSwitchConfirm = false;
+            },
+            cancelSwitchType() {
+                this.pendingType = null;
+                this.showTypeSwitchConfirm = false;
+            },
             isDirty() {
                 return JSON.stringify(this.progress) !== JSON.stringify(this.initialProgress)
                     || JSON.stringify(this.trlOverview) !== JSON.stringify(this.initialTrlOverview)
@@ -375,7 +401,7 @@ for ($i = 0; $i < $count; $i++) {
                 <div class="mb-4 grid grid-cols-4 overflow-hidden rounded-lg border border-gray-200">
                     @foreach ($rubricMeta as $type => $meta)
                         @php $isSavedComplete = $currentAssessment?->scoreFor($type) === 9; @endphp
-                        <button type="button" @click="activeType = '{{ $type }}'"
+                        <button type="button" @click="switchType('{{ $type }}')"
                             class="border-t-2 border-r border-gray-200 px-1.5 py-2 text-center transition last:border-r-0 sm:px-3"
                             :class="activeType === '{{ $type }}' ? 'border-t-[#6C0E24] bg-[#6C0E24]/5' : 'border-t-transparent bg-white hover:bg-[#6C0E24]/5'">
                             <p class="text-[10px] font-semibold uppercase leading-tight tracking-wide sm:text-xs" :class="activeType === '{{ $type }}' ? 'text-[#6C0E24]' : 'text-gray-400'">
@@ -390,11 +416,44 @@ for ($i = 0; $i < $count; $i++) {
                     @endforeach
                 </div>
 
+                {{-- Switching TRL/MRL/TMRL/SRL tabs never actually discards
+                     anything (all four share this one form/progress object
+                     and get saved together), but a confirmation is still
+                     shown for unsaved edits so the behavior reads the same
+                     as leaving the page entirely. --}}
+                <div x-show="showTypeSwitchConfirm" x-cloak
+                    class="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+                    <div class="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+                        <div class="mb-4 flex justify-center">
+                            <div class="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-xl font-bold text-white">
+                                !
+                            </div>
+                        </div>
+                        <h2 class="text-center text-xl font-bold text-[#5B1933]">Unsaved Changes</h2>
+                        <p class="mt-2 text-center text-sm text-gray-600">
+                            You have unsaved changes on this section. You can keep editing here, or
+                            switch sections now — your edits stay on the form, but remember to
+                            press Save before you leave the page.
+                        </p>
+                        <div class="mt-6 flex gap-3">
+                            <button type="button" @click="cancelSwitchType()"
+                                class="flex-1 rounded-lg border border-gray-300 py-2.5 font-medium text-gray-700 hover:bg-gray-50">
+                                Keep Editing
+                            </button>
+                            <button type="button" @click="confirmSwitchType()"
+                                class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 font-medium text-white">
+                                Switch Anyway
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <form method="POST" action="{{ route('admin.assessment-hub.assessments.update', $selectedStartup) }}" id="assessment-form"
                     @submit="$store.navigation.hasUnsavedChanges = false">
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="stage" value="{{ $selectedStage }}">
+                    <input type="hidden" name="active_type" :value="activeType">
                     @foreach (\App\Support\ReadinessRubric::TYPES as $type)
                     <input type="hidden" name="{{ strtolower($type) }}_progress" :value="JSON.stringify(progress.{{ $type }})">
                     @endforeach
@@ -427,11 +486,12 @@ for ($i = 0; $i < $count; $i++) {
                         <h2 class="text-lg font-bold text-gray-900">{{ $rubricMeta[$type]['label'] }}</h2>
                         <p class="mb-3 text-sm text-gray-500">{{ $rubricMeta[$type]['description'] }}</p>
 
-                        <div class="mb-3 h-2 w-full rounded-full bg-gray-200">
-                            <div class="h-2 rounded-full bg-rose-900 transition-all"
+                        <div class="mb-3 h-3.5 w-full rounded-full bg-gray-200 shadow-inner">
+                            <div class="h-3.5 rounded-full bg-gradient-to-r from-[#6C0E24] to-[#AE0129] shadow-sm transition-all"
                                 :style="`width: ${(weightedProgress('{{ $type }}') / 9) * 100}%`"></div>
                         </div>
                         <div class="mb-4 flex justify-between text-xs text-gray-400">
+                            <span aria-hidden="true">&nbsp;</span>
                             @for ($n = 1; $n <= 9; $n++)
                                 <span>{{ $n }}</span>
                                 @endfor

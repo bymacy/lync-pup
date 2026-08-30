@@ -40,7 +40,32 @@ class StoreCoordinatorRequest extends FormRequest
             // though the field's own JS already stripped it down to
             // digits-only client-side.
             'phone' => ['nullable', 'regex:/^09\d{9}$/'],
-            'coordinator_photo' => ['nullable', 'image', 'max:20480'],
+            'coordinator_photo' => [
+                'nullable',
+                'max:20480',
+                function ($attribute, $value, $fail) {
+                    // Laravel's built-in "image" rule content-sniffs the MIME
+                    // type (via Symfony's finfo-based getMimeType()) and
+                    // rejects anything that doesn't map cleanly to a known
+                    // image type. Some perfectly normal PNGs/JPEGs — depending
+                    // on the phone, app, or export tool that produced them —
+                    // get sniffed as an alternate/legacy MIME string, so
+                    // "image" silently rejected them even though nothing was
+                    // actually wrong with the file. Trusting the file's own
+                    // extension instead avoids that false rejection;
+                    // CompressesImages separately guards against a genuinely
+                    // unreadable image at the processing step.
+                    if (! $value instanceof \Illuminate\Http\UploadedFile) {
+                        return;
+                    }
+                    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                    $ext = strtolower($value->getClientOriginalExtension());
+
+                    if (! in_array($ext, $allowed, true)) {
+                        $fail('That file is not a supported image format (JPG, PNG, GIF, or WEBP).');
+                    }
+                },
+            ],
         ];
     }
 
@@ -51,6 +76,7 @@ class StoreCoordinatorRequest extends FormRequest
             'email.email' => 'Please enter a valid email address, e.g. example@email.com.',
             'email.regex' => 'Please enter a valid email address, e.g. example@email.com.',
             'phone.regex' => 'Please enter a valid mobile number in the format 09XX-XXX-XXXX.',
+            'coordinator_photo.max' => 'Photo must be 20MB or smaller.',
         ];
     }
 }

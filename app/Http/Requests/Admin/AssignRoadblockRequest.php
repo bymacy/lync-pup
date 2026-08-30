@@ -44,12 +44,18 @@ class AssignRoadblockRequest extends FormRequest
     public function rules(): array
     {
         // Original stored values (if any) — used below so editing an
-        // already-Scheduled or Failed roadblock without actually changing
-        // its date/time never gets rejected for "being in the past", even
+        // already-Scheduled roadblock without actually changing its
+        // date/time never gets rejected for "being in the past", even
         // though real time has moved on since it was first scheduled.
+        // Deliberately NOT extended to a Failed roadblock: its stored
+        // date/time is the meeting that already failed, so a reschedule
+        // must always be a genuinely new, still-future date — resubmitting
+        // that same old value is never "unchanged and fine", it's the bug
+        // the Reschedule modal starting blank is meant to prevent.
         $roadblock = $this->route('roadblock');
-        $originalDate = $roadblock?->meeting_date?->format('Y-m-d');
-        $originalStart = $roadblock?->meeting_start_time ? substr($roadblock->meeting_start_time, 0, 5) : null;
+        $allowUnchanged = $roadblock && $roadblock->status !== 'Failed';
+        $originalDate = $allowUnchanged ? $roadblock->meeting_date?->format('Y-m-d') : null;
+        $originalStart = $allowUnchanged && $roadblock->meeting_start_time ? substr($roadblock->meeting_start_time, 0, 5) : null;
 
         return [
             // Only mentor_id carries required_without — if coordinator_id

@@ -10,6 +10,7 @@ use App\Models\Roadblock;
 use App\Traits\CompressesImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CoordinatorProfileController extends Controller
@@ -34,7 +35,13 @@ class CoordinatorProfileController extends Controller
         }
 
         if ($request->hasFile('coordinator_photo')) {
-            $data['coordinator_photo_path'] = $this->compressAndStoreImage($request->file('coordinator_photo'), 'coordinators');
+            try {
+                $data['coordinator_photo_path'] = $this->compressAndStoreImage($request->file('coordinator_photo'), 'coordinators');
+            } catch (\RuntimeException $e) {
+                throw ValidationException::withMessages([
+                    'coordinator_photo' => "That photo couldn't be processed ({$e->getMessage()}). Please try a different file.",
+                ]);
+            }
         }
 
         Coordinator::create($data);
@@ -53,10 +60,21 @@ class CoordinatorProfileController extends Controller
         }
 
         if ($request->hasFile('coordinator_photo')) {
+            // Compress the new photo *before* touching the old one — if
+            // processing fails, the coordinator keeps their existing photo
+            // instead of ending up with none at all.
+            try {
+                $newPhotoPath = $this->compressAndStoreImage($request->file('coordinator_photo'), 'coordinators');
+            } catch (\RuntimeException $e) {
+                throw ValidationException::withMessages([
+                    'coordinator_photo' => "That photo couldn't be processed ({$e->getMessage()}). Please try a different file.",
+                ]);
+            }
+
             if ($coordinator->coordinator_photo_path) {
                 Storage::disk('public')->delete($coordinator->coordinator_photo_path);
             }
-            $data['coordinator_photo_path'] = $this->compressAndStoreImage($request->file('coordinator_photo'), 'coordinators');
+            $data['coordinator_photo_path'] = $newPhotoPath;
         }
 
         $coordinator->update($data);

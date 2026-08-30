@@ -51,9 +51,9 @@ class InformationSheetController extends Controller
     public function approve(Startup $startup): RedirectResponse
     {
         abort_if(
-            ! $startup->hasScheduledEvaluation(),
+            ! $startup->evaluationReached(),
             403,
-            'This startup must have a scheduled evaluation before their Information Sheet can be approved.'
+            'This startup\'s evaluation must be scheduled and its date reached before their Information Sheet can be approved.'
         );
 
         $startup->informationSheet()->update([
@@ -71,8 +71,9 @@ class InformationSheetController extends Controller
     {
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
 
-        abort_if($sheet->approval_status === 'Approved', 403, 'This Information Sheet is approved and locked.');
-
+        // Approval only locks the founder out (see Startup\InformationSheetController)
+        // — an admin can still revise a sheet after it's approved, e.g. to fix a
+        // typo the founder reported after the fact.
         $data = $request->validated();
 
         // Admin edits are corrections made on the founder's behalf, so they

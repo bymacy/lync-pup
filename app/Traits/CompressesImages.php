@@ -28,11 +28,25 @@ trait CompressesImages
             $mime = $file->getMimeType();
             $sourcePath = $file->getRealPath();
 
-            $image = match ($mime) {
-                'image/jpeg', 'image/jpg' => @imagecreatefromjpeg($sourcePath),
-                'image/png' => @imagecreatefrompng($sourcePath),
-                'image/gif' => @imagecreatefromgif($sourcePath),
-                'image/webp' => @imagecreatefromwebp($sourcePath),
+            // Some PNGs (and, less often, JPEGs) get sniffed by PHP's fileinfo
+            // as a legacy/alternate MIME string — "image/x-png", "image/pjpeg"
+            // — depending on the server's libmagic database and exactly how
+            // the file was encoded, even though they're perfectly normal
+            // images. That used to fall straight into "Unsupported image
+            // type." here, so a handful of otherwise-fine PNGs would never
+            // go through. Extension is checked as a fallback for anything
+            // fileinfo doesn't recognize under its usual name.
+            $extension = strtolower($file->getClientOriginalExtension());
+
+            $image = match (true) {
+                in_array($mime, ['image/jpeg', 'image/jpg', 'image/pjpeg'], true) => @imagecreatefromjpeg($sourcePath),
+                in_array($mime, ['image/png', 'image/x-png'], true) => @imagecreatefrompng($sourcePath),
+                $mime === 'image/gif' => @imagecreatefromgif($sourcePath),
+                $mime === 'image/webp' => @imagecreatefromwebp($sourcePath),
+                in_array($extension, ['jpg', 'jpeg'], true) => @imagecreatefromjpeg($sourcePath),
+                $extension === 'png' => @imagecreatefrompng($sourcePath),
+                $extension === 'gif' => @imagecreatefromgif($sourcePath),
+                $extension === 'webp' => @imagecreatefromwebp($sourcePath),
                 default => throw new \RuntimeException('Unsupported image type.'),
             };
 

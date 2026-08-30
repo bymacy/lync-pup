@@ -139,6 +139,21 @@ class Startup extends Model
     }
 
     /**
+     * True once a (non-cancelled) evaluation's date has actually arrived —
+     * today or in the past — as opposed to hasScheduledEvaluation() above,
+     * which is satisfied by merely booking a future day. Approve & Lock
+     * gates on this one: a startup only sitting in the Upcoming list
+     * shouldn't be approvable yet, since nobody has evaluated it.
+     */
+    public function evaluationReached(): bool
+    {
+        return $this->evaluationSchedules()
+            ->where('status', '!=', 'Cancelled')
+            ->whereDate('evaluation_date', '<=', now()->toDateString())
+            ->exists();
+    }
+
+    /**
      * True only on the calendar day of a (non-cancelled) evaluation — drives
      * the founder-side Information Sheet lock, so the sheet is frozen while
      * the evaluators are reading it and reopens by itself the next morning.
