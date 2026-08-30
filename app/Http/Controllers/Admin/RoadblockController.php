@@ -7,6 +7,8 @@ use App\Http\Requests\Admin\AssignRoadblockRequest;
 use App\Models\Coordinator;
 use App\Models\Mentor;
 use App\Models\Roadblock;
+use App\Notifications\MentorshipScheduled;
+use App\Notifications\RoadblockStatusUpdated;
 
 class RoadblockController extends Controller
 {
@@ -89,6 +91,12 @@ class RoadblockController extends Controller
             'failed_at' => null,
         ]);
 
+        // Tells the founder a mentor and a slot now exist. Fired on every
+        // assign, including a reassignment to a different mentor or a moved
+        // meeting — from the founder's side those are all "your session
+        // changed, go look", which is exactly what needs announcing.
+        $roadblock->startup?->user?->notify(new MentorshipScheduled($roadblock->fresh(['mentor', 'coordinator'])));
+
         return back()->with('status', 'Roadblock scheduled.');
     }
 
@@ -116,6 +124,8 @@ class RoadblockController extends Controller
 
         $roadblock->update(['status' => 'Resolved', 'resolved_at' => now()]);
 
+        $roadblock->startup?->user?->notify(new RoadblockStatusUpdated($roadblock, 'Resolved'));
+
         // Jump straight to the Resolved stage so the admin lands where the
         // roadblock actually went, instead of staying on Pending Review where
         // it no longer appears.
@@ -131,6 +141,8 @@ class RoadblockController extends Controller
 
         $roadblock->update(['status' => 'Failed', 'failed_at' => now()]);
 
+        $roadblock->startup?->user?->notify(new RoadblockStatusUpdated($roadblock, 'Failed'));
+
         return redirect()->route('admin.roadblocks.index', ['tab' => 'archive', 'stage' => 'failed'])
             ->with('status', 'Roadblock marked failed.');
     }
@@ -144,6 +156,8 @@ class RoadblockController extends Controller
         // Back to Pending Review, not Scheduled — the meeting already happened,
         // so this goes straight back to awaiting a Resolved/Failed decision.
         $roadblock->update(['status' => 'Pending Review', 'resolved_at' => null]);
+
+        $roadblock->startup?->user?->notify(new RoadblockStatusUpdated($roadblock, 'Pending Review'));
 
         return redirect()->route('admin.roadblocks.index', ['tab' => 'archive', 'stage' => 'assessment'])
             ->with('status', 'Roadblock recovered to Pending Review.');

@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\InformationSheetController;
 use App\Http\Controllers\Admin\MentorController;
 use App\Http\Controllers\Admin\CoordinatorProfileController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Startup\NotificationController as FounderNotificationController;
 use App\Http\Controllers\Startup\RoadblockController;
 
 use App\Http\Controllers\Startup\DashboardController as StartupDashboardController;
@@ -204,4 +205,6 @@ Route::middleware(['auth', 'role:Startup', 'approved'])->prefix('startup')->name
     Route::post('/roadblocks', [RoadblockController::class, 'store'])->name('submissions.store');
 
     Route::get('readiness', [FounderReadinessController::class, 'index'])->name('readiness.index');
+
+    Route::get('notifications/{notification}', [FounderNotificationController::class, 'show'])->name('notifications.show');
 });

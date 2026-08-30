@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AssessmentDocument;
 use App\Models\ReadinessLevelAssessment;
 use App\Models\Startup;
+use App\Notifications\ReadinessResultsReleased;
+use App\Notifications\WeeklyCheckInPosted;
 use App\Support\ReadinessRubric;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -99,8 +101,19 @@ class AssessmentController extends Controller
         $assessment->srl_noted_by = $validated['srl_noted_by'] ?? null;
         $assessment->srl_noted_by_position = $validated['srl_noted_by_position'] ?? null;
         $assessment->assessment_date = $validated['assessment_date'] ?? now();
+
+        // Captured before recomputeScores() so the notification below fires
+        // exactly once — on the save that first produces a score. The admin
+        // saves this form repeatedly while ticking through the checklists, and
+        // notifying on every save would bury the founder's dashboard in duplicates.
+        $wasScored = $assessment->exists && $assessment->overall_score !== null;
+
         $assessment->recomputeScores();
         $assessment->save();
+
+        if (! $wasScored && $assessment->overall_score !== null) {
+            $startup->user?->notify(new ReadinessResultsReleased($validated['stage']));
+        }
 
         return back()->with('status', 'assessment-saved')
             ->with('assessed_startup', $startup->startup_id)
@@ -133,18 +146,55 @@ class AssessmentController extends Controller
                 continue;
             }
 
+            $payload = json_decode($validated[$key], true);
+
+            // Document 7 under Active-Assessment is the only one the founder
+            // ever sees (it renders as the Weekly Update tab on their
+            // Submission page), so it is the only one worth announcing.
+            $isWeeklyCheckIns = $documentNumber === 7 && $validated['stage'] === 'Active-Assessment';
+            $filledBefore = $isWeeklyCheckIns
+                ? $this->filledCheckInCount(AssessmentDocument::where('startup_id', $startup->startup_id)
+                    ->where('stage', $validated['stage'])
+                    ->where('document_number', $documentNumber)
+                    ->first()?->data)
+                : 0;
+
             AssessmentDocument::updateOrCreate(
                 [
                     'startup_id' => $startup->startup_id,
                     'stage' => $validated['stage'],
                     'document_number' => $documentNumber,
                 ],
-                ['data' => json_decode($validated[$key], true)]
+                ['data' => $payload]
             );
+
+            // Only a net-new check-in row is news. Editing a typo in an
+            // existing row, or saving the document untouched from another tab,
+            // leaves the count alone and stays silent.
+            if ($isWeeklyCheckIns) {
+                $added = $this->filledCheckInCount($payload) - $filledBefore;
+
+                if ($added > 0) {
+                    $startup->user?->notify(new WeeklyCheckInPosted($added));
+                }
+            }
         }
 
         return back()->with('status', 'assessment-saved')
             ->with('assessed_startup', $startup->startup_id)
             ->with('assessed_stage', $validated['stage']);
+    }
+
+    /**
+     * How many of Document 7's check-in rows the admin has actually typed
+     * something into. The document always seeds 10 blank rows, so a raw count
+     * would report 10 the moment it is created — the same filter the founder's
+     * Submission page uses to decide which rows are real.
+     */
+    protected function filledCheckInCount(?array $data): int
+    {
+        return collect($data['check_ins'] ?? [])
+            ->filter(fn ($row) => collect($row)->contains(fn ($value) => trim((string) $value) !== ''))
+            ->count();
     }
 }
