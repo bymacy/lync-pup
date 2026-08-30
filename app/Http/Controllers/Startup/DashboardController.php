@@ -53,7 +53,34 @@ class DashboardController extends Controller
             'needsInformationSheet' => $startup->isProfileComplete() && ! $this->informationSheetSubmitted($startup),
             'onboardingSteps' => $this->onboardingSteps($startup),
             'graduationSteps' => $this->graduationSteps($startup),
+            'updates' => $this->updates(),
         ]);
+    }
+
+    /**
+     * The dashboard's "what's new" cards: unread notifications written at the
+     * moment an admin actually changed something (see App\Notifications\*),
+     * rather than conditions re-derived on every page load. Opening a card
+     * marks that row read, so each one clears itself once it has been seen.
+     *
+     * Capped at three so a founder returning after a long absence gets a
+     * readable dashboard rather than a wall of cards.
+     */
+    protected function updates(): array
+    {
+        return auth()->user()
+            ->unreadNotifications()
+            ->latest()
+            ->limit(3)
+            ->get()
+            ->map(fn ($note) => [
+                'id' => $note->id,
+                'title' => $note->data['title'] ?? 'Update',
+                'body' => $note->data['body'] ?? '',
+                'action' => $note->data['action'] ?? 'View',
+                'icon' => $note->data['icon'] ?? 'info-sheet.svg',
+            ])
+            ->all();
     }
 
     /**

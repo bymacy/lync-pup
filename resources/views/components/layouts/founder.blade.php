@@ -205,7 +205,6 @@
                 <main class="flex-1 h-screen overflow-y-auto">
 
                     {{-- Mobile top bar --}}
-                    {{-- Mobile top bar --}}
                     <div class="lg:hidden sticky top-0 z-30 flex items-center gap-3 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-4 py-3 shadow-sm">
                         <button
                             type="button"
@@ -225,6 +224,7 @@
                             <p class="font-bold text-sm leading-tight tracking-wide">LYNC PUP</p>
                             <p class="text-[11px] text-white/60 leading-tight tracking-wide">FOUNDER PORTAL</p>
                         </div>
+
                     </div>
 
                     @if (session('status'))
