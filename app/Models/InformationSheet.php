@@ -13,7 +13,7 @@ class InformationSheet extends Model
 
     protected $fillable = [
         'startup_id', 'business_description', 'startup_overview', 'target_market', 'problem_statement', 'solution_offered',
-        'submission_date', 'approval_status', 'evaluator_remarks',
+        'submission_date', 'approval_status', 'approved_at', 'evaluator_remarks',
         'surname', 'first_name', 'middle_name', 'name_extension', 'height_m', 'weight_kg', 'blood_type',
         'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no', 'residential_address', 'permanent_address',
         'sex', 'civil_status', 'citizenship_by_birth', 'citizenship_dual', 'place_of_birth', 'date_of_birth',
@@ -33,6 +33,7 @@ class InformationSheet extends Model
     {
         return [
             'submission_date' => 'date',
+            'approved_at' => 'datetime',
             'date_of_birth' => 'date',
             'date_accomplished' => 'date',
             'endorsement_date' => 'date',

@@ -20,6 +20,12 @@
     $sheet = $startup->informationSheet;
     $isLocked = $sheet?->approval_status === 'Approved';
 
+    // Date-of-birth bounds, shared by item 19 and every Core Team row - the same
+    // values the founder view uses, so both sides refuse a future date or a
+    // 2010-or-later birth year at the picker itself.
+    $dobMin = '1900-01-01';
+    $dobMax = '2009-12-31';
+
     // Returns the URL, or null if that route isn't registered yet.
     $url = function (string $name, ...$params) {
     return Route::has($name) ? route($name, $params) : null;
@@ -102,56 +108,6 @@
         this.pendingRemoval = this.pendingRemoval.filter(k => !k.startsWith(prefix));
     },
 
-    answeredCount: 0,
-
-    // Ring geometry: r=52 in a 120x120 viewBox.
-    ringLength: 2 * Math.PI * 52,
-
-    get ringOffset() {
-        const done = this.totalCount ? this.answeredCount / this.totalCount : 0;
-        return this.ringLength - (this.ringLength * done);
-    },
-
-    totalCount: 0,
-
-    // Every field that has to be answered: the required controls plus the three
-    // row tables, whose value lives in a hidden textarea that can't be required.
-    countableFields() {
-        const form = document.getElementById('info-sheet-form');
-        if (! form) return [];
-
-        const packed = ['scholarships_academic_honors', 'non_academic_distinctions', 'membership_associations'];
-        const seen = new Set();
-
-        return Array.from(form.elements).filter((el) => {
-            if (! el.name || seen.has(el.name)) return false;
-            if (! el.required && ! packed.includes(el.name)) return false;
-            seen.add(el.name);
-            return true;
-        });
-    },
-
-    recount() {
-        const fields = this.countableFields();
-        this.totalCount = fields.length;
-        this.answeredCount = fields.filter((el) => (el.value || '').trim() !== '').length;
-    },
-
-    jumpToFirstUnanswered() {
-        const target = this.countableFields().find((el) => (el.value || '').trim() === '');
-        if (! target) return;
-
-        this.editing = true;
-
-        this.$nextTick(() => {
-            const box = document.querySelector(`[data-packed-box='${target.name}']`);
-            const el = box || target;
-
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            if (! box && typeof target.focus === 'function') target.focus({ preventScroll: true });
-        });
-    },
-
     // Grows a one-row textarea to fit its content, so a long answer wraps
     // onto a second line instead of scrolling inside a single-line box.
     autoGrow(el) {
@@ -228,14 +184,11 @@
         }
     "
         x-init="
-        $nextTick(() => { growAll(); recount(); });
+        $nextTick(() => growAll());
 
-        // Row tables write their packed value through x-effect rather than a
-        // real input event, so the recount waits a tick.
-        document.addEventListener('input', () => $nextTick(() => recount()));
         window.addEventListener('load', () => growAll());
         window.addEventListener('resize', () => growAll());
-        $watch('editing', () => $nextTick(() => { growAll(); recount(); }));
+        $watch('editing', () => $nextTick(() => growAll()));
 
         $watch('dirty', value => {
             $store.navigation.hasUnsavedChanges = value;
@@ -272,79 +225,20 @@
             <h1 class="text-center font-bold text-xl text-blue-950 mb-4">STARTUP INFORMATION SHEET</h1>
 
             {{-- Instruction box --}}
-            <div class="flex flex-col gap-4 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 mb-6 text-xs text-gray-700 lg:flex-row lg:items-center">
+            <div class="flex flex-col gap-4 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 mb-6 text-xs text-[#11386A] lg:flex-row lg:items-center">
                 <div class="flex flex-1 items-center gap-3">
-                <img src="{{ asset('images/icons/blue-warning.svg') }}" alt=""
-                    class="h-6 w-6 flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 flex-shrink-0" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="7" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
                 <ul class="list-disc pl-4 space-y-0.5 italic marker:text-[#11386A]">
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">This is the founder's submitted copy of PUP-TBIDO Form No. 001.</span> Use Edit to correct entries on their behalf.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Fields marked <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> must be answered.</span> Where one does not apply, enter <span class="font-bold">N/A</span> - except dates, email, phone, height and weight, which need a real value. Anything without a <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span> may be left empty.</li>
-                    <li class="not-italic"><span class="font-semibold text-[#6D0D23]">Approving locks the sheet for everyone.</span> The founder is told to contact their Coordinator for changes, and a scheduled evaluation is required before you can approve.</li>
                     <li class="not-italic"><span class="font-semibold text-[#6D0D23]">The founder loses edit access on their evaluation day only.</span> It reopens the next day if the evaluation is missed. You keep yours throughout, so corrections always go through this screen.</li>
                 </ul>
                 </div>
 
-            {{-- Progress. Kept to a single row: ring, count, action. --}}
-                    <div class="w-full shrink-0 rounded-xl border border-blue-100 bg-white px-4 py-3 shadow-sm lg:w-72">
-                        <div class="flex flex-wrap items-center gap-x-3 gap-y-2.5">
-
-                            {{-- Ring --}}
-                            <div class="relative h-14 w-14 shrink-0">
-                                <svg viewBox="0 0 120 120" class="h-full w-full -rotate-90">
-                                    <defs>
-                                        <linearGradient id="adminSheetRing" x1="0%" y1="0%" x2="100%" y2="100%">
-                                            <stop offset="0%" stop-color="#6D0D23" />
-                                            <stop offset="100%" stop-color="#11386A" />
-                                        </linearGradient>
-                                    </defs>
-                                    <circle cx="60" cy="60" r="52" fill="none" stroke="#e5e7eb" stroke-width="12" />
-                                    <circle cx="60" cy="60" r="52" fill="none" stroke="url(#adminSheetRing)" stroke-width="12"
-                                        stroke-linecap="round"
-                                        :stroke-dasharray="ringLength"
-                                        :stroke-dashoffset="ringOffset"
-                                        style="transition: stroke-dashoffset .45s ease" />
-                                </svg>
-
-                                <div class="absolute inset-0 flex items-center justify-center">
-                                    <span class="text-[11px] font-bold text-gray-900"
-                                        x-text="`${totalCount ? Math.round((answeredCount / totalCount) * 100) : 0}%`"></span>
-                                </div>
-                            </div>
-
-                            {{-- Count --}}
-                            <div class="min-w-0 leading-tight">
-                                <p class="text-[11px] font-bold uppercase tracking-wide text-[#11386A]">Your progress</p>
-                                <p class="text-sm font-bold text-gray-900">
-                                    <span x-text="answeredCount"></span> of <span x-text="totalCount"></span> answered
-                                </p>
-                                <p class="text-[11px] text-gray-500"
-                                    x-show="totalCount && answeredCount < totalCount"
-                                    x-text="(totalCount - answeredCount) + ' to go' + ((totalCount - answeredCount) <= 5 ? ' - almost complete' : ' - N/A counts as an answer')"></p>
-                                <p class="text-[11px] font-semibold text-green-600"
-                                    x-show="totalCount > 0 && answeredCount === totalCount" x-cloak>Sheet is complete.</p>
-                            </div>
-
-                            {{-- Action --}}
-                            <template x-if="totalCount && answeredCount < totalCount">
-                                <button type="button" @click="jumpToFirstUnanswered()"
-                                    class="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#11386A] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#6D0D23]">
-                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m0 0l-6-6m6 6l6-6" />
-                                    </svg>
-                                    Jump to first unanswered
-                                </button>
-                            </template>
-
-                            <template x-if="totalCount > 0 && answeredCount === totalCount">
-                                <span class="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 ring-1 ring-green-200">
-                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    All answered
-                                </span>
-                            </template>
-                        </div>
-                    </div>
             </div>
 
 
@@ -405,11 +299,19 @@
                     'portfolio_manager', 'cohort_no', 'endorsed_by',
                     ];
 
-$field = function ($name, $label, $number = null, $type = 'text', $required = true) use ($sheet, $prefill, $hints, $upperFields) {
+$field = function ($name, $label, $number = null, $type = 'text', $required = true) use ($sheet, $prefill, $hints, $upperFields, $dobMin, $dobMax) {
                     // Falls back to the Startup Profile value only while the column is
                     // still empty — a prefill the user reviews, never an overwrite.
                     $stored = $sheet?->{$name};
                     $value = old($name, filled($stored) ? $stored : ($prefill[$name] ?? ''));
+
+                    // A `date` cast hands back a Carbon, whose string form is
+                    // "2000-05-15 00:00:00". An <input type="date"> cannot parse that and
+                    // renders empty - which reads as "never saved" even though the value
+                    // is sitting in the database.
+                    if ($type === 'date' && $value instanceof \DateTimeInterface) {
+                        $value = $value->format('Y-m-d');
+                    }
                     $numHtml = $number ? "<span class='font-semibold'>{$number}.</span> " : '';
                     $placeholder = $type === 'date' ? '' : ($hints[$name] ?? '');
                     $star = $required ? " <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span>" : '';
@@ -422,6 +324,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     // textarea. Enter is swallowed so these stay single-value fields.
                     $control = $type === 'date'
                     ? "<input type=\"date\" name=\"{$name}\" value=\"".e($value)."\" form=\"info-sheet-form\"{$requiredAttr}
+                                min=\"{$dobMin}\" max=\"{$dobMax}\"
                                 :readonly=\"!editing\"
                                 class='w-full border rounded px-3 py-1.5 text-sm read-only:bg-gray-50 read-only:text-gray-500'
                                 @click=\"if(!editing){ lastClickedInput=\$el.name }\" @input=\"dirty=true\">"
@@ -440,6 +343,112 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                         </div>
                     </div>";
                     };
+
+                    // 5 & 6. Height and weight. The reviewer types digits in whichever
+                    // unit they think in and picks it with a toggle; the sheet still
+                    // stores metres and kilograms, because that is what the column
+                    // names promise and what the PDF prints. The conversion happens
+                    // in UpdateInformationSheetRequest::prepareForValidation(), from
+                    // the *_input and *_unit fields this control submits alongside.
+                    $unitField = function ($target, $label, $number, $units, $placeholder) use ($sheet) {
+                    $inputName = str_replace(['_m', '_kg'], '', $target) . '_input';
+                    $unitName = str_replace(['_m', '_kg'], '', $target) . '_unit';
+                    $defaultUnit = array_key_first($units);
+
+                    // What to show in the box: whatever they last typed if the save
+                    // bounced, otherwise the stored canonical value converted into
+                    // the default unit (1.75 m reads back as 175 cm).
+                    $stored = $sheet?->{$target};
+                    $typed = old($inputName);
+
+                    if ($typed !== null) {
+                    $value = $typed;
+                    $unit = old($unitName, $defaultUnit);
+                    } else {
+                    $unit = $defaultUnit;
+                    $value = is_numeric($stored)
+                    ? rtrim(rtrim(sprintf('%.2f', (float) $stored / $units[$defaultUnit]), '0'), '.')
+                    : '';
+                    }
+
+                    $config = e(json_encode([
+                    'units' => array_keys($units),
+                    'factors' => $units,
+                    'unit' => $unit,
+                    'value' => (string) $value,
+                    ], JSON_UNESCAPED_SLASHES));
+
+                    return "<div class='flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-start sm:gap-2'>
+                        <label class='w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5'><span class='font-semibold'>{$number}.</span> " . e($label) . ": <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span></label>
+                        <div class='flex-1 min-w-0'>
+                            <div x-data=\"unitField({$config})\" data-field-anchor=\"{$target}\" class='flex flex-wrap items-center gap-2'>
+                                <input type=\"text\" name=\"{$inputName}\" form=\"info-sheet-form\" required
+                                    inputmode=\"decimal\" autocomplete=\"off\" placeholder=\"{$placeholder}\"
+                                    x-model=\"value\" @input=\"clean(); dirty = true\"
+                                    :readonly=\"!editing\"
+                                    @click=\"if(!editing){ lastClickedInput='{$inputName}' }\"
+                                    class='w-24 border rounded px-3 py-1.5 text-sm read-only:bg-gray-50 read-only:text-gray-500 placeholder:text-gray-300'>
+
+                                <input type=\"hidden\" name=\"{$unitName}\" form=\"info-sheet-form\" x-effect=\"\$el.value = unit\">
+
+                                <div class='inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-white p-1 shadow-sm'>
+                                    <template x-for=\"u in units\" :key=\"u\">
+                                        <button type=\"button\" x-text=\"u\"
+                                            @click=\"if (editing) { pick(u); dirty = true }\"
+                                            :disabled=\"!editing\"
+                                            :class=\"unit === u
+                                                ? 'bg-[#6C0E24] text-white shadow-sm'
+                                                : 'text-gray-400 hover:text-gray-600'\"
+                                            class='h-6 min-w-[2.25rem] rounded-md px-2.5 text-xs font-bold uppercase tracking-wide transition disabled:cursor-not-allowed disabled:opacity-60'></button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>";
+                    };
+
+                    // 15. Sex. Two answers, shown as pickable cards rather than a text
+                    // box - one tap, nothing to spell. The value rides on a hidden
+                    // input; the wrapper is the error anchor, since a hidden field has
+                    // nowhere to show a message.
+                    $optionCards = function ($name, $label, $number, $options) use ($sheet) {
+                    $value = old($name, mb_strtoupper((string) $sheet?->{$name}));
+                    $list = "['" . implode("','", $options) . "']";
+
+                    $person = "<svg class='h-4 w-4 flex-shrink-0' fill='none' stroke='currentColor' stroke-width='1.7' viewBox='0 0 24 24'><circle cx='12' cy='8' r='3.25'/><path stroke-linecap='round' d='M4.5 19.5c0-3.4 3.4-5.4 7.5-5.4s7.5 2 7.5 5.4'/></svg>";
+                    $check = "<svg class='h-2.5 w-2.5' fill='none' stroke='currentColor' stroke-width='4' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' d='M5 13l4 4L19 7'/></svg>";
+
+                    return "<div class='flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-start sm:gap-2'>
+                        <label class='w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5'><span class='font-semibold'>{$number}.</span> " . e($label) . ": <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span></label>
+                        <div class='flex-1 min-w-0'>
+                            <div x-data=\"{ options: {$list}, value: '" . e($value) . "' }\" data-field-anchor=\"{$name}\">
+                                <input type=\"hidden\" name=\"{$name}\" form=\"info-sheet-form\" required x-effect=\"\$el.value = value\">
+
+                                <div class='flex flex-wrap gap-2'>
+                                    <template x-for=\"o in options\" :key=\"o\">
+                                        <button type=\"button\"
+                                            @click=\"if (editing) { value = o; dirty = true }\"
+                                            :disabled=\"!editing\"
+                                            :class=\"value === o
+                                                ? 'border-[#6C0E24] bg-[#6C0E24]/5 text-[#6C0E24] ring-1 ring-[#6C0E24]'
+                                                : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'\"
+                                            class='flex flex-1 min-w-[9rem] items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60'>
+                                            {$person}
+                                            <span class='flex-1 text-sm font-medium capitalize' x-text=\"o.toLowerCase()\"></span>
+                                            <span :class=\"value === o
+                                                    ? 'border-[#6C0E24] bg-[#6C0E24] text-white'
+                                                    : 'border-gray-300 text-transparent'\"
+                                                class='flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 transition'>
+                                                {$check}
+                                            </span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>";
+                    };
+
                     @endphp
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8">
@@ -449,8 +458,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             {!! $field('first_name', 'FIRST NAME', 2) !!}
                             {!! $field('middle_name', 'MIDDLE NAME', 3) !!}
                             {!! $field('name_extension', 'NAME EXTENSION', 4) !!}
-                            {!! $field('height_m', 'HEIGHT (M)', 5) !!}
-                            {!! $field('weight_kg', 'WEIGHT (KG)', 6) !!}
+                            {!! $unitField('height_m', 'HEIGHT', 5, ['cm' => 0.01, 'in' => 0.0254, 'm' => 1, 'ft' => 0.3048], 'e.g. 175') !!}
+                            {!! $unitField('weight_kg', 'WEIGHT', 6, ['kg' => 1, 'lb' => 0.45359237], 'e.g. 58') !!}
                             {!! $field('blood_type', 'BLOOD TYPE', 7) !!}
                             {!! $field('gsis_no', 'GSIS ID NO.', 8) !!}
                             {!! $field('pagibig_no', 'PAG-IBIG NO.', 9) !!}
@@ -462,8 +471,16 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
 
                         {{-- Right column --}}
                         <div>
-                            {!! $field('sex', 'SEX', 15) !!}
-                            {!! $field('civil_status', 'CIVIL STATUS', 16) !!}
+                            {!! $optionCards('sex', 'SEX', 15, \App\Support\SheetOptions::sexes()) !!}
+                            <div class="flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-start sm:gap-2">
+                                <label class="w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5"><span class="font-semibold">16.</span> CIVIL STATUS: <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></label>
+                                <div class="flex-1 min-w-0">
+                                    <x-sheet-select name="civil_status"
+                                        :value="mb_strtoupper((string) old('civil_status', $sheet?->civil_status))"
+                                        :options="\App\Support\SheetOptions::civilStatuses()"
+                                        placeholder="Select civil status" />
+                                </div>
+                            </div>
 
                             <div class="flex items-start gap-2 py-1.5 text-sm">
                                 <label class="w-48 flex-shrink-0 text-gray-800"><span class="font-semibold">17.</span> CITIZENSHIP: <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></label>
@@ -633,8 +650,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     ['w' => 'w-[130px]', 'label' => 'DATE OF BIRTH'],
                     ['w' => 'w-[180px]', 'label' => 'EMAIL'],
                     ['w' => 'w-[130px]', 'label' => 'CITIZENSHIP'],
-                    ['w' => 'w-[70px]', 'label' => 'SEX'],
-                    ['w' => 'w-[130px]', 'label' => 'CIVIL STATUS'],
+                    ['w' => 'w-[120px]', 'label' => 'SEX'],
+                    ['w' => 'w-[170px]', 'label' => 'CIVIL STATUS'],
                     ];
 
                     $teamCell = 'w-full h-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:bg-blue-50 read-only:bg-transparent read-only:text-gray-500';
@@ -676,7 +693,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                         <textarea name="address" placeholder="Address" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->address ?? '' }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
-                                        <input type="date" name="date_of_birth" value="{{ $member->date_of_birth ?? '' }}" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                        <input type="date" name="date_of_birth" value="{{ $member->date_of_birth?->format('Y-m-d') }}" min="{{ $dobMin }}" max="{{ $dobMax }}" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
                                         <input type="email" name="email" value="{{ $member->email }}" placeholder="Email" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
@@ -685,10 +702,14 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                         <textarea name="citizenship" placeholder="Citizenship" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->citizenship ?? '' }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
-                                        <textarea name="sex" placeholder="Sex" :readonly="!editing" class="{{ $teamCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->sex ?? '' }}</textarea>
+                                        <div class="px-2 py-1.5">
+                                            <x-sheet-select name="sex" :value="mb_strtoupper((string) $member->sex)" :options="\App\Support\SheetOptions::sexes()" :form="false" placeholder="Sex" compact />
+                                        </div>
                                     </div>
                                     <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
-                                        <textarea name="civil_status" placeholder="Civil Status" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->civil_status ?? '' }}</textarea>
+                                        <div class="px-2 py-1.5">
+                                            <x-sheet-select name="civil_status" :value="mb_strtoupper((string) $member->civil_status)" :options="\App\Support\SheetOptions::civilStatuses()" :form="false" placeholder="Civil Status" compact />
+                                        </div>
                                     </div>
                                 </form>
 
@@ -739,7 +760,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                             <textarea name="address" placeholder="Address" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
-                                            <input type="date" name="date_of_birth" class="{{ $teamCell }}" @input="dirty = true">
+                                            <input type="date" name="date_of_birth" min="{{ $dobMin }}" max="{{ $dobMax }}" class="{{ $teamCell }}" @input="dirty = true">
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
                                             <input type="email" name="email" placeholder="Email" class="{{ $teamCell }}" @input="dirty = true">
@@ -748,10 +769,14 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                             <textarea name="citizenship" placeholder="Citizenship" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
-                                            <textarea name="sex" placeholder="Sex" class="{{ $teamCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <div class="px-2 py-1.5">
+                                                <x-sheet-select name="sex" :options="\App\Support\SheetOptions::sexes()" :form="false" placeholder="Sex" compact />
+                                            </div>
                                         </div>
                                         <div class="flex-shrink-0 {{ $teamCols[8]['w'] }}">
-                                            <textarea name="civil_status" placeholder="Civil Status" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <div class="px-2 py-1.5">
+                                                <x-sheet-select name="civil_status" :options="\App\Support\SheetOptions::civilStatuses()" :form="false" placeholder="Civil Status" compact />
+                                            </div>
                                         </div>
                                     </form>
 
@@ -1683,6 +1708,17 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                 }
 
                 if (! control) control = document.querySelector('[name="' + field + '"]');
+
+                // Derived fields (height_m, weight_kg) are computed server-side from
+                // the *_input + *_unit pair, so nothing on the page carries their
+                // name. The control that produced them marks itself as the anchor.
+                if (! control) control = document.querySelector('[data-field-anchor="' + field + '"]');
+
+                // A dropdown or a segmented control submits through a hidden input,
+                // which cannot show a message - hand it to the wrapper that owns it.
+                if (control && control.type === 'hidden') {
+                    control = control.closest('[data-field-anchor]') || control;
+                }
                 if (! control) return;
 
                 flag(control);
@@ -1703,6 +1739,45 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
             }
 
             return !! first;
+        };
+
+        // The unit toggle behind items 5 and 6. Keeps the box to digits only and
+        // converts what is already typed when the founder switches unit, so they
+        // never have to do the arithmetic. `factors` maps each unit to its
+        // multiplier toward the stored canonical unit (metres, kilograms).
+        window.unitField = function (config) {
+            return {
+                units: config.units,
+                factors: config.factors,
+                unit: config.unit,
+                value: config.value,
+
+                // Digits and at most one decimal point. Runs on every input, so a
+                // pasted "175 cm" or "5'9" is stripped rather than submitted.
+                clean() {
+                    let v = String(this.value).replace(/[^0-9.]/g, '');
+                    const parts = v.split('.');
+
+                    if (parts.length > 2) {
+                        v = parts.shift() + '.' + parts.join('');
+                    }
+
+                    this.value = v;
+                },
+
+                pick(next) {
+                    if (next === this.unit || ! this.factors[next]) return;
+
+                    const n = parseFloat(this.value);
+
+                    if (! isNaN(n)) {
+                        const converted = n * this.factors[this.unit] / this.factors[next];
+                        this.value = String(Math.round(converted * 100) / 100);
+                    }
+
+                    this.unit = next;
+                },
+            };
         };
 
         window.submitInfoSheetForms = async function(root) {

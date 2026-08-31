@@ -182,29 +182,47 @@ Route::middleware(['auth', 'role:Startup', 'approved'])->prefix('startup')->name
     Route::patch('profile/team-members/{teamMember}', [FounderProfileController::class, 'updateTeamMember'])->name('team-members.update');
     Route::delete('profile/team-members/{teamMember}', [FounderProfileController::class, 'destroyTeamMember'])->name('team-members.destroy');
 
-    Route::get('information-sheet', [FounderInfoSheetController::class, 'edit'])->name('information-sheet.edit');
+    // Stage 2 — the Information Sheet opens as soon as the Startup Profile
+    // is complete, and nothing else does. 'stage' is EnsureFounderStage;
+    // the controller keeps its own isProfileComplete() checks as a belt-and-
+    // braces guard for anything that reaches it another way.
+    Route::middleware('stage:sheet')->group(function () {
+        Route::get('information-sheet', [FounderInfoSheetController::class, 'edit'])->name('information-sheet.edit');
+        Route::patch('information-sheet', [FounderInfoSheetController::class, 'update'])->name('information-sheet.update');
 
-    Route::get('meetings', [FounderMeetingController::class, 'index'])->name('meetings.index');
-    Route::patch('information-sheet', [FounderInfoSheetController::class, 'update'])->name('information-sheet.update');
+        // Section II of the sheet edits team members in place, so it belongs
+        // to the sheet's stage rather than the (always open) profile routes.
+        Route::patch('team-members/{teamMember}/details', [FounderProfileController::class, 'updateTeamMemberDetails'])->name('team-members.update-details');
 
-    Route::patch('team-members/{teamMember}/details', [FounderProfileController::class, 'updateTeamMemberDetails'])->name('team-members.update-details');
+        Route::post('information-sheet/incubation', [FounderInfoSheetController::class, 'storeIncubation'])->name('incubation.store');
+        Route::patch('information-sheet/incubation/{incubationInvolvement}', [FounderInfoSheetController::class, 'updateIncubation'])->name('incubation.update');
+        Route::delete('information-sheet/incubation/{incubationInvolvement}', [FounderInfoSheetController::class, 'destroyIncubation'])->name('incubation.destroy');
 
-    Route::post('information-sheet/incubation', [FounderInfoSheetController::class, 'storeIncubation'])->name('incubation.store');
-    Route::patch('information-sheet/incubation/{incubationInvolvement}', [FounderInfoSheetController::class, 'updateIncubation'])->name('incubation.update');
-    Route::delete('information-sheet/incubation/{incubationInvolvement}', [FounderInfoSheetController::class, 'destroyIncubation'])->name('incubation.destroy');
+        Route::post('information-sheet/ld', [FounderInfoSheetController::class, 'storeLd'])->name('ld.store');
+        Route::patch('information-sheet/ld/{ldIntervention}', [FounderInfoSheetController::class, 'updateLd'])->name('ld.update');
+        Route::delete('information-sheet/ld/{ldIntervention}', [FounderInfoSheetController::class, 'destroyLd'])->name('ld.destroy');
 
-    Route::post('information-sheet/ld', [FounderInfoSheetController::class, 'storeLd'])->name('ld.store');
-    Route::patch('information-sheet/ld/{ldIntervention}', [FounderInfoSheetController::class, 'updateLd'])->name('ld.update');
-    Route::delete('information-sheet/ld/{ldIntervention}', [FounderInfoSheetController::class, 'destroyLd'])->name('ld.destroy');
+        Route::post('information-sheet/references', [FounderInfoSheetController::class, 'storeReference'])->name('references.store');
+        Route::patch('information-sheet/references/{reference}', [FounderInfoSheetController::class, 'updateReference'])->name('references.update');
+        Route::delete('information-sheet/references/{reference}', [FounderInfoSheetController::class, 'destroyReference'])->name('references.destroy');
+    });
 
-    Route::post('information-sheet/references', [FounderInfoSheetController::class, 'storeReference'])->name('references.store');
-    Route::patch('information-sheet/references/{reference}', [FounderInfoSheetController::class, 'updateReference'])->name('references.update');
-    Route::delete('information-sheet/references/{reference}', [FounderInfoSheetController::class, 'destroyReference'])->name('references.destroy');
+    // Stage 3 — Meeting opens as soon as the sheet is submitted. It is where the
+    // founder sees the evaluation date TBIDO books for them, so making it wait
+    // for approval would hide the schedule from the person who has to show up.
+    Route::middleware('stage:submitted')->group(function () {
+        Route::get('meetings', [FounderMeetingController::class, 'index'])->name('meetings.index');
+    });
 
-    Route::get('/roadblocks', [RoadblockController::class, 'index'])->name('submissions.index');
-    Route::post('/roadblocks', [RoadblockController::class, 'store'])->name('submissions.store');
+    // Stage 4 — Submission and Readiness Result stay locked until an admin
+    // APPROVES the Information Sheet (a submitted-but-Pending sheet is not
+    // enough).
+    Route::middleware('stage:full')->group(function () {
+        Route::get('/roadblocks', [RoadblockController::class, 'index'])->name('submissions.index');
+        Route::post('/roadblocks', [RoadblockController::class, 'store'])->name('submissions.store');
 
-    Route::get('readiness', [FounderReadinessController::class, 'index'])->name('readiness.index');
+        Route::get('readiness', [FounderReadinessController::class, 'index'])->name('readiness.index');
+    });
 
     Route::get('notifications/{notification}', [FounderNotificationController::class, 'show'])->name('notifications.show');
 });

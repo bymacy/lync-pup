@@ -15,12 +15,13 @@ class AssessmentHubController extends Controller
 {
     public function index(Request $request): View
     {
-        // "Awaiting Schedule" / "Unscheduled" — startups pending approval that do NOT
-        // currently have an active (Scheduled) evaluation. Once an evaluation is set,
-        // the startup should disappear from here and show up under the Evaluation tab instead.
+        // "Awaiting Schedule" / "Unscheduled" — startups whose Information Sheet has
+        // been submitted and is still Pending, and that have no active (Scheduled)
+        // evaluation yet. Once an evaluation is set, the startup disappears from here
+        // and shows up under the Evaluation tab instead. See
+        // Startup::scopeAwaitingSchedule() for why the submission itself is checked.
         $pendingStartups = Startup::with(['informationSheet', 'latestEvaluationSchedule'])
-            ->pending()
-            ->whereDoesntHave('evaluationSchedules', fn ($q) => $q->where('status', 'Scheduled'))
+            ->awaitingSchedule()
             ->orderBy('created_at')
             ->get();
 
@@ -43,8 +44,17 @@ class AssessmentHubController extends Controller
             fn ($row) => $row->startup?->informationSheet?->approval_status === 'Approved'
         );
 
-        $todayEvaluations = $activeSchedules->filter->isToday()->sortBy('start_time')->values();
+        // Today is the day's schedule: every slot booked for today stays on it and
+        // carries its own outcome (DONE / MISSED), approved ones included - those
+        // are the DONE rows, so they are read off $scheduled rather than
+        // $activeSchedules. Upcoming still drops approved startups; they belong
+        // to the Approved tab, not to a future booking. See EvaluationSchedule.
+        $todayEvaluations = $scheduled->filter->isToday()->sortBy('start_time')->values();
         $upcomingEvaluations = $activeSchedules->filter->isUpcoming()->sortBy(['evaluation_date', 'start_time'])->values();
+        // Read off $activeSchedules, not $scheduled: an approved sheet drops out of
+        // the Missed list even when the approval came in late. The Today row still
+        // reads MISSED for that slot (it is the truth - the time did run out), but
+        // the list stays a queue of things that still need doing.
         $missedEvaluations = $activeSchedules->filter->isMissed()->sortByDesc('evaluation_date')->values();
 
         $approvedStartups = Startup::with('informationSheet')

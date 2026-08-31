@@ -214,6 +214,29 @@ class Startup extends Model
     }
 
     /**
+     * True once the founder has actually submitted the Information Sheet.
+     * submission_date gets stamped every time InformationSheetController
+     * ::update() saves it — deliberately NOT just "a row exists", since a
+     * blank row is created as soon as the Startup Profile is saved (see
+     * StartupProfileController::update()'s updateOrCreate).
+     */
+    public function hasSubmittedInformationSheet(): bool
+    {
+        return filled($this->informationSheet?->submission_date);
+    }
+
+    /**
+     * True once an admin has approved the Information Sheet. This is the
+     * gate for the founder's remaining modules (Meeting, Submission,
+     * Readiness Result) — see App\Http\Middleware\EnsureFounderStage and
+     * the nav lock state in components/layouts/founder.blade.php.
+     */
+    public function hasApprovedInformationSheet(): bool
+    {
+        return $this->informationSheet?->approval_status === 'Approved';
+    }
+
+    /**
      * True once a startup has completed Profile Setup (industry, location,
      * phone, photo) and the Information Sheet (business description +
      * actually submitted, not just saved), AND has a non-cancelled
@@ -231,6 +254,26 @@ class Startup extends Model
             && filled($sheet->submission_date);
 
         return $profileComplete && $this->hasScheduledEvaluation();
+    }
+
+    /**
+     * The Assessment Hub's "Awaiting Schedule" list: a startup that has
+     * actually submitted its Information Sheet, is still Pending, and has no
+     * active booking.
+     *
+     * submission_date is the part that matters. A blank sheet row is created
+     * the moment a founder saves their Startup Profile
+     * (StartupProfileController::update()'s updateOrCreate), so a founder who
+     * has never opened the Information Sheet used to sit in this list looking
+     * ready to book. Only a real submission counts now.
+     */
+    public function scopeAwaitingSchedule(Builder $query): Builder
+    {
+        return $query
+            ->whereHas('informationSheet', fn ($q) => $q
+                ->where('approval_status', 'Pending')
+                ->whereNotNull('submission_date'))
+            ->whereDoesntHave('evaluationSchedules', fn ($q) => $q->where('status', 'Scheduled'));
     }
 
     /**

@@ -27,13 +27,43 @@
             return $svg;
             };
 
+            // Founder portal stages. The real enforcement lives in
+            // App\Http\Middleware\EnsureFounderStage — this only mirrors it so
+            // a locked module reads as locked instead of failing after a click.
+            // A non-null 'lock' dims the item, drops its link and shows the
+            // reason on hover.
+            $navStartup = auth()->user()?->startup;
+            $navProfileDone = (bool) $navStartup?->isProfileComplete();
+            $navSheetSubmitted = (bool) $navStartup?->hasSubmittedInformationSheet();
+            $navSheetApproved = (bool) $navStartup?->hasApprovedInformationSheet();
+
+            $lockUntilProfile = $navProfileDone
+            ? null
+            : 'Complete your Startup Profile to unlock';
+
+            // Meeting only waits on the submission - it is where the evaluation
+            // date shows up, so the founder needs it before approval.
+            $lockUntilSubmission = $navSheetSubmitted
+            ? null
+            : (! $navProfileDone
+            ? 'Complete your Startup Profile to unlock'
+            : 'Submit your Information Sheet to unlock');
+
+            $lockUntilApproval = $navSheetApproved
+            ? null
+            : (! $navProfileDone
+            ? 'Complete your Startup Profile to unlock'
+            : ($navSheetSubmitted
+            ? 'Unlocks once your Information Sheet is approved'
+            : 'Submit your Information Sheet - unlocks once it is approved'));
+
             $navItems = [
-            ['route' => 'startup.dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard.svg'],
-            ['route' => 'startup.profile.edit', 'label' => 'Startup Profile', 'icon' => 'startupProfile.svg'],
-            ['route' => 'startup.information-sheet.edit', 'label' => 'Information Sheet', 'icon' => 'info-sheet.svg'],
-            ['route' => 'startup.meetings.index', 'label' => 'Meeting', 'icon' => 'coordProfile.svg'],
-            ['route' => 'startup.submissions.index', 'label' => 'Submission', 'icon' => 'assessmentHub.svg'],
-            ['route' => 'startup.readiness.index', 'label' => 'Readiness Result', 'icon' => 'riskMon.svg'],
+            ['route' => 'startup.dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard.svg', 'lock' => null],
+            ['route' => 'startup.profile.edit', 'label' => 'Startup Profile', 'icon' => 'startupProfile.svg', 'lock' => null],
+            ['route' => 'startup.information-sheet.edit', 'label' => 'Information Sheet', 'icon' => 'info-sheet.svg', 'lock' => $lockUntilProfile],
+            ['route' => 'startup.meetings.index', 'label' => 'Meeting', 'icon' => 'coordProfile.svg', 'lock' => $lockUntilSubmission],
+            ['route' => 'startup.submissions.index', 'label' => 'Submission', 'icon' => 'assessmentHub.svg', 'lock' => $lockUntilApproval],
+            ['route' => 'startup.readiness.index', 'label' => 'Readiness Result', 'icon' => 'riskMon.svg', 'lock' => $lockUntilApproval],
             ];
             @endphp
 
@@ -96,6 +126,28 @@
                             @foreach ($navItems as $item)
                             @php $isActive = request()->routeIs($item['route'] . '*'); @endphp
 
+                            @if ($item['lock'])
+                            <div
+                                title="{{ $item['lock'] }}"
+                                aria-disabled="true"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/40 cursor-not-allowed select-none">
+
+                                <span class="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                                    {!! $icon($item['icon']) !!}
+                                </span>
+
+                                <span class="flex-1">
+                                    {{ $item['label'] }}
+                                </span>
+
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round"
+                                    class="w-3.5 h-3.5 flex-shrink-0">
+                                    <rect x="4" y="10.5" width="16" height="10" rx="2" />
+                                    <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+                                </svg>
+                            </div>
+                            @else
                             <a
                                 href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
                                 @click="
@@ -120,6 +172,7 @@
                                     {{ $item['label'] }}
                                 </span>
                             </a>
+                            @endif
                             @endforeach
                         </nav>
                     </div>
@@ -158,39 +211,39 @@
                                     style="display:none;">
 
                                     <div @click.outside="confirmSignOut = false"
-                                        class="relative w-full max-w-lg rounded-2xl bg-white px-8 pb-8 pt-10 text-center shadow-2xl">
+                                        class="relative w-full max-w-lg rounded-2xl bg-white px-5 pb-5 pt-8 text-center shadow-2xl sm:px-6">
 
                                         <button type="button" @click="confirmSignOut = false"
-                                            class="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full border border-[#6D0D23] text-[#6D0D23] transition hover:bg-[#6D0D23] hover:text-white"
+                                            class="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full border border-gray-900 text-gray-900 transition hover:border-transparent hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white"
                                             aria-label="Close">
                                             <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
                                             </svg>
                                         </button>
 
-                                        <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white">
-                                            {!! $icon('sign-out.svg', 'w-6 h-6') !!}
+                                        <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white">
+                                            {!! $icon('sign-out.svg', 'w-5 h-5') !!}
                                         </div>
 
-                                        <h3 class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-2xl font-bold text-transparent">
+                                        <h3 class="mt-2.5 bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-base font-bold text-transparent sm:text-lg">
                                             Sign Out
                                         </h3>
 
-                                        <p class="mt-2 text-sm text-gray-600">
+                                        <p class="mt-1.5 text-xs leading-5 text-gray-600">
                                             Are you sure you want to sign out?<br>
                                             You'll need to log in again to continue.
                                         </p>
 
-                                        <div class="mt-6 grid grid-cols-2 gap-4">
+                                        <div class="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
                                             <button type="button" @click="confirmSignOut = false"
-                                                class="h-11 rounded-lg border border-[#6D0D23] bg-white text-sm font-bold text-[#6D0D23] transition hover:bg-rose-50">
+                                                class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50">
                                                 Cancel
                                             </button>
 
                                             <form method="POST" action="{{ route('logout') }}">
                                                 @csrf
                                                 <button type="submit"
-                                                    class="h-11 w-full rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95">
+                                                    class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95">
                                                     Sign Out
                                                 </button>
                                             </form>
@@ -226,6 +279,54 @@
                         </div>
 
                     </div>
+
+                    {{-- Module locked (App\Http\Middleware\EnsureFounderStage sent them
+                         back here). Deliberately not the 'status' toast below: this is
+                         not a success, and it needs longer on screen to be read. --}}
+                    @if (session('locked'))
+                    <div
+                        x-data="{ show: true }"
+                        x-init="setTimeout(() => show = false, 7000)"
+                        x-show="show"
+                        x-transition:enter="transform ease-out duration-300"
+                        x-transition:enter-start="translate-x-full opacity-0"
+                        x-transition:enter-end="translate-x-0 opacity-100"
+                        x-transition:leave="transform ease-in duration-200"
+                        x-transition:leave-start="translate-x-0 opacity-100"
+                        x-transition:leave-end="translate-x-full opacity-0"
+                        class="fixed top-20 right-4 lg:top-6 lg:right-6 z-50">
+
+                        <div class="flex items-center gap-3 rounded-xl border border-[#6C0E24]/40 bg-white shadow-xl px-5 py-4 w-[calc(100vw-2rem)] max-w-sm sm:min-w-[340px]">
+
+                            <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md bg-[#6C0E24] text-white">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                    <rect x="4" y="10.5" width="16" height="10" rx="2" />
+                                    <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+                                </svg>
+                            </div>
+
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-semibold text-gray-900">
+                                    Locked
+                                </p>
+
+                                <p class="text-sm text-gray-600">
+                                    {{ session('locked') }}
+                                </p>
+                            </div>
+
+                            <button
+                                @click="show = false"
+                                class="flex-shrink-0 text-gray-400 transition hover:text-gray-600"
+                                aria-label="Dismiss">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    @endif
 
                     @if (session('status'))
                     <div

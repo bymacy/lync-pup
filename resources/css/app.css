@@ -44,3 +44,23 @@
         background-color: rgba(109, 13, 35, 0.08);
     }
 }
+
+/*
+ * Founder dashboard "Action Required" banner button: solid brand maroon fill
+ * with a 1px hairline of the brand maroon-to-navy gradient as its border
+ * (padding-box paints the fill, border-box paints the gradient edge).
+ */
+.btn-brand-edge {
+    border: 1px solid transparent;
+    background-image:
+        linear-gradient(#6C0E24, #6C0E24),
+        linear-gradient(to right, #6C0E24, #11386A);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+}
+
+.btn-brand-edge:hover {
+    background-image:
+        linear-gradient(#56091B, #56091B),
+        linear-gradient(to right, #56091B, #0D2C55);
+}

@@ -102,7 +102,7 @@
                         <h2 class="font-bold text-gray-900 mb-4">Startup Information</h2>
 
                         <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Startup Name</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Startup Name <span class="text-red-500">*</span></label>
                             <input
                                 type="text"
                                 name="company_name"
@@ -117,7 +117,7 @@
 
                         <div class="grid grid-cols-3 gap-4 mb-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Sector</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Sector <span class="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     name="industry_sector"
@@ -144,7 +144,7 @@
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Business Description</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Business Description <span class="text-red-500">*</span></label>
                             {{-- No whitespace inside <textarea>: it becomes part of the value --}}
                             <textarea
                                 name="business_description"
@@ -164,7 +164,7 @@
                         <h2 class="font-bold text-gray-900 mb-4">Contact Information</h2>
 
                         <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Founder Name</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Founder Name <span class="text-red-500">*</span></label>
                             <input
                                 type="text"
                                 name="founder_name"
@@ -184,7 +184,7 @@
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number <span class="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     name="contact_phone"
@@ -212,7 +212,7 @@
                                 @error('website') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Address <span class="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     name="location"
@@ -445,6 +445,20 @@
 
                         </button>
                     </div>
+
+                    {{-- The photo is one of the fields Startup::isProfileComplete()
+                         checks, so it is required until one is stored (see
+                         UpdateStartupProfileRequest) — say so, and surface the
+                         error instead of failing silently. --}}
+                    @if (! $startup->startup_photo_path)
+                    <p class="mt-3 text-xs text-gray-500">
+                        Startup photo <span class="text-red-500">*</span> — required to complete your profile
+                    </p>
+                    @endif
+
+                    @error('startup_photo')
+                    <p class="mt-2 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
 
                     {{-- Crop modal --}}
                     <template x-teleport="body">

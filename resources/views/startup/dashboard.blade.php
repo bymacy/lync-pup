@@ -16,38 +16,53 @@
 
         {{-- Action Required --}}
         @if ($needsProfileSetup)
-            <div class="mb-5 flex flex-col gap-4 rounded-2xl bg-rose-50 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#6C0E24]/40 bg-[#6C0E24]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
                 <div class="flex items-center gap-3 sm:gap-4">
-                    <span class="flex shrink-0 items-center justify-center rounded-xl bg-[#6D0D23] text-white" style="width: 44px; height: 44px;">
-                        <span class="icon-mask" style="width: 20px; height: 20px; --icon: url('{{ asset('images/icons/warning.svg') }}')"></span>
+                    <span class="flex shrink-0 items-center justify-center rounded-md bg-[#6C0E24] text-white" style="width: 44px; height: 44px;">
+                        <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/warning-circle.svg') }}')"></span>
                     </span>
                     <div class="min-w-0">
-                        <p class="font-bold text-gray-900">Action Required: Startup Profile</p>
-                        <p class="text-sm text-gray-600">Complete your Startup Profile before you can fill out the Information Sheet.</p>
+                        <p class="text-sm font-bold text-gray-900">Action Required: Startup Profile</p>
+                        <p class="text-xs text-gray-600">Complete your Startup Profile before you can fill out the Information Sheet.</p>
                     </div>
                 </div>
                 <a href="{{ route('startup.profile.edit') }}"
-                    class="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-2.5 text-sm font-semibold text-white sm:w-auto">
-                    <span class="icon-mask" style="width: 16px; height: 16px; --icon: url('{{ asset('images/icons/info-sheet.svg') }}')"></span>
+                    class="btn-brand-edge inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-md px-4 py-2 text-xs font-semibold text-white transition sm:w-auto">
+                    <span class="icon-mask" style="width: 14px; height: 14px; --icon: url('{{ asset('images/icons/info-sheet.svg') }}')"></span>
                     Open Profile
                 </a>
             </div>
         @elseif ($needsInformationSheet)
-            <div class="mb-5 flex flex-col gap-4 rounded-2xl bg-rose-50 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#6C0E24]/40 bg-[#6C0E24]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
                 <div class="flex items-center gap-3 sm:gap-4">
-                    <span class="flex shrink-0 items-center justify-center rounded-xl bg-[#6D0D23] text-white" style="width: 44px; height: 44px;">
-                        <span class="icon-mask" style="width: 20px; height: 20px; --icon: url('{{ asset('images/icons/warning.svg') }}')"></span>
+                    <span class="flex shrink-0 items-center justify-center rounded-md bg-[#6C0E24] text-white" style="width: 44px; height: 44px;">
+                        <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/warning-circle.svg') }}')"></span>
                     </span>
                     <div class="min-w-0">
-                        <p class="font-bold text-gray-900">Action Required: Startup Information Sheet</p>
-                        <p class="text-sm text-gray-600">Complete TBIDO Form No.001 to activate Startup Account.</p>
+                        <p class="text-sm font-bold text-gray-900">Action Required: Startup Information Sheet</p>
+                        <p class="text-xs text-gray-600">Complete TBIDO Form No.001 to activate Startup Account.</p>
                     </div>
                 </div>
                 <a href="{{ route('startup.information-sheet.edit') }}"
-                    class="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-2.5 text-sm font-semibold text-white sm:w-auto">
-                    <span class="icon-mask" style="width: 16px; height: 16px; --icon: url('{{ asset('images/icons/info-sheet.svg') }}')"></span>
+                    class="btn-brand-edge inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-md px-4 py-2 text-xs font-semibold text-white transition sm:w-auto">
+                    <span class="icon-mask" style="width: 14px; height: 14px; --icon: url('{{ asset('images/icons/info-sheet.svg') }}')"></span>
                     Open Form
                 </a>
+            </div>
+        @elseif ($awaitingSheetApproval)
+            {{-- Navy, not maroon: nothing for the founder to do here. It only
+                 explains why Meeting / Submission / Readiness Result are still
+                 locked (see App\Http\Middleware\EnsureFounderStage). --}}
+            <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#11386A]/40 bg-[#11386A]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                <div class="flex items-center gap-3 sm:gap-4">
+                    <span class="flex shrink-0 items-center justify-center rounded-md bg-[#11386A] text-white" style="width: 44px; height: 44px;">
+                        <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/clock.svg') }}')"></span>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold text-gray-900">Information Sheet Submitted &middot; Waiting for Approval</p>
+                        <p class="text-xs text-gray-600">TBIDO is reviewing TBIDO Form No.001. Your Meeting tab is already open - Submission and Readiness Result unlock once the sheet is approved.</p>
+                    </div>
+                </div>
             </div>
         @endif
 
@@ -56,18 +71,18 @@
              blocking their progress. Each clears itself once the linked page
              is visited (see DashboardController::updates()). --}}
         @foreach ($updates ?? [] as $update)
-            <div class="{{ $loop->last ? 'mb-5 sm:mb-6' : 'mb-3' }} flex flex-col gap-4 rounded-2xl border border-sky-100 bg-sky-50 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div class="{{ $loop->last ? 'mb-5 sm:mb-6' : 'mb-3' }} flex flex-col gap-4 rounded-2xl border border-[#11386A]/40 bg-[#11386A]/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
                 <div class="flex items-center gap-3 sm:gap-4">
-                    <span class="flex shrink-0 items-center justify-center rounded-xl bg-[#11386A] text-white" style="width: 44px; height: 44px;">
-                        <span class="icon-mask" style="width: 20px; height: 20px; --icon: url('{{ asset('images/icons/' . $update['icon']) }}')"></span>
+                    <span class="flex shrink-0 items-center justify-center rounded-md bg-[#11386A] text-white" style="width: 44px; height: 44px;">
+                        <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/' . $update['icon']) }}')"></span>
                     </span>
                     <div class="min-w-0">
-                        <p class="font-bold text-gray-900">{{ $update['title'] }}</p>
-                        <p class="text-sm text-gray-600">{{ $update['body'] }}</p>
+                        <p class="text-sm font-bold text-gray-900">{{ $update['title'] }}</p>
+                        <p class="text-xs text-gray-600">{{ $update['body'] }}</p>
                     </div>
                 </div>
                 <a href="{{ route('startup.notifications.show', $update['id']) }}"
-                    class="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#11386A] bg-white px-5 py-2.5 text-sm font-semibold text-[#11386A] transition hover:bg-[#11386A] hover:text-white sm:w-auto">
+                    class="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-md border border-[#11386A] bg-white px-4 py-2 text-xs font-semibold text-[#11386A] transition hover:bg-[#11386A] hover:text-white sm:w-auto">
                     {{ $update['action'] }}
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                         stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
@@ -116,34 +131,85 @@
         {{-- Quick links --}}
         <div class="mb-5 grid grid-cols-1 gap-3 sm:mb-6 sm:gap-4 lg:grid-cols-3 lg:gap-6">
             @php
+                // Same gates the sidebar padlocks and EnsureFounderStage use: Meeting
+                // opens on submission, Submission and Readiness on approval. A card
+                // that leads nowhere yet greys out instead of pretending to work.
+                $profileDone = $startup->isProfileComplete();
+                $sheetSubmitted = $startup->hasSubmittedInformationSheet();
+                $sheetApproved = $startup->hasApprovedInformationSheet();
+
+                $lockUntilSubmission = $sheetSubmitted
+                    ? null
+                    : (! $profileDone ? 'Complete your Startup Profile to unlock' : 'Submit your Information Sheet to unlock');
+
+                $lockUntilApproval = $sheetApproved
+                    ? null
+                    : (! $profileDone
+                        ? 'Complete your Startup Profile to unlock'
+                        : ($sheetSubmitted
+                            ? 'Unlocks once your Information Sheet is approved'
+                            : 'Submit your Information Sheet - unlocks once it is approved'));
+
                 $quickLinks = [
-                    ['route' => 'startup.submissions.index', 'icon' => 'airplane.svg', 'title' => 'Submit Roadblock?', 'description' => "Need an expert? Tell us you're stuck."],
-                    ['route' => 'startup.meetings.index', 'icon' => 'coordProfile.svg', 'title' => 'My Meetings', 'description' => 'Check your schedule and upcoming events.'],
-                    ['route' => 'startup.readiness.index', 'icon' => 'scale.svg', 'title' => 'Readiness Results', 'description' => 'See your TRL/MRL/TMRL/SRL details.'],
+                    ['route' => 'startup.submissions.index', 'icon' => 'airplane.svg', 'title' => 'Submit Roadblock?', 'description' => "Need an expert? Tell us you're stuck.", 'lock' => $lockUntilApproval],
+                    ['route' => 'startup.meetings.index', 'icon' => 'coordProfile.svg', 'title' => 'My Meetings', 'description' => 'Check your schedule and upcoming events.', 'lock' => $lockUntilSubmission],
+                    ['route' => 'startup.readiness.index', 'icon' => 'scale.svg', 'title' => 'Readiness Results', 'description' => 'See your TRL/MRL/TMRL/SRL details.', 'lock' => $lockUntilApproval],
                 ];
             @endphp
             @foreach ($quickLinks as $link)
-                {{-- Row on phones and tablets (icon, text, chevron); stacked card from lg up. --}}
-                <a href="{{ route($link['route']) }}"
-                    class="group flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition duration-200 hover:border-[#E8AFBF] hover:shadow-md sm:p-5 lg:block lg:p-6 lg:hover:-translate-y-0.5">
-                    <span class="flex shrink-0 items-center justify-center rounded-xl bg-rose-50 text-[#6D0D23]" style="width: 48px; height: 48px;">
+                @php
+                    $locked = (bool) $link['lock'];
+
+                    $cardClass = 'group flex items-center gap-4 rounded-2xl border p-4 shadow-sm transition duration-200 sm:p-5 lg:block lg:p-6 '
+                        . ($locked
+                            ? 'cursor-not-allowed select-none border-gray-100 bg-gray-50'
+                            : 'border-gray-100 bg-white hover:border-[#E8AFBF] hover:shadow-md lg:hover:-translate-y-0.5');
+                    $badgeClass = $locked ? 'bg-gray-100 text-gray-400' : 'bg-rose-50 text-[#6D0D23]';
+                    $titleClass = $locked ? 'text-gray-400' : 'text-gray-900';
+                    $descClass = $locked ? 'text-gray-400' : 'text-gray-500';
+                    $actionClass = $locked
+                        ? 'bg-gray-100 text-gray-400'
+                        : 'bg-rose-50 text-[#6D0D23] group-hover:bg-[#6D0D23] group-hover:text-white';
+                @endphp
+
+                {{-- Row on phones and tablets (icon, text, chevron); stacked card from lg up.
+                     The opening tag differs between locked and open - a locked card is not a
+                     link at all - so the shared body is written once between the branches. --}}
+                @if ($locked)
+                <div class="{{ $cardClass }}" title="{{ $link['lock'] }}" aria-disabled="true">
+                @else
+                <a href="{{ route($link['route']) }}" class="{{ $cardClass }}">
+                @endif
+                    <span class="flex shrink-0 items-center justify-center rounded-xl {{ $badgeClass }}" style="width: 48px; height: 48px;">
                         <span class="icon-mask" style="width: 22px; height: 22px; --icon: url('{{ asset('images/icons/' . $link['icon']) }}')"></span>
                     </span>
                     <div class="min-w-0 flex-1 lg:mt-4">
-                        <p class="font-bold text-gray-900">{{ $link['title'] }}</p>
+                        <p class="font-bold {{ $titleClass }}">{{ $link['title'] }}</p>
                         <div class="mt-1 flex items-end justify-between gap-3 sm:gap-4">
-                            <p class="text-sm text-gray-500">{{ $link['description'] }}</p>
+                            <p class="text-sm {{ $descClass }}">{{ $locked ? $link['lock'] : $link['description'] }}</p>
                             <span
-                                class="flex shrink-0 items-center justify-center rounded-full bg-rose-50 text-[#6D0D23] transition duration-200 group-hover:bg-[#6D0D23] group-hover:text-white"
+                                class="flex shrink-0 items-center justify-center rounded-full transition duration-200 {{ $actionClass }}"
                                 style="width: 34px; height: 34px;">
+                                @if ($locked)
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                                    <rect x="4" y="10.5" width="16" height="10" rx="2" />
+                                    <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+                                </svg>
+                                @else
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                                     stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
                                     <path d="M9 5l7 7-7 7" />
                                 </svg>
+                                @endif
                             </span>
                         </div>
                     </div>
+                @if ($locked)
+                </div>
+                @else
                 </a>
+                @endif
             @endforeach
         </div>
 

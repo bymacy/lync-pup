@@ -12,6 +12,7 @@ use App\Http\Requests\Admin\UpdateInformationSheetRequest;
 use App\Http\Requests\Admin\UpdateLdInterventionRequest;
 use App\Http\Requests\Admin\UpdateStartupReferenceRequest;
 use App\Http\Requests\Admin\UpdateTeamMemberRequest;
+use App\Notifications\InformationSheetApproved;
 use App\Models\IncubationInvolvement;
 use App\Models\LdIntervention;
 use App\Models\StartupReference;
@@ -56,10 +57,24 @@ class InformationSheetController extends Controller
             'This startup\'s evaluation must be scheduled and its date reached before their Information Sheet can be approved.'
         );
 
+        // Captured before the update so re-approving an already-approved sheet
+        // (the admin can revisit this action) doesn't re-notify the founder.
+        $wasApproved = $startup->hasApprovedInformationSheet();
+
         $startup->informationSheet()->update([
             'approval_status' => 'Approved',
+            // Stamped so the evaluation roster can tell a sheet approved on the
+            // evaluation day (DONE) from one signed off later (MISSED) - see
+            // EvaluationSchedule::approvedOnEvaluationDay().
+            'approved_at' => now(),
             'evaluator_remarks' => null,
         ]);
+
+        if (! $wasApproved) {
+            // This is the moment Meeting / Submission / Readiness Result unlock
+            // for the founder, so it gets a dashboard card of its own.
+            $startup->user?->notify(new InformationSheetApproved);
+        }
 
         return redirect()
             ->route('admin.assessment-hub.index', ['tab' => 'approved'])

@@ -50,7 +50,13 @@ class DashboardController extends Controller
             'readinessStage' => $readinessStage,
             'overallLabel' => ReadinessRubric::overallLabel($assessment->overall_score ?? null),
             'needsProfileSetup' => ! $startup->isProfileComplete(),
-            'needsInformationSheet' => $startup->isProfileComplete() && ! $this->informationSheetSubmitted($startup),
+            'needsInformationSheet' => $startup->isProfileComplete() && ! $startup->hasSubmittedInformationSheet(),
+            // Stage 2 -> 3 waiting room: the sheet is in, the remaining
+            // modules are still locked (see EnsureFounderStage), so the
+            // dashboard says why rather than leaving the founder guessing.
+            'awaitingSheetApproval' => $startup->isProfileComplete()
+                && $startup->hasSubmittedInformationSheet()
+                && ! $startup->hasApprovedInformationSheet(),
             'onboardingSteps' => $this->onboardingSteps($startup),
             'graduationSteps' => $this->graduationSteps($startup),
             'updates' => $this->updates(),
@@ -97,25 +103,11 @@ class DashboardController extends Controller
 
         return $this->stepsWithState([
             'Setup Startup Profile' => $startup->isProfileComplete(),
-            'Completed Information Sheet' => $this->informationSheetSubmitted($startup),
+            'Completed Information Sheet' => $startup->hasSubmittedInformationSheet(),
             'Admin Review' => $startup->hasScheduledEvaluation() || $approved,
             'Schedule for Evaluation' => $startup->hasScheduledEvaluation(),
             'Approved' => $approved,
         ]);
-    }
-
-    /**
-     * True only once the founder has actually submitted the Information
-     * Sheet (submission_date gets stamped every time InformationSheetController
-     * ::update() saves it) — deliberately NOT just "a row exists", since one
-     * gets silently created as soon as the Startup Profile is saved (see
-     * StartupProfileController::update()'s updateOrCreate on business_description).
-     * Row-existence alone would mark this step "done" before the founder has
-     * ever opened the actual Information Sheet form.
-     */
-    protected function informationSheetSubmitted(Startup $startup): bool
-    {
-        return (bool) $startup->informationSheet?->submission_date;
     }
 
     /**
