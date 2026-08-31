@@ -18,6 +18,7 @@ use App\Http\Controllers\Startup\MeetingController as FounderMeetingController;
 use App\Http\Controllers\Admin\RoadblockController as AdminRoadblockController;
 use App\Http\Controllers\Admin\AssessmentController;
 use App\Http\Controllers\Admin\AssessmentHubController;
+use App\Http\Controllers\Admin\VentureExitAiController;
 use App\Http\Controllers\Admin\EvaluationScheduleController;
 use App\Http\Controllers\Admin\FounderApplicationController;
 use App\Http\Controllers\Admin\CohortController;
@@ -144,6 +145,7 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('/assessment-hub/evaluations/{evaluationSchedule}', [EvaluationScheduleController::class, 'destroy'])->name('assessment-hub.evaluations.destroy');
     Route::put('/assessment-hub/assessments/{startup}', [AssessmentController::class, 'update'])->name('assessment-hub.assessments.update');
     Route::put('/assessment-hub/assessments/{startup}/documents', [AssessmentController::class, 'updateDocuments'])->name('assessment-hub.assessments.update-documents');
+    Route::post('/assessment-hub/assessments/{startup}/venture-exit/generate-ai', [VentureExitAiController::class, 'generate'])->name('assessment-hub.assessments.venture-exit.generate-ai');
 
     Route::get('/exports/documents', [ExportController::class, 'documents'])->name('exports.documents');
     Route::post('/exports/generate', [ExportController::class, 'generate'])->name('exports.generate');

@@ -57,6 +57,53 @@
         incompleteAssessments: @js($incompleteAssessments ?? []),
         showIncompleteConfirm: false,
         confirmedIncomplete: false,
+        aiGenerating: false,
+        aiError: '',
+        // Generate with AI — drafts the Graduation Readiness
+        // Status+Remark, the three Final Evaluation textareas, and the
+        // Post Program Readiness Level remarks (never Highest Level,
+        // which prefills separately from saved Post-Assessment scores).
+        // Purely a first draft: it only fills the in-memory form state
+        // below, which stays fully editable and isn't saved until the
+        // admin clicks Save Assessment same as any other edit.
+        async generateWithAi() {
+            this.aiError = '';
+            this.aiGenerating = true;
+            try {
+                const response = await fetch('{{ route('admin.assessment-hub.assessments.venture-exit.generate-ai', $selectedStartup) }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=\'csrf-token\']')?.content ?? '',
+                        'Accept': 'application/json',
+                    },
+                });
+                const body = await response.json().catch(() => ({}));
+                if (! response.ok) {
+                    throw new Error(body.message || 'Something went wrong generating content. Please try again.');
+                }
+                const data = body.data;
+                Object.keys(this.ve.graduation_readiness).forEach(key => {
+                    const row = data.graduation_readiness?.[key];
+                    if (row) {
+                        this.ve.graduation_readiness[key].status = !!row.status;
+                        this.ve.graduation_readiness[key].remark = row.remark || '';
+                    }
+                });
+                this.ve.summary_of_progress = data.summary_of_progress || '';
+                this.ve.post_incubation_recommendation = data.post_incubation_recommendation || '';
+                this.ve.scale_up_linkages = data.scale_up_linkages || '';
+                Object.keys(this.ve.readiness_levels).forEach(key => {
+                    const row = data.readiness_levels?.[key];
+                    if (row) {
+                        this.ve.readiness_levels[key].remarks = row.remarks || '';
+                    }
+                });
+            } catch (e) {
+                this.aiError = e.message || 'Something went wrong generating content. Please try again.';
+            } finally {
+                this.aiGenerating = false;
+            }
+        },
         isDirty() {
             return JSON.stringify(this.ve) !== JSON.stringify(this.initialVe);
         },
@@ -112,6 +159,22 @@
             <p class="mb-6 text-center">
                 <span class="rounded border border-rose-900 px-3 py-1 text-xs font-semibold italic text-rose-900">{{ \App\Support\VentureExitForm::FORM_NO }}</span>
             </p>
+
+            <div class="mb-6 flex flex-col items-end gap-2">
+                <button type="button" @click="generateWithAi()" :disabled="aiGenerating"
+                    class="flex h-10 items-center gap-2 rounded-md border border-transparent bg-gradient-to-r from-emerald-600 to-teal-600 px-4 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+                    <svg x-show="! aiGenerating" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2z" />
+                        <path d="M19 14l.9 2.6L22 17.5l-2.1.9L19 21l-.9-2.6L16 17.5l2.1-.9L19 14z" opacity="0.7" />
+                    </svg>
+                    <svg x-show="aiGenerating" x-cloak class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" d="M12 3a9 9 0 1 0 9 9" />
+                    </svg>
+                    <span x-text="aiGenerating ? 'Generating…' : 'Generate with AI'"></span>
+                </button>
+                <p class="max-w-md text-right text-xs italic text-gray-500">Drafts the checklist remarks, exit support plan, and readiness-level remarks below from this startup's assessment history. Review and edit before saving.</p>
+                <p x-show="aiError" x-cloak x-text="aiError" class="max-w-md text-right text-xs text-red-600"></p>
+            </div>
 
             <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>

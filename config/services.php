@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    // Backs the Assessment Hub's "Generate with AI" button on the Venture
+    // Exit document (Document 13) — see App\Services\VentureExitAiGenerator.
+    // Uses Google's Gemini API (aistudio.google.com has a free-tier key, no
+    // card required). Leave GEMINI_API_KEY blank to disable the button with
+    // a clean error instead of a crash; nothing else in the app depends on
+    // this key.
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-3.6-flash'),
+    ],
+
 ];

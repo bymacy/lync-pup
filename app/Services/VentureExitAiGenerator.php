@@ -1,0 +1,258 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\AssessmentDocument;
+use App\Models\ReadinessLevelAssessment;
+use App\Models\Startup;
+use App\Support\ReadinessRubric;
+use App\Support\VentureExitForm;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+use RuntimeException;
+
+/**
+ * Drafts the Venture Exit document's (Document 13) judgment-call fields
+ * from a startup's existing assessment history, via Google's Gemini API —
+ * the Graduation Readiness checklist's Status+Remark, the three Final
+ * Evaluation and Exit Support Plan textareas, and the Post Program
+ * Readiness Level table's Remarks column. Deliberately never touches
+ * "Highest Level" (that already prefills from saved Post-Assessment scores
+ * — see _venture-exit.blade.php) and never saves anything itself: this is
+ * a first draft only, returned to the admin's screen for them to review,
+ * edit, and save through the normal Save Assessment flow
+ * (AssessmentController::updateDocuments()).
+ */
+class VentureExitAiGenerator
+{
+    public function generate(Startup $startup): array
+    {
+        $apiKey = config('services.gemini.api_key');
+
+        if (blank($apiKey)) {
+            throw new RuntimeException('AI generation isn\'t configured yet — add a GEMINI_API_KEY to the .env file (a free key is available at aistudio.google.com).');
+        }
+
+        $model = config('services.gemini.model', 'gemini-3.6-flash');
+
+        // Gemini's REST API authenticates via a "?key=" query string, not a
+        // Bearer header — appended directly to the URL rather than relying
+        // on a query-params helper that may not exist on every Http client
+        // version.
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=".urlencode($apiKey);
+
+        $response = Http::timeout(60)->post($url, [
+            'system_instruction' => [
+                'parts' => [['text' => $this->systemPrompt()]],
+            ],
+            'contents' => [
+                ['role' => 'user', 'parts' => [['text' => $this->buildContext($startup)]]],
+            ],
+            'generationConfig' => [
+                'temperature' => 0.4,
+                'responseMimeType' => 'application/json',
+            ],
+        ]);
+
+        if ($response->failed()) {
+            $message = $response->json('error.message');
+
+            throw new RuntimeException($message ?: 'The AI service returned an error. Please try again.');
+        }
+
+        $content = $response->json('candidates.0.content.parts.0.text');
+
+        if (blank($content)) {
+            throw new RuntimeException('The AI service returned an empty response. Please try again.');
+        }
+
+        $decoded = json_decode($content, true);
+
+        if (! is_array($decoded)) {
+            throw new RuntimeException('The AI service returned a response that could not be read. Please try again.');
+        }
+
+        return $this->normalize($decoded);
+    }
+
+    /**
+     * Strict output-shape instructions, listing the exact indicator/type
+     * names the model must use — matched verbatim against
+     * VentureExitForm/ReadinessRubric below in normalize(), so any
+     * indicator the model mis-names or skips simply falls back to a blank
+     * row instead of breaking the page.
+     */
+    protected function systemPrompt(): string
+    {
+        $indicatorList = collect(VentureExitForm::GRADUATION_READINESS_INDICATORS)
+            ->map(fn ($i) => "  - \"{$i}\"")
+            ->implode("\n");
+
+        $typeList = collect(ReadinessRubric::TYPES)
+            ->map(fn ($t) => "  - \"{$t}\"")
+            ->implode("\n");
+
+        return <<<PROMPT
+        You are helping an admin at a university startup incubator draft a Venture
+        Exit evaluation (PUP-TBIDO Form No. 013) for a startup that is completing
+        the incubation program. The admin will review and edit everything you write
+        before saving it, so write a solid, honest first draft — do not invent
+        facts, numbers, or achievements that are not supported by the startup data
+        given to you in the user message. Where the evidence is thin or missing,
+        say so plainly in the remark rather than guessing or padding it out.
+
+        Respond with ONLY a single JSON object and nothing else (no markdown, no
+        commentary), matching exactly this shape:
+
+        {
+          "graduation_readiness": {
+        {$indicatorList}
+            // one object per indicator above, each shaped:
+            // {"status": true or false, "remark": "one or two sentences"}
+          },
+          "final_evaluation": {
+            "summary_of_progress": "a short paragraph summarizing the startup's progress during incubation",
+            "post_incubation_recommendation": "a short paragraph recommending what should happen after incubation",
+            "scale_up_linkages": "a short paragraph on scale-up support, partners, or linkages worth pursuing"
+          },
+          "readiness_levels": {
+        {$typeList}
+            // one object per type above, each shaped:
+            // {"remarks": "one or two sentences explaining that score"}
+          }
+        }
+        PROMPT;
+    }
+
+    /**
+     * Everything about this startup worth grounding the draft in: its
+     * Information Sheet basics, its Pre/Post-Assessment readiness scores,
+     * its Active-Assessment documents (6/7/8) raw data, and its roadblock
+     * history. Dumped as plain labeled text (raw JSON for the documents,
+     * since their exact field shape isn't otherwise needed here) rather
+     * than a rigid schema — the model only needs to read it, not parse it.
+     */
+    protected function buildContext(Startup $startup): string
+    {
+        $startup->loadMissing(['informationSheet']);
+        $sheet = $startup->informationSheet;
+
+        $lines = [];
+        $lines[] = "Startup name: {$startup->company_name}";
+        $lines[] = 'Industry: '.($startup->industry_sector ?: 'Not specified');
+        $lines[] = 'Cohort: '.($startup->batch_label ?? 'Not specified');
+
+        if ($sheet) {
+            $lines[] = "\n--- Information Sheet ---";
+            $lines[] = 'Business description: '.($sheet->business_description ?: '—');
+            $lines[] = 'Startup overview: '.($sheet->startup_overview ?: '—');
+            $lines[] = 'Target market: '.($sheet->target_market ?: '—');
+            $lines[] = 'Problem statement: '.($sheet->problem_statement ?: '—');
+            $lines[] = 'Solution offered: '.($sheet->solution_offered ?: '—');
+
+            $legal = collect([
+                'SEC registration' => $sheet->sec_registration,
+                'Business ID number' => $sheet->business_id_number,
+                'DTI registration number' => $sheet->dti_registration_number,
+                'Business TIN' => $sheet->business_tin,
+            ])->filter(fn ($value) => filled($value));
+
+            $lines[] = 'Legal/registration on file: '.(
+                $legal->isNotEmpty()
+                    ? $legal->map(fn ($value, $label) => "{$label}: {$value}")->implode('; ')
+                    : 'None recorded'
+            );
+        }
+
+        foreach (['Pre-Assessment', 'Post-Assessment'] as $stage) {
+            $assessment = ReadinessLevelAssessment::where('startup_id', $startup->startup_id)
+                ->where('stage', $stage)
+                ->first();
+
+            if (! $assessment) {
+                continue;
+            }
+
+            $lines[] = "\n--- {$stage} Readiness Scores ---";
+
+            foreach (ReadinessRubric::TYPES as $type) {
+                $score = $assessment->scoreFor($type);
+                $lines[] = "{$type}: ".($score !== null ? "{$score}/9" : 'Not assessed');
+            }
+
+            if (filled($assessment->remarks)) {
+                $lines[] = 'Assessor remarks: '.$assessment->remarks;
+            }
+        }
+
+        $activeDocuments = AssessmentDocument::where('startup_id', $startup->startup_id)
+            ->where('stage', 'Active-Assessment')
+            ->whereIn('document_number', [6, 7, 8])
+            ->get();
+
+        if ($activeDocuments->isNotEmpty()) {
+            $lines[] = "\n--- Active-Assessment Documents (raw form data) ---";
+
+            foreach ($activeDocuments as $document) {
+                $lines[] = "Document {$document->document_number}: ".json_encode($document->data);
+            }
+        }
+
+        $roadblocks = $startup->roadblocks()->orderByDesc('created_at')->limit(20)->get();
+
+        if ($roadblocks->isNotEmpty()) {
+            $lines[] = "\n--- Roadblocks History (most recent first) ---";
+
+            foreach ($roadblocks as $roadblock) {
+                $description = Str::limit((string) $roadblock->description, 200);
+                $lines[] = "- [{$roadblock->status}] {$roadblock->display_category}: {$description}";
+            }
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Coerces the model's (possibly incomplete or oddly-shaped) JSON into
+     * exactly the fields the Venture Exit view expects — one entry per
+     * indicator/type the app actually defines, defaulting to a blank/false
+     * row for anything the model skipped or mis-named, so a partial AI
+     * response degrades gracefully instead of leaving the form half-wired.
+     */
+    protected function normalize(array $decoded): array
+    {
+        $graduationReadiness = [];
+
+        foreach (VentureExitForm::GRADUATION_READINESS_INDICATORS as $indicator) {
+            $row = $decoded['graduation_readiness'][$indicator] ?? [];
+
+            $graduationReadiness[$indicator] = [
+                'status' => (bool) ($row['status'] ?? false),
+                'remark' => is_string($row['remark'] ?? null) ? trim($row['remark']) : '',
+            ];
+        }
+
+        $finalEvaluation = is_array($decoded['final_evaluation'] ?? null) ? $decoded['final_evaluation'] : [];
+
+        $readinessLevels = [];
+
+        foreach (ReadinessRubric::TYPES as $type) {
+            $row = $decoded['readiness_levels'][$type] ?? [];
+
+            $readinessLevels[$type] = [
+                'remarks' => is_string($row['remarks'] ?? null) ? trim($row['remarks']) : '',
+            ];
+        }
+
+        return [
+            'graduation_readiness' => $graduationReadiness,
+            'summary_of_progress' => is_string($finalEvaluation['summary_of_progress'] ?? null)
+                ? trim($finalEvaluation['summary_of_progress']) : '',
+            'post_incubation_recommendation' => is_string($finalEvaluation['post_incubation_recommendation'] ?? null)
+                ? trim($finalEvaluation['post_incubation_recommendation']) : '',
+            'scale_up_linkages' => is_string($finalEvaluation['scale_up_linkages'] ?? null)
+                ? trim($finalEvaluation['scale_up_linkages']) : '',
+            'readiness_levels' => $readinessLevels,
+        ];
+    }
+}
