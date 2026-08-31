@@ -233,8 +233,8 @@
                                         </div>
                                     </td>
                                     <td class="border p-1">
-                                        <input type="text" x-model="ve.graduation_readiness['{{ $indicator }}'].remark"
-                                            class="w-full rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-rose-900">
+                                        <textarea x-model="ve.graduation_readiness['{{ $indicator }}'].remark" rows="2"
+                                            class="w-full resize-y rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-rose-900"></textarea>
                                     </td>
                                 </tr>
                             @endforeach
@@ -292,8 +292,8 @@
                                             class="w-full rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-rose-900">
                                     </td>
                                     <td class="border p-1">
-                                        <input type="text" x-model="ve.readiness_levels.{{ $type }}.remarks"
-                                            class="w-full rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-rose-900">
+                                        <textarea x-model="ve.readiness_levels.{{ $type }}.remarks" rows="2"
+                                            class="w-full resize-y rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-rose-900"></textarea>
                                     </td>
                                 </tr>
                             @endforeach
