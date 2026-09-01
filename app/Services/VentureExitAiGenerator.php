@@ -35,13 +35,22 @@ class VentureExitAiGenerator
 
         $model = config('services.gemini.model', 'gemini-3.6-flash');
 
+        // PHP's own script timeout (max_execution_time, often 30s by
+        // default) was killing this request before the Gemini call even
+        // finished — completely separate from the Http timeout below, and
+        // not something a try/catch here can intercept. Raise it just for
+        // this request rather than touching php.ini globally.
+        if (function_exists('set_time_limit')) {
+            set_time_limit(90);
+        }
+
         // Gemini's REST API authenticates via a "?key=" query string, not a
         // Bearer header — appended directly to the URL rather than relying
         // on a query-params helper that may not exist on every Http client
         // version.
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=".urlencode($apiKey);
 
-        $response = Http::timeout(60)->post($url, [
+        $response = Http::timeout(75)->post($url, [
             'system_instruction' => [
                 'parts' => [['text' => $this->systemPrompt()]],
             ],
@@ -51,6 +60,12 @@ class VentureExitAiGenerator
             'generationConfig' => [
                 'temperature' => 0.4,
                 'responseMimeType' => 'application/json',
+                // This is a straightforward extraction/drafting task, not
+                // one needing multi-step reasoning — disabling "thinking"
+                // (supported on Gemini 2.5+/3.x models) cuts latency
+                // substantially and was the main reason responses were
+                // running long enough to hit the timeout above.
+                'thinkingConfig' => ['thinkingBudget' => 0],
             ],
         ]);
 
