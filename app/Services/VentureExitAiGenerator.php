@@ -60,12 +60,13 @@ class VentureExitAiGenerator
             'generationConfig' => [
                 'temperature' => 0.4,
                 'responseMimeType' => 'application/json',
-                // This is a straightforward extraction/drafting task, not
-                // one needing multi-step reasoning — disabling "thinking"
-                // (supported on Gemini 2.5+/3.x models) cuts latency
-                // substantially and was the main reason responses were
-                // running long enough to hit the timeout above.
-                'thinkingConfig' => ['thinkingBudget' => 0],
+                // Tried disabling "thinking" here to cut latency, but the
+                // classic generateContent endpoint rejects thinking-control
+                // fields on current Gemini 3.x models ("Request contains an
+                // invalid argument") — that control has moved to Google's
+                // separate Interactions API, which this service doesn't
+                // use. Left plain; the timeout raise above is what actually
+                // fixes the original 30s cutoff.
             ],
         ]);
 
