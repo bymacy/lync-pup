@@ -173,7 +173,7 @@
                 <img src="{{ asset('images/icons/dashboard-admin.svg') }}" alt="" aria-hidden="true"
                     class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
                 <div class="relative z-10 flex h-full flex-col justify-between">
-                    <div class="flex shrink-0 items-center gap-3" style="height: 72px;">
+                    <div class="flex shrink-0 items-start gap-3" style="height: 72px;">
                         <div class="flex shrink-0 items-center justify-center rounded-2xl bg-[#FFD5DF]" style="width: 64px; height: 64px;">
                             <img src="{{ asset('images/icons/3person-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
                         </div>
@@ -190,7 +190,7 @@
                 <img src="{{ asset('images/icons/blue-line.svg') }}" alt="" aria-hidden="true"
                     class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
                 <div class="relative z-10 flex h-full flex-col justify-between">
-                    <div class="flex shrink-0 items-center gap-3" style="height: 72px;">
+                    <div class="flex shrink-0 items-start gap-3" style="height: 72px;">
                         <div class="flex shrink-0 items-center justify-center rounded-2xl bg-[#C1DBFF]" style="width: 64px; height: 64px;">
                             <img src="{{ asset('images/icons/1person-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
                         </div>
@@ -198,11 +198,11 @@
                             <p class="text-gray-800 font-semibold text-sm">Assessed Startup</p>
                             <div class="mt-1 space-y-0.5">
                                 <div class="flex items-baseline gap-2">
-                                    <span class="text-sm text-gray-500">Pre RL's</span>
+                                    <span class="text-sm text-gray-500 inline-block" style="width: 68px;">Pre RL's</span>
                                     <span class="font-bold text-gray-900 text-xl">{{ $stats['assessed_startup']['pre_rl'] }}</span>
                                 </div>
                                 <div class="flex items-baseline gap-2">
-                                    <span class="text-sm text-gray-500">Post RL's</span>
+                                    <span class="text-sm text-gray-500 inline-block" style="width: 68px;">Post RL's</span>
                                     <span class="font-bold text-gray-900 text-xl">{{ $stats['assessed_startup']['post_rl'] }}</span>
                                 </div>
                             </div>
@@ -216,7 +216,7 @@
                 <img src="{{ asset('images/icons/yellow-line.svg') }}" alt="" aria-hidden="true"
                     class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
                 <div class="relative z-10 flex h-full flex-col justify-between">
-                    <div class="flex shrink-0 items-center gap-3" style="height: 72px;">
+                    <div class="flex shrink-0 items-start gap-3" style="height: 72px;">
                         <div class="flex shrink-0 items-center justify-center rounded-2xl bg-[#FFDB96]" style="width: 64px; height: 64px;">
                             <img src="{{ asset('images/icons/bell-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
                         </div>
@@ -233,7 +233,7 @@
                 <img src="{{ asset('images/icons/purple-line.svg') }}" alt="" aria-hidden="true"
                     class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
                 <div class="relative z-10 flex h-full flex-col justify-between">
-                    <div class="flex shrink-0 items-center gap-3" style="height: 72px;">
+                    <div class="flex shrink-0 items-start gap-3" style="height: 72px;">
                         <div class="flex shrink-0 items-center justify-center rounded-2xl bg-[#DCCBFF]" style="width: 64px; height: 64px;">
                             <img src="{{ asset('images/icons/bell-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
                         </div>
@@ -250,8 +250,8 @@
         {{-- Incubation Progress + Risk Classification --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 items-stretch">
             <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
-                <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-5">
-                    <h2 class="text-white font-semibold text-xl">Incubation Progress</h2>
+                <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-3">
+                    <h2 class="text-white font-semibold text-lg">Incubation Progress</h2>
                 </div>
                 <div class="p-7 flex items-center gap-8">
                     <div class="relative shrink-0 rounded-full" style="width: 180px; height: 180px; background: {{ $incubationGradient }};">
@@ -269,12 +269,12 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($incubationProgress['breakdown'] as $row)
+                            @foreach ($incubationProgress['breakdown']->reverse() as $row)
                                 <tr class="border-b border-gray-100 last:border-0">
                                     <td class="py-2.5 pr-2">
-                                        <span class="flex items-start gap-2 text-gray-700 font-medium">
-                                            <span class="h-2.5 w-2.5 rounded-full shrink-0 mt-1" style="background: {{ $row['color'] }}"></span>
-                                            <span class="leading-tight">{{ $row['range'] }}</span>
+                                        <span class="flex items-center gap-2 text-gray-700 font-medium">
+                                            <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background: {{ $row['color'] }}"></span>
+                                            <span class="leading-tight text-[13px]">{{ $row['range'] }}</span>
                                         </span>
                                     </td>
                                     <td class="py-2.5 pl-2 text-right text-gray-500 whitespace-nowrap align-top">{{ $row['count'] }} ({{ $row['percent'] }}%)</td>
@@ -286,9 +286,12 @@
             </div>
 
             <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
-                <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-5 flex items-center justify-between">
-                    <h2 class="text-white font-semibold text-xl">Risk Classification</h2>
-                    <a href="{{ route('admin.risk-monitoring.index') }}" class="text-sm font-medium text-white/80 hover:text-white">See All</a>
+                <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-3 flex items-center justify-between">
+                    <h2 class="text-white font-semibold text-lg">Risk Classification</h2>
+                    <a href="{{ route('admin.risk-monitoring.index') }}" class="flex items-center gap-2 text-sm font-medium text-white/80 hover:text-white">
+                        See All
+                        <img src="{{ asset('images/icons/arrow-right.svg') }}" alt="" class="h-3 w-3">
+                    </a>
                 </div>
                 <div class="p-7 flex items-center gap-8">
                     <div class="relative shrink-0 rounded-full" style="width: 180px; height: 180px; background: {{ $riskGradient }};">
@@ -306,7 +309,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($riskClassification['breakdown'] as $row)
+                            @foreach ($riskClassification['breakdown']->reverse() as $row)
                                 <tr class="border-b border-gray-100 last:border-0">
                                     <td class="py-2.5 pr-2 whitespace-nowrap">
                                         <span class="flex items-center gap-2 text-gray-700 font-medium">
@@ -326,8 +329,8 @@
         {{-- Average Readiness Level --}}
         <div class="mb-8" x-data="{ stageOpen: false }">
             <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
-                <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
-                    <h2 class="text-white font-semibold text-xl">Average Readiness Level</h2>
+                <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-3 flex items-center justify-between">
+                    <h2 class="text-white font-semibold text-lg">Average Readiness Level</h2>
                     <div class="relative" @click.outside="stageOpen = false">
                         <button type="button" @click="stageOpen = !stageOpen"
                             class="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white">
@@ -337,7 +340,7 @@
                         <div x-show="stageOpen" x-cloak class="absolute right-0 z-20 mt-2 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-xl" style="width: 170px;">
                             @foreach (['Pre-Assessment', 'Post-Assessment'] as $s)
                                 <a href="{{ request()->fullUrlWithQuery(['readinessStage' => $s]) }}"
-                                    class="block px-4 py-2 text-sm {{ $readinessStage === $s ? 'text-[#6D0D23] font-semibold' : 'text-gray-700' }} hover:bg-gray-50">
+                                    class="block px-4 py-2 text-sm transition-colors {{ $readinessStage === $s ? 'text-[#6D0D23] font-semibold' : 'text-gray-700' }} hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                                     {{ $s }}
                                 </a>
                             @endforeach
@@ -354,16 +357,16 @@
                                 ['key' => 'SRL', 'label' => 'System / Market', 'color' => '#11386A'],
                             ];
                         @endphp
-                        <div class="flex flex-col xl:flex-row gap-8 items-center">
-                            <div class="shrink-0 mx-auto xl:mx-0 flex items-center justify-center" style="width: 300px; min-height: 260px;">
+                        <div class="flex flex-col xl:flex-row xl:justify-center gap-8 items-center">
+                            <div class="shrink-0 mx-auto flex items-center justify-center" style="width: 380px; min-height: 330px;">
                                 <x-readiness-radar
                                     :trl="$averageReadiness['scores']['TRL']"
                                     :mrl="$averageReadiness['scores']['MRL']"
                                     :tmrl="$averageReadiness['scores']['TMRL']"
                                     :srl="$averageReadiness['scores']['SRL']"
-                                    :size="270" />
+                                    :size="300" />
                             </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full" style="min-width: 0;">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full xl:max-w-2xl" style="min-width: 0;">
                                 @foreach ($categoryBoxes as $box)
                                     @php $score = $averageReadiness['scores'][$box['key']]; @endphp
                                     <div class="rounded-xl p-5" style="border: 2px solid {{ $box['color'] }}; min-width: 0;">
@@ -372,7 +375,7 @@
                                             <span class="text-3xl font-bold text-gray-900">{{ $box['key'] }} {{ $score }}</span><span class="text-base text-gray-400">/9</span>
                                         </p>
                                         <div class="mt-3 rounded-full bg-rose-100 overflow-hidden" style="height: 10px;">
-                                            <div class="h-full rounded-full" style="width: {{ min(100, ($score / 9) * 100) }}%; background: {{ $box['color'] }};"></div>
+                                            <div class="h-full rounded-full" style="width: {{ min(100, ($score / 9) * 100) }}%; background: #6D0D23;"></div>
                                         </div>
                                     </div>
                                 @endforeach
@@ -392,30 +395,30 @@
         {{-- Milestone Completion --}}
         <div class="mb-8">
             <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
-                <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4">
-                    <h2 class="text-white font-semibold text-xl">Milestone Completion</h2>
+                <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-3">
+                    <h2 class="text-white font-semibold text-lg">Milestone Completion</h2>
                 </div>
-                <div class="p-8 flex flex-col sm:flex-row items-center gap-8">
-                    <div class="shrink-0 text-center sm:pr-8 sm:text-left" style="width: 100%; max-width: 220px; border-right: 1px solid #F3F4F6;">
-                        <p class="text-base text-gray-500 mb-3">Overall Completion Rate</p>
+                <div class="p-8 flex flex-col sm:flex-row sm:items-stretch items-center gap-10">
+                    <div class="shrink-0 flex flex-col justify-center text-center sm:pr-10 sm:text-left" style="width: 100%; max-width: 380px; border-right: 1px solid #D1D5DB;">
+                        <p class="text-base text-gray-900 mb-3">Overall Completion Rate</p>
                         <p class="text-4xl font-bold text-[#6D0D23]">{{ $milestones['overall_percent'] }}%</p>
                         <div class="mt-4 rounded-full bg-rose-100 overflow-hidden" style="height: 12px;">
-                            <div class="h-full rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A]" style="width: {{ $milestones['overall_percent'] }}%;"></div>
+                            <div class="h-full rounded-full" style="width: {{ $milestones['overall_percent'] }}%; background: #6D0D23;"></div>
                         </div>
                     </div>
                     <div class="flex-1 w-full">
-                        <div class="flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-gray-400 mb-4">
+                        <div class="flex items-center justify-between text-sm text-gray-900 mb-4">
                             <span>Milestones</span>
                             <span>% Completed</span>
                         </div>
                         <div class="space-y-4">
                             @foreach ($milestones['milestones'] as $m)
                                 <div class="flex items-center justify-between gap-4">
-                                    <span class="text-sm text-gray-700 shrink-0" style="width: 170px;">{{ $m['label'] }}</span>
+                                    <span class="text-sm text-gray-900 shrink-0" style="width: 170px;">{{ $m['label'] }}</span>
                                     <div class="flex-1 rounded-full bg-rose-100 overflow-hidden" style="height: 10px;">
-                                        <div class="h-full rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A]" style="width: {{ $m['percent'] }}%;"></div>
+                                        <div class="h-full rounded-full" style="width: {{ $m['percent'] }}%; background: #6D0D23;"></div>
                                     </div>
-                                    <span class="text-sm text-gray-500 shrink-0" style="width: 40px; text-align: right;">{{ $m['percent'] }}%</span>
+                                    <span class="text-sm text-gray-700 shrink-0" style="width: 40px; text-align: right;">{{ $m['percent'] }}%</span>
                                 </div>
                             @endforeach
                         </div>

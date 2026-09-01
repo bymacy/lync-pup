@@ -24,10 +24,10 @@
             // One definition per card so the four stay structurally identical — a change to
             // padding or watermark size happens once, not four times.
             $stats = [
-            ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#F7C5CF]', 'bg' => 'bg-[#FFE8EE]'],
-            ['label' => 'Active', 'value' => $totals['active'], 'icon' => 'personcheck.svg', 'border' => 'border-[#B8D7FF]', 'bg' => 'bg-[#CDE2FF]'],
-            ['label' => 'Assign Coordinator', 'value' => $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#F5D27B]', 'bg' => 'bg-[#FFE2AA]'],
-            ['label' => 'Pending', 'value' => $totals['pending'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#DEC8FF]', 'bg' => 'bg-[#E3D4FF]'],
+            ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FFE8EE]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => $cohortBreakdown],
+            ['label' => 'Active', 'value' => $totals['active'], 'icon' => 'personcheck.svg', 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]', 'note' => $totals['active'].'/'.$totals['total'].' startup are active'],
+            ['label' => 'Assign Coordinator', 'value' => $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FFE2AA]', 'bg' => 'bg-[#FFFBF2]', 'note' => $totals['needsCoordinator'].'/'.$totals['total'].' startup needs assigned coordinator'],
+            ['label' => 'Pending', 'value' => $totals['pending'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E3D4FF]', 'bg' => 'bg-[#FAF6FF]', 'note' => $totals['pending'].'/'.$totals['total'].' startup is under evaluation'],
             ];
             @endphp
 
@@ -40,21 +40,42 @@
                 @foreach ($stats as $stat)
                 {{-- relative + overflow-hidden are what let the silhouette bleed off the card
              edge without spilling into the grid gap. --}}
-                <div class="relative overflow-hidden rounded-xl border {{ $stat['border'] }} {{ $stat['bg'] }} p-5">
+                <div class="relative overflow-hidden rounded-xl border-[3px] {{ $stat['border'] }} {{ $stat['bg'] }} p-5">
 
                     {{-- Watermark. aria-hidden because it carries no meaning — the label and
                  number already say everything. black/10 rather than a tinted color so
                  the same value reads correctly on all four card backgrounds. --}}
                     <span aria-hidden="true"
-                        class="pointer-events-none absolute -bottom-4 right-2 text-black/10 [&>svg]:h-28 [&>svg]:w-28">
-                        {!! $icon($stat['icon'], 'h-28 w-28') !!}
+                        class="pointer-events-none absolute bottom-0 right-0 text-black/10 [&>svg]:h-24 [&>svg]:w-24">
+                        {!! $icon($stat['icon'], 'h-24 w-24') !!}
                     </span>
 
                     {{-- relative lifts the text above the watermark without needing z-index
                  on the watermark itself. --}}
-                    <div class="relative">
-                        <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
-                        <p class="text-4xl font-bold mt-1">{{ $stat['value'] }}</p>
+                    <div class="relative h-full">
+                        @if (! empty($stat['breakdown']) && $stat['breakdown']->isNotEmpty())
+                            <div style="padding-right: 70px;">
+                                <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                                <div class="mt-1.5 space-y-0.5">
+                                    @foreach ($stat['breakdown'] as $b)
+                                        <p class="text-sm leading-tight">
+                                            <span class="font-semibold text-[#6D0D23] inline-block text-right" style="min-width: 26px;">{{ $b['count'] }}</span>
+                                            <span class="text-gray-500">&middot; {{ $b['label'] }}</span>
+                                        </p>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <p class="absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
+                        @elseif (! empty($stat['note']))
+                            <div style="padding-right: 70px;">
+                                <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                                <p class="text-sm text-[#6D0D23] mt-1 leading-snug">{{ $stat['note'] }}</p>
+                            </div>
+                            <p class="absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
+                        @else
+                            <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                            <p class="text-4xl font-bold mt-1">{{ $stat['value'] }}</p>
+                        @endif
                     </div>
                 </div>
                 @endforeach
