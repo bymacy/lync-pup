@@ -16,12 +16,13 @@ use RuntimeException;
  * from a startup's existing assessment history, via Google's Gemini API —
  * the Graduation Readiness checklist's Status+Remark, the three Final
  * Evaluation and Exit Support Plan textareas, and the Post Program
- * Readiness Level table's Remarks column. Deliberately never touches
- * "Highest Level" (that already prefills from saved Post-Assessment scores
- * — see _venture-exit.blade.php) and never saves anything itself: this is
- * a first draft only, returned to the admin's screen for them to review,
- * edit, and save through the normal Save Assessment flow
- * (AssessmentController::updateDocuments()).
+ * Readiness Level table's Highest Level + Remarks columns. A genuinely
+ * saved Post-Assessment score always wins over an AI guess — the view
+ * (_venture-exit.blade.php) only lets an AI-drafted Highest Level fill a
+ * field that's currently blank, never overwrite a real one. Never saves
+ * anything itself: this is a first draft only, returned to the admin's
+ * screen for them to review, edit, and save through the normal Save
+ * Assessment flow (AssessmentController::updateDocuments()).
  */
 class VentureExitAiGenerator
 {
@@ -35,13 +36,22 @@ class VentureExitAiGenerator
 
         $model = config('services.gemini.model', 'gemini-3.6-flash');
 
+        // PHP's own script timeout (max_execution_time, often 30s by
+        // default) was killing this request before the Gemini call even
+        // finished — completely separate from the Http timeout below, and
+        // not something a try/catch here can intercept. Raise it just for
+        // this request rather than touching php.ini globally.
+        if (function_exists('set_time_limit')) {
+            set_time_limit(90);
+        }
+
         // Gemini's REST API authenticates via a "?key=" query string, not a
         // Bearer header — appended directly to the URL rather than relying
         // on a query-params helper that may not exist on every Http client
         // version.
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=".urlencode($apiKey);
 
-        $response = Http::timeout(60)->post($url, [
+        $response = Http::timeout(75)->post($url, [
             'system_instruction' => [
                 'parts' => [['text' => $this->systemPrompt()]],
             ],
@@ -51,6 +61,13 @@ class VentureExitAiGenerator
             'generationConfig' => [
                 'temperature' => 0.4,
                 'responseMimeType' => 'application/json',
+                // Tried disabling "thinking" here to cut latency, but the
+                // classic generateContent endpoint rejects thinking-control
+                // fields on current Gemini 3.x models ("Request contains an
+                // invalid argument") — that control has moved to Google's
+                // separate Interactions API, which this service doesn't
+                // use. Left plain; the timeout raise above is what actually
+                // fixes the original 30s cutoff.
             ],
         ]);
 
@@ -151,7 +168,14 @@ class VentureExitAiGenerator
           "readiness_levels": {
         {$typeList}
             // one object per type above, each shaped:
-            // {"remarks": "one or two sentences explaining that score"}
+            // {"highest_level": "X/9", "remarks": "one or two sentences explaining that score"}
+            // For highest_level: if the startup data includes an actual
+            // Post-Assessment score for that type, use it as-is. If there is
+            // no Post-Assessment score, give your own best-estimate score
+            // (0-9) based on the Pre-Assessment score (if any) and everything
+            // else in the data, formatted as "X/9". If there truly isn't
+            // enough evidence to estimate anything, leave it as an empty
+            // string rather than guessing blindly.
           }
         }
         PROMPT;
@@ -273,6 +297,7 @@ class VentureExitAiGenerator
             $row = $decoded['readiness_levels'][$type] ?? [];
 
             $readinessLevels[$type] = [
+                'highest_level' => is_string($row['highest_level'] ?? null) ? trim($row['highest_level']) : '',
                 'remarks' => is_string($row['remarks'] ?? null) ? trim($row['remarks']) : '',
             ];
         }
