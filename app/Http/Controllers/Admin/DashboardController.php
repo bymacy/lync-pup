@@ -123,7 +123,36 @@ class DashboardController extends Controller
         $atRiskCount = $startupsForRisk->filter(
             fn (Startup $s) => RiskEngine::assess($s, $documentsByStartup->get($s->startup_id))['score'] > 0
         )->count();
+        // Percentage is against the TOTAL startup pool, not the assessed
+        // pool — RiskEngine flags risk independently of assessment stage
+        // (via info sheet, coordinator assignment, roadblocks, etc.), so an
+        // at-risk startup is not guaranteed to be one of the assessed ones.
+        // atRiskCount is filtered from the same $startupIds used for
+        // $totalStartups, so this ratio can never exceed 100%.
         $atRiskPct = $totalStartups > 0 ? round(($atRiskCount / $totalStartups) * 100, 1) : 0.0;
+
+        // Week-over-week growth for the Pre/Post RL counts, used for the
+        // "Pre RL's up X% | Post RL's up Y%" caption. Compares today's
+        // cumulative count against the cumulative count as of a week ago
+        // (consistent with the weekly buckets used elsewhere for
+        // sparklines). A prior count of 0 is reported as +100% growth if
+        // any assessments now exist, or 0% if there are still none.
+        $preRlCountLastWeek = ReadinessLevelAssessment::where('stage', 'Pre-Assessment')
+            ->whereNotNull('overall_score')
+            ->whereIn('startup_id', $startupIds)
+            ->where('created_at', '<=', now()->subWeek())
+            ->count();
+        $postRlCountLastWeek = ReadinessLevelAssessment::where('stage', 'Post-Assessment')
+            ->whereNotNull('overall_score')
+            ->whereIn('startup_id', $startupIds)
+            ->where('created_at', '<=', now()->subWeek())
+            ->count();
+        $preRlTrend = $preRlCountLastWeek > 0
+            ? round((($preRlCount - $preRlCountLastWeek) / $preRlCountLastWeek) * 100, 1)
+            : ($preRlCount > 0 ? 100.0 : 0.0);
+        $postRlTrend = $postRlCountLastWeek > 0
+            ? round((($postRlCount - $postRlCountLastWeek) / $postRlCountLastWeek) * 100, 1)
+            : ($postRlCount > 0 ? 100.0 : 0.0);
 
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
@@ -141,6 +170,8 @@ class DashboardController extends Controller
                 'value' => $assessedCount,
                 'pre_rl' => $preRlCount,
                 'post_rl' => $postRlCount,
+                'pre_rl_trend' => $preRlTrend,
+                'post_rl_trend' => $postRlTrend,
                 'sparkline' => $this->weeklyCounts(
                     ReadinessLevelAssessment::whereIn('startup_id', $startupIds)->whereNotNull('overall_score'),
                     'created_at'
