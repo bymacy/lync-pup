@@ -55,9 +55,9 @@ class VentureExitAiGenerator
         ]);
 
         if ($response->failed()) {
-            $message = $response->json('error.message');
+            $message = $response->json('error.message') ?: 'The AI service returned an error. Please try again.';
 
-            throw new RuntimeException($message ?: 'The AI service returned an error. Please try again.');
+            throw new RuntimeException($this->explainGeminiError($message));
         }
 
         $content = $response->json('candidates.0.content.parts.0.text');
@@ -73,6 +73,39 @@ class VentureExitAiGenerator
         }
 
         return $this->normalize($decoded);
+    }
+
+    /**
+     * Gemini's raw error text is accurate but assumes familiarity with its
+     * API — this appends a plain-language hint for the handful of causes
+     * that keep coming up when different people set up their own
+     * GEMINI_API_KEY (each admin needs their own; .env is never shared via
+     * git), so whoever hits it can self-diagnose instead of having to ask.
+     * The original message is always kept, just with a hint tacked on.
+     */
+    protected function explainGeminiError(string $message): string
+    {
+        $hint = match (true) {
+            // Gemini's free-tier model lineup is retired/renamed often —
+            // a model name that worked when this was built can stop
+            // working for newly-created keys within months.
+            str_contains($message, 'is not found for API') || str_contains($message, 'not supported for generateContent') =>
+                'The model name in GEMINI_MODEL (config/services.php or .env) is no longer available. '
+                .'Check https://ai.google.dev/gemini-api/docs/models for a current free-tier model name and update GEMINI_MODEL to match.',
+
+            str_contains($message, 'API key not valid') =>
+                'Double-check the value saved as GEMINI_API_KEY in .env — it looks like it was copied incorrectly, '
+                .'or the key was deleted/regenerated. Get a fresh one at https://aistudio.google.com/apikey.',
+
+            str_contains($message, 'invalid authentication credentials') || str_contains($message, 'OAuth 2 access token') =>
+                'Google didn\'t recognize this as a Generative Language API key — this usually means the value in '
+                .'GEMINI_API_KEY is the wrong kind of credential (e.g. a different Google Cloud key/token, not an '
+                .'AI Studio key). Generate one specifically from https://aistudio.google.com/apikey and use that.',
+
+            default => null,
+        };
+
+        return $hint ? "{$message} — {$hint}" : $message;
     }
 
     /**
