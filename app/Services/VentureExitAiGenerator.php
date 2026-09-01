@@ -16,12 +16,13 @@ use RuntimeException;
  * from a startup's existing assessment history, via Google's Gemini API —
  * the Graduation Readiness checklist's Status+Remark, the three Final
  * Evaluation and Exit Support Plan textareas, and the Post Program
- * Readiness Level table's Remarks column. Deliberately never touches
- * "Highest Level" (that already prefills from saved Post-Assessment scores
- * — see _venture-exit.blade.php) and never saves anything itself: this is
- * a first draft only, returned to the admin's screen for them to review,
- * edit, and save through the normal Save Assessment flow
- * (AssessmentController::updateDocuments()).
+ * Readiness Level table's Highest Level + Remarks columns. A genuinely
+ * saved Post-Assessment score always wins over an AI guess — the view
+ * (_venture-exit.blade.php) only lets an AI-drafted Highest Level fill a
+ * field that's currently blank, never overwrite a real one. Never saves
+ * anything itself: this is a first draft only, returned to the admin's
+ * screen for them to review, edit, and save through the normal Save
+ * Assessment flow (AssessmentController::updateDocuments()).
  */
 class VentureExitAiGenerator
 {
@@ -167,7 +168,14 @@ class VentureExitAiGenerator
           "readiness_levels": {
         {$typeList}
             // one object per type above, each shaped:
-            // {"remarks": "one or two sentences explaining that score"}
+            // {"highest_level": "X/9", "remarks": "one or two sentences explaining that score"}
+            // For highest_level: if the startup data includes an actual
+            // Post-Assessment score for that type, use it as-is. If there is
+            // no Post-Assessment score, give your own best-estimate score
+            // (0-9) based on the Pre-Assessment score (if any) and everything
+            // else in the data, formatted as "X/9". If there truly isn't
+            // enough evidence to estimate anything, leave it as an empty
+            // string rather than guessing blindly.
           }
         }
         PROMPT;
@@ -289,6 +297,7 @@ class VentureExitAiGenerator
             $row = $decoded['readiness_levels'][$type] ?? [];
 
             $readinessLevels[$type] = [
+                'highest_level' => is_string($row['highest_level'] ?? null) ? trim($row['highest_level']) : '',
                 'remarks' => is_string($row['remarks'] ?? null) ? trim($row['remarks']) : '',
             ];
         }

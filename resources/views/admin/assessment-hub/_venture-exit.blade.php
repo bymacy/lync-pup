@@ -69,6 +69,16 @@
         async generateWithAi() {
             this.aiError = '';
             this.aiGenerating = true;
+            // Date of Assessment is always just today's date — no need to
+            // ask the AI for it, and no risk of overwriting a real value
+            // since this only fills it in when it's currently blank.
+            if (! this.ve.date_of_assessment) {
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                this.ve.date_of_assessment = `${yyyy}-${mm}-${dd}`;
+            }
             try {
                 const response = await fetch('{{ route('admin.assessment-hub.assessments.venture-exit.generate-ai', $selectedStartup) }}', {
                     method: 'POST',
@@ -95,6 +105,12 @@
                 Object.keys(this.ve.readiness_levels).forEach(key => {
                     const row = data.readiness_levels?.[key];
                     if (row) {
+                        // A genuinely saved Post-Assessment score always wins
+                        // over an AI guess — only fill Highest Level in when
+                        // it's currently blank, never overwrite a real one.
+                        if (! this.ve.readiness_levels[key].highest_level && row.highest_level) {
+                            this.ve.readiness_levels[key].highest_level = row.highest_level;
+                        }
                         this.ve.readiness_levels[key].remarks = row.remarks || '';
                     }
                 });
@@ -273,7 +289,7 @@
 
             <div class="mb-2">
                 <p class="mb-2 font-bold text-gray-900">(3) Post Program Readiness Level</p>
-                <p class="mb-2 text-xs italic text-gray-500">Highest Level prefills from this startup's saved Post-Assessment scores, but can be edited.</p>
+                <p class="mb-2 text-xs italic text-gray-500">Highest Level prefills from this startup's saved Post-Assessment scores (or an AI estimate if none exists yet), but can be edited.</p>
                 <div class="overflow-x-auto">
                     <table class="w-full border text-sm">
                         <thead>
