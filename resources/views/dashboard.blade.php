@@ -169,60 +169,81 @@
 
         {{-- Stat cards --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <p class="text-gray-500 text-base">Total Startup</p>
-                    <div class="flex items-center justify-center rounded-full bg-[#CDE2FF] text-[#2563EB]" style="width: 46px; height: 46px;">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" />
-                        </svg>
+            <div class="relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#FFE8EE] bg-[#FFF7F7] p-5 shadow-sm" style="height: 152px;">
+                <img src="{{ asset('images/icons/dashboard-admin.svg') }}" alt="" aria-hidden="true"
+                    class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
+                <div class="relative z-10 flex h-full flex-col justify-between">
+                    <div class="flex shrink-0 items-center gap-3" style="height: 72px;">
+                        <div class="flex shrink-0 items-center justify-center rounded-2xl bg-[#FFD5DF]" style="width: 64px; height: 64px;">
+                            <img src="{{ asset('images/icons/3person-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-gray-800 font-semibold text-sm">Total Startup</p>
+                            <p class="font-bold text-gray-900" style="font-size: 1.875rem; line-height: 1.1;">{{ $totalStartups }}</p>
+                        </div>
                     </div>
+                    <p class="text-sm text-[#6D0D23] mt-3">Active startup in the system</p>
                 </div>
-                <p class="font-bold mt-2 text-gray-900" style="font-size: 2.5rem; line-height: 1.1;">{{ $totalStartups }}</p>
-                <p class="text-sm text-gray-400 mt-1">Active startup in the system</p>
-                <div class="mt-4"><x-sparkline :points="$stats['total_startup']['sparkline']" color="#2563EB" /></div>
             </div>
 
-            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <p class="text-gray-500 text-base">Assessed Startup</p>
-                    <div class="flex items-center justify-center rounded-full bg-green-50 text-green-600" style="width: 46px; height: 46px;">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+            <div class="relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#D2E5FF] bg-[#F8FBFF] p-5 shadow-sm" style="height: 152px;">
+                <img src="{{ asset('images/icons/blue-line.svg') }}" alt="" aria-hidden="true"
+                    class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
+                <div class="relative z-10 flex h-full flex-col justify-between">
+                    <div class="flex shrink-0 items-center gap-3" style="height: 72px;">
+                        <div class="flex shrink-0 items-center justify-center rounded-2xl bg-[#C1DBFF]" style="width: 64px; height: 64px;">
+                            <img src="{{ asset('images/icons/1person-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-gray-800 font-semibold text-sm">Assessed Startup</p>
+                            <div class="mt-1 space-y-0.5">
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-sm text-gray-500">Pre RL's</span>
+                                    <span class="font-bold text-gray-900 text-xl">{{ $stats['assessed_startup']['pre_rl'] }}</span>
+                                </div>
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-sm text-gray-500">Post RL's</span>
+                                    <span class="font-bold text-gray-900 text-xl">{{ $stats['assessed_startup']['post_rl'] }}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                    <p class="text-sm text-[#6D0D23] mt-3">Pre RL's {{ $stats['assessed_startup']['pre_rl_trend'] >= 0 ? 'up' : 'down' }} {{ abs($stats['assessed_startup']['pre_rl_trend']) }}% | Post RL's {{ $stats['assessed_startup']['post_rl_trend'] >= 0 ? 'up' : 'down' }} {{ abs($stats['assessed_startup']['post_rl_trend']) }}%</p>
                 </div>
-                <p class="font-bold mt-2 text-gray-900" style="font-size: 2.5rem; line-height: 1.1;">{{ $stats['assessed_startup']['value'] }}</p>
-                <p class="text-sm text-gray-400 mt-1">Pre RL's {{ $stats['assessed_startup']['pre_rl'] }} &middot; Post RL's {{ $stats['assessed_startup']['post_rl'] }}</p>
-                <div class="mt-4"><x-sparkline :points="$stats['assessed_startup']['sparkline']" color="#16A34A" /></div>
             </div>
 
-            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <p class="text-gray-500 text-base">At Risk Startup</p>
-                    <div class="flex items-center justify-center rounded-full bg-rose-50 text-rose-600" style="width: 46px; height: 46px;">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008M10.29 3.86L1.82 18a1.5 1.5 0 001.3 2.25h17.76a1.5 1.5 0 001.3-2.25L14.71 3.86a1.5 1.5 0 00-2.42 0z" />
-                        </svg>
+            <div class="relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#FFEAC1] bg-[#FFFBF2] p-5 shadow-sm" style="height: 152px;">
+                <img src="{{ asset('images/icons/yellow-line.svg') }}" alt="" aria-hidden="true"
+                    class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
+                <div class="relative z-10 flex h-full flex-col justify-between">
+                    <div class="flex shrink-0 items-center gap-3" style="height: 72px;">
+                        <div class="flex shrink-0 items-center justify-center rounded-2xl bg-[#FFDB96]" style="width: 64px; height: 64px;">
+                            <img src="{{ asset('images/icons/bell-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-gray-800 font-semibold text-sm">At Risk Startup</p>
+                            <p class="font-bold text-gray-900" style="font-size: 1.875rem; line-height: 1.1;">{{ $stats['at_risk_startup']['value'] }}</p>
+                        </div>
                     </div>
+                    <p class="text-sm text-[#6D0D23] mt-3">{{ $stats['at_risk_startup']['percent_of_total'] }}% of total startup</p>
                 </div>
-                <p class="font-bold mt-2 text-gray-900" style="font-size: 2.5rem; line-height: 1.1;">{{ $stats['at_risk_startup']['value'] }}</p>
-                <p class="text-sm text-gray-400 mt-1">{{ $stats['at_risk_startup']['percent_of_total'] }}% of total startup</p>
-                <div class="mt-4"><x-sparkline :points="$stats['at_risk_startup']['sparkline']" color="#DC2626" /></div>
             </div>
 
-            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <p class="text-gray-500 text-base">Intervention Provided</p>
-                    <div class="flex items-center justify-center rounded-full bg-amber-50 text-amber-600" style="width: 46px; height: 46px;">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a4 4 0 115.656 0A4.978 4.978 0 0012 17.945V19a2 2 0 11-4 0v-1.055a4.978 4.978 0 00-1.121-2.702z" />
-                        </svg>
+            <div class="relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#D8C7FF] bg-[#FAF6FF] p-5 shadow-sm" style="height: 152px;">
+                <img src="{{ asset('images/icons/purple-line.svg') }}" alt="" aria-hidden="true"
+                    class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
+                <div class="relative z-10 flex h-full flex-col justify-between">
+                    <div class="flex shrink-0 items-center gap-3" style="height: 72px;">
+                        <div class="flex shrink-0 items-center justify-center rounded-2xl bg-[#DCCBFF]" style="width: 64px; height: 64px;">
+                            <img src="{{ asset('images/icons/bell-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-gray-800 font-semibold text-sm">Intervention Provided</p>
+                            <p class="font-bold text-gray-900" style="font-size: 1.875rem; line-height: 1.1;">{{ $stats['intervention_provided']['value'] }}</p>
+                        </div>
                     </div>
+                    <p class="text-sm text-[#6D0D23] mt-3">This month</p>
                 </div>
-                <p class="font-bold mt-2 text-gray-900" style="font-size: 2.5rem; line-height: 1.1;">{{ $stats['intervention_provided']['value'] }}</p>
-                <p class="text-sm text-gray-400 mt-1">Roadblocks resolved this month</p>
-                <div class="mt-4"><x-sparkline :points="$stats['intervention_provided']['sparkline']" color="#D97706" /></div>
             </div>
         </div>
 
