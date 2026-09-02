@@ -35,7 +35,7 @@ return $url
 
         <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[560px] text-sm">
+                <table class="w-full min-w-[560px] table-fixed text-sm">
                     <thead>
                         <tr class="{{ $gradient }} text-white text-center">
                             <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Startup</th>
@@ -135,7 +135,7 @@ return $url
 
             <div class="overflow-hidden rounded-xl">
                 <div class="max-h-80 overflow-y-auto overflow-x-auto">
-                    <table class="w-full min-w-[300px] text-sm">
+                    <table class="w-full min-w-[300px] table-fixed text-sm">
                         <thead class="sticky top-0">
                             <tr class="{{ $gradient }} text-white text-center">
                                 <th class="px-2.5 py-2 text-[10px] font-semibold tracking-wider">Time</th>

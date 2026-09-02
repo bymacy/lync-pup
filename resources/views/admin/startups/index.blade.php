@@ -36,17 +36,36 @@
                 <p class="text-gray-500 mt-1">Monitor readiness, detect weak spots, and act on each startup.</p>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+            {{--
+                Phone-width tightening: same treatment as the Dashboard and
+                Founder Application stat cards — they sit 2-up even below the
+                sm breakpoint, so the large h-24 watermark icon and 4xl
+                absolute number need to shrink to fit a narrow column on a
+                phone. Plain scoped CSS rather than Tailwind classes because
+                this app's CSS bundle is pre-compiled and these exact
+                sizes/media queries aren't already present in it.
+            --}}
+            <style>
+                @media (max-width: 639px) {
+                    .startup-stat-card { padding: 12px !important; }
+                    .startup-stat-card .stat-watermark-lg svg { width: 56px !important; height: 56px !important; }
+                    .startup-stat-card .stat-text-wrap { padding-right: 44px !important; }
+                    .startup-stat-card .stat-value-lg { font-size: 1.35rem !important; }
+                    .startup-stat-card .stat-value-plain { font-size: 1.35rem !important; }
+                }
+            </style>
+
+            <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-8">
                 @foreach ($stats as $stat)
                 {{-- relative + overflow-hidden are what let the silhouette bleed off the card
              edge without spilling into the grid gap. --}}
-                <div class="relative overflow-hidden rounded-xl border-[3px] {{ $stat['border'] }} {{ $stat['bg'] }} p-5">
+                <div class="startup-stat-card relative overflow-hidden rounded-xl border-[3px] {{ $stat['border'] }} {{ $stat['bg'] }} p-5">
 
                     {{-- Watermark. aria-hidden because it carries no meaning — the label and
                  number already say everything. black/10 rather than a tinted color so
                  the same value reads correctly on all four card backgrounds. --}}
                     <span aria-hidden="true"
-                        class="pointer-events-none absolute bottom-0 right-0 text-black/10 [&>svg]:h-24 [&>svg]:w-24">
+                        class="stat-watermark-lg pointer-events-none absolute bottom-0 right-0 text-black/10 [&>svg]:h-24 [&>svg]:w-24">
                         {!! $icon($stat['icon'], 'h-24 w-24') !!}
                     </span>
 
@@ -54,7 +73,7 @@
                  on the watermark itself. --}}
                     <div class="relative h-full">
                         @if (! empty($stat['breakdown']) && $stat['breakdown']->isNotEmpty())
-                            <div style="padding-right: 70px;">
+                            <div class="stat-text-wrap" style="padding-right: 70px;">
                                 <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
                                 <div class="mt-1.5 space-y-0.5">
                                     @foreach ($stat['breakdown'] as $b)
@@ -65,16 +84,16 @@
                                     @endforeach
                                 </div>
                             </div>
-                            <p class="absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
+                            <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
                         @elseif (! empty($stat['note']))
-                            <div style="padding-right: 70px;">
+                            <div class="stat-text-wrap" style="padding-right: 70px;">
                                 <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
                                 <p class="text-sm text-[#6D0D23] mt-1 leading-snug">{{ $stat['note'] }}</p>
                             </div>
-                            <p class="absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
+                            <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
                         @else
                             <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
-                            <p class="text-4xl font-bold mt-1">{{ $stat['value'] }}</p>
+                            <p class="stat-value-plain text-4xl font-bold mt-1">{{ $stat['value'] }}</p>
                         @endif
                     </div>
                 </div>
@@ -82,7 +101,7 @@
             </div>
 
             <div class="border-b border-gray-300 mb-8">
-                <nav class="flex overflow-x-auto whitespace-nowrap">
+                <nav class="flex overflow-x-auto overflow-y-hidden whitespace-nowrap">
                     @foreach ([
                     'all' => 'All',
                     'active' => 'Active',

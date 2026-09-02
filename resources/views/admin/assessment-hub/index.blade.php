@@ -20,7 +20,7 @@
 
         @include('admin.assessment-hub._export-modal')
 
-        <div class="mb-6 flex gap-6 overflow-x-auto border-b sm:gap-8">
+        <div class="mb-6 flex gap-6 overflow-x-auto overflow-y-hidden border-b sm:gap-8">
             <button type="button" @click="mainTab = 'information-sheet'"
                 :class="mainTab === 'information-sheet' ? 'border-rose-900 text-rose-900 font-bold' : 'border-transparent text-gray-400 font-medium'"
                 class="-mb-px shrink-0 whitespace-nowrap border-b-2 pb-3 text-base sm:text-lg">
@@ -42,7 +42,7 @@
             x-init="$watch('subTab', value => setQueryParam('tab', value))">
 
             {{-- replaces the old border-b sub-tab row --}}
-            <div class="mb-6 flex w-full gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1 sm:inline-flex sm:w-auto sm:gap-0">
+            <div class="mb-6 flex w-full gap-1 overflow-x-auto overflow-y-hidden rounded-lg bg-gray-100 p-1 sm:inline-flex sm:w-auto sm:gap-0">
                 @foreach ($subTabs as $key => $label)
                 <button type="button" @click="subTab = '{{ $key }}'"
                     class="flex-1 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition sm:flex-none sm:px-4"

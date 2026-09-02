@@ -64,6 +64,23 @@ class FounderApplicationController extends Controller
             ],
             'cohorts' => Cohort::where('status', 'Active')->orderBy('number')->get(),
             'coordinators' => Coordinator::orderBy('coordinator_id')->get(),
+            // Same "Total X" breakdown pattern as the Startup Profile page's
+            // cohortBreakdown: groups on cohort_number (populated once an
+            // application is approved, see approve() above), scoped to the
+            // same Startup+role='Startup' set the "Total Application" count
+            // itself uses, so a pending/rejected applicant (no cohort yet)
+            // simply doesn't show up in the breakdown.
+            'cohortBreakdown' => Startup::query()
+                ->whereHas('user', fn ($q) => $q->where('role', 'Startup'))
+                ->whereNotNull('cohort_number')
+                ->selectRaw('cohort_number, count(*) as total')
+                ->groupBy('cohort_number')
+                ->orderBy('cohort_number')
+                ->get()
+                ->map(fn ($row) => [
+                    'count' => $row->total,
+                    'label' => "Cohort {$row->cohort_number}",
+                ]),
         ]);
     }
 

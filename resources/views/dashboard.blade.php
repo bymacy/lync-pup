@@ -60,7 +60,7 @@
                 <p class="text-gray-500 mt-2 text-base">Overview of intervention, sheets, request, updates, and mentor coordination</p>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 ml-auto">
                 {{-- Cohort selector dropdown --}}
                 <div class="relative" @click.outside="cohortMenuOpen = false">
                     <button type="button" @click="cohortMenuOpen = !cohortMenuOpen"
@@ -77,7 +77,7 @@
                         <div class="py-2">
                             <p class="px-4 pb-1 text-xs font-semibold uppercase tracking-widest text-gray-400">Active</p>
                             <a href="{{ request()->fullUrlWithQuery(['cohort' => null]) }}"
-                                class="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                class="flex items-center justify-between px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                                 All Cohort
                                 @if (! $selectedCohort)
                                     <svg class="h-4 w-4 text-[#6D0D23]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
@@ -85,7 +85,7 @@
                             </a>
                             @foreach ($cohorts->where('status', 'Active') as $c)
                                 <a href="{{ request()->fullUrlWithQuery(['cohort' => $c->cohort_id]) }}"
-                                    class="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                    class="flex items-center justify-between px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                                     {{ $c->display_label }}
                                     @if ($selectedCohort && $selectedCohort->cohort_id === $c->cohort_id)
                                         <svg class="h-4 w-4 text-[#6D0D23]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
@@ -98,7 +98,7 @@
                                 <p class="px-4 pb-1 text-xs font-semibold uppercase tracking-widest text-gray-400">Archived</p>
                                 @foreach ($cohorts->where('status', 'Inactive') as $c)
                                     <a href="{{ request()->fullUrlWithQuery(['cohort' => $c->cohort_id]) }}"
-                                        class="flex items-center justify-between px-4 py-2 text-sm text-gray-500 hover:bg-gray-50">
+                                        class="flex items-center justify-between px-4 py-2 text-sm text-gray-500 transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                                         {{ $c->display_label }}
                                         @if ($selectedCohort && $selectedCohort->cohort_id === $c->cohort_id)
                                             <svg class="h-4 w-4 text-[#6D0D23]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
@@ -109,7 +109,7 @@
 
                             <div class="my-2 border-t border-gray-100"></div>
                             <button type="button" @click="modal = 'create'; cohortMenuOpen = false"
-                                class="flex w-full items-center gap-2 px-4 py-2 text-sm font-medium text-[#6D0D23] hover:bg-gray-50">
+                                class="flex w-full items-center gap-2 px-4 py-2 text-sm font-medium text-[#6D0D23] transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                                 <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
                                 Create New Cohort
                             </button>
@@ -168,30 +168,51 @@
         </div>
 
         {{-- Stat cards --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-            <div class="relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#FFE8EE] bg-[#FFF7F7] p-5 shadow-sm" style="height: 152px;">
+        <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-8">
+
+        {{--
+            Phone-width tightening: the 4 stat cards above sit 2-up even
+            below the sm breakpoint, so their fixed padding/icon/number
+            sizing (tuned for a wider single- or 2-up-at-tablet layout)
+            needs to shrink to fit a ~160px column on a phone. Plain scoped
+            CSS rather than Tailwind classes because this app's CSS bundle
+            is pre-compiled and these exact sizes/media queries aren't
+            already present in it.
+        --}}
+        <style>
+            @media (max-width: 639px) {
+                .stat-card { padding: 12px !important; }
+                .stat-card .stat-icon-box { width: 40px !important; height: 40px !important; }
+                .stat-card .stat-icon-box img { width: 24px !important; height: 24px !important; }
+                .stat-card .stat-number { font-size: 1.2rem !important; }
+                .stat-card .stat-number-sm { font-size: 0.9rem !important; }
+                .stat-card .stat-header-row { min-height: 44px !important; }
+                .stat-card .stat-watermark { width: 56px !important; }
+            }
+        </style>
+            <div class="stat-card relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#FFE8EE] bg-[#FFF7F7] p-5 shadow-sm" style="min-height: 152px;">
                 <img src="{{ asset('images/icons/dashboard-admin.svg') }}" alt="" aria-hidden="true"
-                    class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
+                    class="stat-watermark pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
                 <div class="relative z-10 flex h-full flex-col justify-between">
-                    <div class="flex shrink-0 items-start gap-3" style="height: 72px;">
-                        <div class="flex shrink-0 items-center justify-center rounded-2xl bg-[#FFD5DF]" style="width: 64px; height: 64px;">
+                    <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
+                        <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#FFD5DF]" style="width: 64px; height: 64px;">
                             <img src="{{ asset('images/icons/3person-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
                         </div>
                         <div class="min-w-0">
                             <p class="text-gray-800 font-semibold text-sm">Total Startup</p>
-                            <p class="font-bold text-gray-900" style="font-size: 1.875rem; line-height: 1.1;">{{ $totalStartups }}</p>
+                            <p class="stat-number font-bold text-gray-900" style="font-size: 1.875rem; line-height: 1.1;">{{ $totalStartups }}</p>
                         </div>
                     </div>
                     <p class="text-sm text-[#6D0D23] mt-3">Active startup in the system</p>
                 </div>
             </div>
 
-            <div class="relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#D2E5FF] bg-[#F8FBFF] p-5 shadow-sm" style="height: 152px;">
+            <div class="stat-card relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#D2E5FF] bg-[#F8FBFF] p-5 shadow-sm" style="min-height: 152px;">
                 <img src="{{ asset('images/icons/blue-line.svg') }}" alt="" aria-hidden="true"
-                    class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
+                    class="stat-watermark pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
                 <div class="relative z-10 flex h-full flex-col justify-between">
-                    <div class="flex shrink-0 items-start gap-3" style="height: 72px;">
-                        <div class="flex shrink-0 items-center justify-center rounded-2xl bg-[#C1DBFF]" style="width: 64px; height: 64px;">
+                    <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
+                        <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#C1DBFF]" style="width: 64px; height: 64px;">
                             <img src="{{ asset('images/icons/1person-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
                         </div>
                         <div class="min-w-0">
@@ -199,11 +220,11 @@
                             <div class="mt-1 space-y-0.5">
                                 <div class="flex items-baseline gap-2">
                                     <span class="text-sm text-gray-500 inline-block" style="width: 68px;">Pre RL's</span>
-                                    <span class="font-bold text-gray-900 text-xl">{{ $stats['assessed_startup']['pre_rl'] }}</span>
+                                    <span class="stat-number-sm font-bold text-gray-900 text-xl">{{ $stats['assessed_startup']['pre_rl'] }}</span>
                                 </div>
                                 <div class="flex items-baseline gap-2">
                                     <span class="text-sm text-gray-500 inline-block" style="width: 68px;">Post RL's</span>
-                                    <span class="font-bold text-gray-900 text-xl">{{ $stats['assessed_startup']['post_rl'] }}</span>
+                                    <span class="stat-number-sm font-bold text-gray-900 text-xl">{{ $stats['assessed_startup']['post_rl'] }}</span>
                                 </div>
                             </div>
                         </div>
@@ -212,34 +233,34 @@
                 </div>
             </div>
 
-            <div class="relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#FFEAC1] bg-[#FFFBF2] p-5 shadow-sm" style="height: 152px;">
+            <div class="stat-card relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#FFEAC1] bg-[#FFFBF2] p-5 shadow-sm" style="min-height: 152px;">
                 <img src="{{ asset('images/icons/yellow-line.svg') }}" alt="" aria-hidden="true"
-                    class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
+                    class="stat-watermark pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
                 <div class="relative z-10 flex h-full flex-col justify-between">
-                    <div class="flex shrink-0 items-start gap-3" style="height: 72px;">
-                        <div class="flex shrink-0 items-center justify-center rounded-2xl bg-[#FFDB96]" style="width: 64px; height: 64px;">
+                    <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
+                        <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#FFDB96]" style="width: 64px; height: 64px;">
                             <img src="{{ asset('images/icons/bell-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
                         </div>
                         <div class="min-w-0">
                             <p class="text-gray-800 font-semibold text-sm">At Risk Startup</p>
-                            <p class="font-bold text-gray-900" style="font-size: 1.875rem; line-height: 1.1;">{{ $stats['at_risk_startup']['value'] }}</p>
+                            <p class="stat-number font-bold text-gray-900" style="font-size: 1.875rem; line-height: 1.1;">{{ $stats['at_risk_startup']['value'] }}</p>
                         </div>
                     </div>
                     <p class="text-sm text-[#6D0D23] mt-3">{{ $stats['at_risk_startup']['percent_of_total'] }}% of total startup</p>
                 </div>
             </div>
 
-            <div class="relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#D8C7FF] bg-[#FAF6FF] p-5 shadow-sm" style="height: 152px;">
+            <div class="stat-card relative flex flex-col overflow-hidden rounded-xl border-[3px] border-[#D8C7FF] bg-[#FAF6FF] p-5 shadow-sm" style="min-height: 152px;">
                 <img src="{{ asset('images/icons/purple-line.svg') }}" alt="" aria-hidden="true"
-                    class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
+                    class="stat-watermark pointer-events-none absolute right-0 top-1/2 -translate-y-1/2" style="width: 105px; height: auto;">
                 <div class="relative z-10 flex h-full flex-col justify-between">
-                    <div class="flex shrink-0 items-start gap-3" style="height: 72px;">
-                        <div class="flex shrink-0 items-center justify-center rounded-2xl bg-[#DCCBFF]" style="width: 64px; height: 64px;">
+                    <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
+                        <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#DCCBFF]" style="width: 64px; height: 64px;">
                             <img src="{{ asset('images/icons/bell-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
                         </div>
                         <div class="min-w-0">
                             <p class="text-gray-800 font-semibold text-sm">Intervention Provided</p>
-                            <p class="font-bold text-gray-900" style="font-size: 1.875rem; line-height: 1.1;">{{ $stats['intervention_provided']['value'] }}</p>
+                            <p class="stat-number font-bold text-gray-900" style="font-size: 1.875rem; line-height: 1.1;">{{ $stats['intervention_provided']['value'] }}</p>
                         </div>
                     </div>
                     <p class="text-sm text-[#6D0D23] mt-3">This month</p>
@@ -248,13 +269,13 @@
         </div>
 
         {{-- Incubation Progress + Risk Classification --}}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 items-stretch">
+        <div class="grid grid-cols-1 gap-6 mb-8 items-stretch">
             <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
                 <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-3">
                     <h2 class="text-white font-semibold text-lg">Incubation Progress</h2>
                 </div>
-                <div class="p-7 flex items-center gap-8">
-                    <div class="relative shrink-0 rounded-full" style="width: 180px; height: 180px; background: {{ $incubationGradient }};">
+                <div class="p-4 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8">
+                    <div class="relative shrink-0 rounded-full mx-auto sm:mx-0" style="width: 180px; height: 180px; background: {{ $incubationGradient }};">
                         <div class="absolute rounded-full bg-white flex flex-col items-center justify-center"
                             style="top: 25px; right: 25px; bottom: 25px; left: 25px;">
                             <span class="font-bold text-gray-800" style="font-size: 2rem;">{{ $incubationProgress['total'] }}</span>
@@ -293,8 +314,8 @@
                         <img src="{{ asset('images/icons/arrow-right.svg') }}" alt="" class="h-3 w-3">
                     </a>
                 </div>
-                <div class="p-7 flex items-center gap-8">
-                    <div class="relative shrink-0 rounded-full" style="width: 180px; height: 180px; background: {{ $riskGradient }};">
+                <div class="p-4 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8">
+                    <div class="relative shrink-0 rounded-full mx-auto sm:mx-0" style="width: 180px; height: 180px; background: {{ $riskGradient }};">
                         <div class="absolute rounded-full bg-white flex flex-col items-center justify-center"
                             style="top: 25px; right: 25px; bottom: 25px; left: 25px;">
                             <span class="font-bold text-gray-800" style="font-size: 2rem;">{{ $riskClassification['total'] }}</span>
@@ -358,7 +379,7 @@
                             ];
                         @endphp
                         <div class="flex flex-col xl:flex-row xl:justify-center gap-8 items-center">
-                            <div class="shrink-0 mx-auto flex items-center justify-center" style="width: 380px; min-height: 330px;">
+                            <div class="shrink-0 mx-auto flex w-full max-w-sm items-center justify-center" style="min-height: 330px;">
                                 <x-readiness-radar
                                     :trl="$averageReadiness['scores']['TRL']"
                                     :mrl="$averageReadiness['scores']['MRL']"
@@ -366,13 +387,20 @@
                                     :srl="$averageReadiness['scores']['SRL']"
                                     :size="300" />
                             </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full xl:max-w-2xl" style="min-width: 0;">
+                            <style>
+                                @media (max-width: 639px) {
+                                    .readiness-box { padding: 12px !important; }
+                                    .readiness-box .readiness-score { font-size: 1.25rem !important; }
+                                    .readiness-box .readiness-score-suffix { font-size: 0.75rem !important; }
+                                }
+                            </style>
+                            <div class="grid grid-cols-2 gap-3 sm:gap-4 w-full xl:max-w-2xl" style="min-width: 0;">
                                 @foreach ($categoryBoxes as $box)
                                     @php $score = $averageReadiness['scores'][$box['key']]; @endphp
-                                    <div class="rounded-xl p-5" style="border: 2px solid {{ $box['color'] }}; min-width: 0;">
+                                    <div class="readiness-box rounded-xl p-5" style="border: 2px solid {{ $box['color'] }}; min-width: 0;">
                                         <p class="text-sm font-semibold uppercase tracking-wide text-gray-400 truncate">{{ $box['label'] }}</p>
                                         <p class="mt-1.5 whitespace-nowrap">
-                                            <span class="text-3xl font-bold text-gray-900">{{ $box['key'] }} {{ $score }}</span><span class="text-base text-gray-400">/9</span>
+                                            <span class="readiness-score text-3xl font-bold text-gray-900">{{ $box['key'] }} {{ $score }}</span><span class="readiness-score-suffix text-base text-gray-400">/9</span>
                                         </p>
                                         <div class="mt-3 rounded-full bg-rose-100 overflow-hidden" style="height: 10px;">
                                             <div class="h-full rounded-full" style="width: {{ min(100, ($score / 9) * 100) }}%; background: #6D0D23;"></div>
@@ -428,14 +456,20 @@
         </div>
 
         {{-- Create Cohort modal --}}
-        <div x-show="modal === 'create'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="modal = null">
+        <div x-show="modal === 'create'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl" @click.stop>
                 <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
                     <h3 class="text-white font-semibold flex items-center gap-2">
-                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
+                        <svg class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
                         Create Cohort
                     </h3>
-                    <button type="button" class="text-white/80 hover:text-white" @click="modal = null">&#10005;</button>
+                    <button type="button"
+                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                        @click="modal = null" aria-label="Close">
+                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
                 <form method="POST" action="{{ route('admin.cohorts.store') }}" class="p-6 space-y-4">
                     @csrf
@@ -470,14 +504,20 @@
 
         @if ($selectedCohort)
             {{-- Edit Cohort modal --}}
-            <div x-show="modal === 'edit'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="modal = null">
+            <div x-show="modal === 'edit'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                 <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl" @click.stop>
                     <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
                         <h3 class="text-white font-semibold flex items-center gap-2">
-                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-8.5 8.5a2 2 0 01-.878.507l-3 .75a.5.5 0 01-.606-.606l.75-3a2 2 0 01.507-.878l8.5-8.5z" /></svg>
+                            <svg class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-8.5 8.5a2 2 0 01-.878.507l-3 .75a.5.5 0 01-.606-.606l.75-3a2 2 0 01.507-.878l8.5-8.5z" /></svg>
                             Edit Cohort
                         </h3>
-                        <button type="button" class="text-white/80 hover:text-white" @click="modal = null">&#10005;</button>
+                        <button type="button"
+                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                        @click="modal = null" aria-label="Close">
+                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                    </button>
                     </div>
                     <form method="POST" action="{{ route('admin.cohorts.update', $selectedCohort) }}" class="p-6 space-y-4">
                         @csrf
@@ -516,11 +556,17 @@
             </div>
 
             {{-- Cohort Details modal --}}
-            <div x-show="modal === 'details'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="modal = null">
+            <div x-show="modal === 'details'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                 <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl" @click.stop>
                     <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
                         <h3 class="text-white font-semibold">Cohort Details</h3>
-                        <button type="button" class="text-white/80 hover:text-white" @click="modal = null">&#10005;</button>
+                        <button type="button"
+                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                        @click="modal = null" aria-label="Close">
+                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                    </button>
                     </div>
                     <div class="p-6 space-y-3 text-sm">
                         <div class="flex justify-between border-b border-gray-100 pb-2"><span class="text-gray-500">Cohort Name</span><span class="font-medium text-gray-800">{{ $selectedCohort->display_label }}</span></div>
@@ -541,11 +587,17 @@
             </div>
 
             {{-- Archive / End Cohort modal --}}
-            <div x-show="modal === 'archive'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="modal = null">
+            <div x-show="modal === 'archive'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                 <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl" @click.stop>
                     <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
                         <h3 class="text-white font-semibold">Archive / End Cohort</h3>
-                        <button type="button" class="text-white/80 hover:text-white" @click="modal = null; archiveConfirm = ''">&#10005;</button>
+                        <button type="button"
+                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                        @click="modal = null; archiveConfirm = ''" aria-label="Close">
+                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                    </button>
                     </div>
                     <div class="p-6">
                         <p class="text-sm text-gray-600 mb-4">Ending <span class="font-semibold text-gray-800">{{ $selectedCohort->display_label }}</span> will:</p>
@@ -576,11 +628,17 @@
             </div>
 
             {{-- Delete Cohort modal --}}
-            <div x-show="modal === 'delete'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="modal = null">
+            <div x-show="modal === 'delete'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                 <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl" @click.stop>
                     <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
                         <h3 class="text-white font-semibold">Delete Cohort</h3>
-                        <button type="button" class="text-white/80 hover:text-white" @click="modal = null; deleteConfirm = ''">&#10005;</button>
+                        <button type="button"
+                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                        @click="modal = null; deleteConfirm = ''" aria-label="Close">
+                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                    </button>
                     </div>
                     <div class="p-6">
                         <div class="rounded-lg border border-rose-200 bg-rose-50 p-4 mb-4">
@@ -608,7 +666,7 @@
             'archived' => ['title' => 'Cohort Ended', 'desc' => 'The cohort has been archived. Its startups and history remain intact.'],
             'deleted' => ['title' => 'Cohort Deleted', 'desc' => 'The cohort has been permanently removed.'],
         ] as $key => $copy)
-            <div x-show="successModal === '{{ $key }}'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="successModal = null">
+            <div x-show="successModal === '{{ $key }}'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                 <div class="w-full max-w-sm rounded-xl bg-white overflow-hidden shadow-xl text-center" @click.stop>
                     <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 pt-8 pb-10">
                         <div class="mx-auto flex items-center justify-center rounded-full bg-white/20" style="width: 64px; height: 64px;">

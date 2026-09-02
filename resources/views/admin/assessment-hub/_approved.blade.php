@@ -34,10 +34,14 @@ return [
         month: 'all',
         page: 1,
         perPage: 3,
-        // Width of the logo + name block: sized to the longest name so the
-        // logos align across rows while the block stays centered in the cell.
+        // Width of the logo + name block: sized to the longest name
+        // *currently on screen* (not the whole, unfiltered dataset) so the
+        // logos still align across the visible rows without the block
+        // ballooning — and pulling the Startup column way wider than the
+        // other columns — just because some other startup elsewhere in the
+        // list happens to have a long name.
         get nameCh() {
-            return Math.min(Math.max(8, ...this.startups.map(s => (s.name || '').length)) + 1, 32);
+            return Math.min(Math.max(8, ...this.paged.map(s => (s.name || '').length)) + 1, 32);
         },
         get months() {
             return [...new Map(this.startups.map(s => [s.month_key, s.month_label])).entries()];
@@ -90,7 +94,7 @@ return [
         </div>
     </div>
     <div class="overflow-x-auto rounded-xl border">
-    <table class="w-full min-w-[620px] text-sm">
+    <table class="w-full min-w-[620px] table-fixed text-sm">
         <thead>
             <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-center">
                 <th class="whitespace-nowrap px-4 py-3 text-sm font-semibold tracking-wider">Startup</th>

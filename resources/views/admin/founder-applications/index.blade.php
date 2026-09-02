@@ -1,59 +1,118 @@
 <x-layouts.admin title="Founder Application">
+
+    @php
+        // Same recolorable-icon helper used by the Startup Profile page, so
+        // this page's stat cards render with the identical big, pale
+        // watermark-icon treatment.
+        $statIcon = function (string $name, string $class = 'h-24 w-24') {
+            $path = public_path('images/icons/' . $name);
+            if (! file_exists($path)) {
+                return '<span class="' . $class . ' inline-block"></span>';
+            }
+            $svg = file_get_contents($path);
+            $svg = substr($svg, strpos($svg, '<svg'));
+            $svg = preg_replace_callback('/<svg([^>]*)>/', function ($m) use ($class) {
+                $attrs = preg_replace('/\s*class="[^"]*"/i', '', $m[1]);
+
+                return '<svg' . $attrs . ' class="' . $class . ' block">';
+            }, $svg, 1);
+            $svg = preg_replace('/fill="(?!none)[^"]*"/i', 'fill="currentColor"', $svg);
+            $svg = preg_replace('/stroke="(?!none)[^"]*"/i', 'stroke="currentColor"', $svg);
+
+            return $svg;
+        };
+
+        // Plain checkmark / X watermarks — "Approved" and "Rejected" aren't
+        // backed by an icon file, so they're drawn the same way the small
+        // badge icons on this page already were, just scaled up.
+        $checkIcon = '<svg class="h-24 w-24 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>';
+        $xIcon = '<svg class="h-24 w-24 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>';
+
+        // One definition per card, same shape as the Startup Profile page's
+        // $stats array, so a future layout tweak happens once, not four times.
+        $stats = [
+            ['label' => 'Total Application', 'value' => $totals['total'], 'iconSvg' => $statIcon('assessmentHub.svg'), 'border' => 'border-[#FFE8EE]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => $cohortBreakdown],
+            ['label' => 'Pending', 'value' => $totals['pending'], 'iconSvg' => $statIcon('clock.svg'), 'border' => 'border-[#E3D4FF]', 'bg' => 'bg-[#FAF6FF]', 'note' => $totals['pending'].'/'.$totals['total'].' application is under evaluation'],
+            ['label' => 'Approved', 'value' => $totals['approved'], 'iconSvg' => $checkIcon, 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]', 'note' => $totals['approved'].'/'.$totals['total'].' application approved'],
+            ['label' => 'Rejected', 'value' => $totals['rejected'], 'iconSvg' => $xIcon, 'border' => 'border-[#FFE2AA]', 'bg' => 'bg-[#FFFBF2]', 'note' => $totals['rejected'].'/'.$totals['total'].' application rejected'],
+        ];
+    @endphp
+
     <div class="mb-6">
         <h1 class="text-3xl font-bold text-gray-900">Founder Application</h1>
         <p class="text-gray-500 mt-1">Review and manage founder account applications.</p>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        <div class="rounded-xl border border-[#B8D7FF] bg-[#CDE2FF] p-5 flex items-center justify-between">
-            <div>
-                <p class="text-gray-600 text-sm">Total Application</p>
-                <p class="text-4xl font-bold mt-1">{{ $totals['total'] }}</p>
+    {{--
+        Phone-width tightening: these 4 stat cards sit 2-up even below the sm
+        breakpoint (same treatment as the Dashboard's stat cards and readiness
+        boxes), so the large h-24 watermark icon and 4xl absolute number
+        (tuned for a wider layout) need to shrink to fit a narrow column on a
+        phone. Plain scoped CSS rather than Tailwind classes because this
+        app's CSS bundle is pre-compiled and these exact sizes/media queries
+        aren't already present in it.
+    --}}
+    <style>
+        @media (max-width: 639px) {
+            .founder-stat-card { padding: 12px !important; }
+            .founder-stat-card .stat-watermark-lg svg { width: 56px !important; height: 56px !important; }
+            .founder-stat-card .stat-text-wrap { padding-right: 44px !important; }
+            .founder-stat-card .stat-value-lg { font-size: 1.35rem !important; }
+        }
+    </style>
+
+    <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-8">
+        @foreach ($stats as $stat)
+            {{-- relative + overflow-hidden let the silhouette bleed off the card
+                 edge without spilling into the grid gap. --}}
+            <div class="founder-stat-card relative overflow-hidden rounded-xl border-[3px] {{ $stat['border'] }} {{ $stat['bg'] }} p-5">
+
+                {{-- Watermark. aria-hidden because it carries no meaning — the label and
+                     number already say everything. black/10 rather than a tinted color so
+                     the same value reads correctly on all four card backgrounds. --}}
+                <span aria-hidden="true" class="stat-watermark-lg pointer-events-none absolute bottom-0 right-0 text-black/10">
+                    {!! $stat['iconSvg'] !!}
+                </span>
+
+                {{-- relative lifts the text above the watermark without needing z-index
+                     on the watermark itself. --}}
+                <div class="relative h-full">
+                    @if (! empty($stat['breakdown']) && $stat['breakdown']->isNotEmpty())
+                        <div class="stat-text-wrap" style="padding-right: 70px;">
+                            <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                            <div class="mt-1.5 space-y-0.5">
+                                @foreach ($stat['breakdown'] as $b)
+                                    <p class="text-sm leading-tight">
+                                        <span class="font-semibold text-[#6D0D23] inline-block text-right" style="min-width: 26px;">{{ $b['count'] }}</span>
+                                        <span class="text-gray-500">&middot; {{ $b['label'] }}</span>
+                                    </p>
+                                @endforeach
+                            </div>
+                        </div>
+                        <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
+                    @elseif (! empty($stat['note']))
+                        <div class="stat-text-wrap" style="padding-right: 70px;">
+                            <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                            <p class="text-sm text-[#6D0D23] mt-1 leading-snug">{{ $stat['note'] }}</p>
+                        </div>
+                        <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
+                    @else
+                        <div class="stat-text-wrap" style="padding-right: 70px;">
+                            <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                        </div>
+                        <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
+                    @endif
+                </div>
             </div>
-            <div class="w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center text-white flex-shrink-0">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-            </div>
-        </div>
-        <div class="rounded-xl border border-[#F5D27B] bg-[#FFE2AA] p-5 flex items-center justify-between">
-            <div>
-                <p class="text-gray-600 text-sm">Pending</p>
-                <p class="text-4xl font-bold mt-1">{{ $totals['pending'] }}</p>
-            </div>
-            <div class="w-11 h-11 rounded-full bg-amber-500 flex items-center justify-center text-white flex-shrink-0">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                    <circle cx="12" cy="12" r="9" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 3" />
-                </svg>
-            </div>
-        </div>
-        <div class="rounded-xl border border-green-200 bg-green-50 p-5 flex items-center justify-between">
-            <div>
-                <p class="text-gray-600 text-sm">Approved</p>
-                <p class="text-4xl font-bold mt-1">{{ $totals['approved'] }}</p>
-            </div>
-            <div class="w-11 h-11 rounded-full bg-green-600 flex items-center justify-center text-white flex-shrink-0">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-            </div>
-        </div>
-        <div class="rounded-xl border border-rose-200 bg-rose-50 p-5 flex items-center justify-between">
-            <div>
-                <p class="text-gray-600 text-sm">Rejected</p>
-                <p class="text-4xl font-bold mt-1">{{ $totals['rejected'] }}</p>
-            </div>
-            <div class="w-11 h-11 rounded-full bg-rose-600 flex items-center justify-center text-white flex-shrink-0">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </div>
-        </div>
+        @endforeach
     </div>
 
     <div class="border-b border-gray-300 mb-6">
-        <nav class="flex overflow-x-auto whitespace-nowrap">
+        <nav class="flex overflow-x-auto overflow-y-hidden whitespace-nowrap">
             @foreach (['all' => 'All', 'pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $key => $label)
                 <a href="{{ route('admin.founder-applications.index', ['tab' => $key, 'per_page' => $perPage]) }}"
                     class="px-6 sm:px-10 lg:px-16 py-3 text-sm font-medium border-b-2 -mb-px transition-colors duration-200
@@ -65,13 +124,14 @@
     </div>
 
     <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div class="overflow-x-auto overflow-y-hidden">
         <table class="w-full text-sm">
             <thead>
-                <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-left">
+                <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-center">
                     @if ($activeTab === 'pending')
                         <th class="px-4 py-3 font-semibold">#</th>
                     @endif
-                    <th class="px-4 py-3 font-semibold">Applicant</th>
+                    <th class="px-4 py-3 font-semibold text-left" style="padding-left: 24px;">Applicant</th>
                     <th class="px-4 py-3 font-semibold">Startup Name</th>
                     <th class="px-4 py-3 font-semibold">Email</th>
                     <th class="px-4 py-3 font-semibold">Date Applied</th>
@@ -90,6 +150,34 @@
                     @php
                         $founder = $application->user;
                         $isPending = $founder->isPendingApproval();
+
+                        // Renders one of the bundled icon files as an inline,
+                        // recolorable SVG (fill/stroke swapped to currentColor)
+                        // so the "View" modal's field icons can all be forced
+                        // to a uniform gray via the wrapping element's text
+                        // color, regardless of each file's own baked-in color.
+                        $fieldIcon = function (string $name, string $class = 'h-5 w-5') {
+                            $path = public_path('images/icons/' . $name);
+                            if (! file_exists($path)) {
+                                return '<span class="' . $class . ' inline-block"></span>';
+                            }
+                            $svg = file_get_contents($path);
+                            // Some of these files ship with an XML prolog / generator
+                            // comment before the actual tag (not valid HTML) — drop it.
+                            $svg = substr($svg, strpos($svg, '<svg'));
+                            // Strip any class the file already has (rocket.svg ships
+                            // with class="icon") so ours always wins instead of losing
+                            // to it as a duplicate attribute.
+                            $svg = preg_replace_callback('/<svg([^>]*)>/', function ($m) use ($class) {
+                                $attrs = preg_replace('/\s*class="[^"]*"/i', '', $m[1]);
+
+                                return '<svg' . $attrs . ' class="' . $class . ' shrink-0">';
+                            }, $svg, 1);
+                            $svg = preg_replace('/fill="(?!none)[^"]*"/i', 'fill="currentColor"', $svg);
+                            $svg = preg_replace('/stroke="(?!none)[^"]*"/i', 'stroke="currentColor"', $svg);
+
+                            return $svg;
+                        };
                     @endphp
                     <tr x-data="{
                             step: null,
@@ -100,19 +188,19 @@
                             submitting: false,
                         }">
                         @if ($activeTab === 'pending')
-                            <td class="px-4 py-3 text-gray-500">{{ $applications->firstItem() + $i }}</td>
+                            <td class="px-4 py-3 text-gray-500 text-center">{{ $applications->firstItem() + $i }}</td>
                         @endif
-                        <td class="px-4 py-3 font-medium text-gray-900">{{ $founder->name }}</td>
-                        <td class="px-4 py-3 text-gray-600">{{ $application->company_name }}</td>
-                        <td class="px-4 py-3 text-gray-600">{{ $founder->email }}</td>
-                        <td class="px-4 py-3 text-gray-600">{{ $founder->created_at->format('M j, Y g:i A') }}</td>
+                        <td class="px-4 py-3 font-medium text-gray-900 text-left" style="padding-left: 24px;">{{ $founder->name }}</td>
+                        <td class="px-4 py-3 text-gray-600 text-center">{{ $application->company_name }}</td>
+                        <td class="px-4 py-3 text-gray-600 text-center">{{ $founder->email }}</td>
+                        <td class="px-4 py-3 text-gray-600 text-center">{{ $founder->created_at->format('M j, Y g:i A') }}</td>
 
                         @if ($activeTab === 'approved')
-                            <td class="px-4 py-3 text-gray-600">{{ optional($application->application_decided_at)->format('M j, Y g:i A') ?? '—' }}</td>
+                            <td class="px-4 py-3 text-gray-600 text-center">{{ optional($application->application_decided_at)->format('M j, Y g:i A') ?? '—' }}</td>
                         @elseif ($activeTab === 'rejected')
-                            <td class="px-4 py-3 text-gray-600">{{ optional($application->application_decided_at)->format('M j, Y g:i A') ?? '—' }}</td>
+                            <td class="px-4 py-3 text-gray-600 text-center">{{ optional($application->application_decided_at)->format('M j, Y g:i A') ?? '—' }}</td>
                         @elseif ($activeTab === 'all')
-                            <td class="px-4 py-3">
+                            <td class="px-4 py-3 text-center">
                                 @php
                                     $badge = match ($founder->account_status) {
                                         'Active' => ['Approved', 'border-green-300 text-green-800'],
@@ -126,7 +214,7 @@
 
                         <td class="px-4 py-3">
                             @if ($isPending)
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center justify-center gap-2">
                                     <button type="button" @click="step = 'review'"
                                         class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-xs font-semibold rounded-lg px-4 py-2 hover:opacity-90 transition">
                                         Review
@@ -139,10 +227,12 @@
                                     </button>
                                 </div>
                             @else
-                                <button type="button" @click="step = 'view'"
-                                    class="border border-gray-300 text-gray-700 text-xs font-semibold rounded-lg px-4 py-2 hover:bg-gray-50 transition">
-                                    View
-                                </button>
+                                <div class="flex items-center justify-center">
+                                    <button type="button" @click="step = 'view'"
+                                        class="inline-flex items-center justify-center whitespace-nowrap rounded-md border border-[#6D0D23] px-4 py-1 text-sm font-semibold text-[#6D0D23] transition hover:bg-[#6D0D23]/5">
+                                        View
+                                    </button>
+                                </div>
                             @endif
 
                             {{-- Modals live inside this same <td> (not as siblings of it) —
@@ -354,47 +444,104 @@
                         @else
                             {{-- ============ VIEW MODAL (read-only, decided applications) ============ --}}
                             <div x-show="step === 'view'" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style="display: none;">
-                                <div class="relative bg-white rounded-xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col" @click.outside="step = null">
-                                    <div class="bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between flex-shrink-0">
-                                        <h3 class="font-bold">View Founder Application</h3>
-                                        <button type="button" @click="step = null" class="text-white/80 hover:text-white text-xl leading-none">&times;</button>
+                                <div class="relative bg-white rounded-xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col">
+                                    <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-6 py-4 flex items-center justify-between flex-shrink-0">
+                                        <div class="flex items-center gap-3">
+                                            <svg class="h-8 w-8 shrink-0 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" clip-rule="evenodd" />
+                                            </svg>
+                                            <div>
+                                                <h3 class="font-bold">Founder Application Details</h3>
+                                                <p class="text-xs text-white/70">View and manage founder application information</p>
+                                            </div>
+                                        </div>
+                                        <button type="button" @click="step = null"
+                                            class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                                            aria-label="Close">
+                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M18 6L6 18M6 6l12 12" />
+                                            </svg>
+                                        </button>
                                     </div>
 
                                     <div class="p-6 overflow-y-auto space-y-6">
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div class="border border-gray-200 rounded-lg p-4">
-                                                <h4 class="font-bold text-sm text-gray-900 mb-3">Applicant Information</h4>
-                                                <dl class="space-y-2 text-sm">
-                                                    <div><dt class="text-gray-500 text-xs">Full Name</dt><dd class="font-medium">{{ $founder->name }}</dd></div>
-                                                    <div><dt class="text-gray-500 text-xs">Email</dt><dd class="font-medium">{{ $founder->email }}</dd></div>
-                                                    <div><dt class="text-gray-500 text-xs">Startup</dt><dd class="font-medium">{{ $application->company_name }}</dd></div>
+                                                <h4 class="flex items-center gap-2 font-bold text-sm text-gray-900 mb-3">
+                                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                                                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fill-rule="evenodd" d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" clip-rule="evenodd" />
+                                                        </svg>
+                                                    </span>
+                                                    Applicant Information
+                                                </h4>
+                                                <dl class="divide-y divide-gray-100 text-sm">
+                                                    <div class="flex items-center gap-3 py-3">
+                                                        <span class="flex h-7 w-7 shrink-0 items-center justify-center text-gray-400">{!! $fieldIcon('login-founder.svg') !!}</span>
+                                                        <div><dt class="text-gray-500 text-xs">Full Name</dt><dd class="font-medium">{{ $founder->name }}</dd></div>
+                                                    </div>
+                                                    <div class="flex items-center gap-3 py-3">
+                                                        <span class="flex h-7 w-7 shrink-0 items-center justify-center text-gray-400">{!! $fieldIcon('mail.svg') !!}</span>
+                                                        <div><dt class="text-gray-500 text-xs">Email</dt><dd class="font-medium">{{ $founder->email }}</dd></div>
+                                                    </div>
+                                                    <div class="flex items-center gap-3 py-3">
+                                                        <span class="flex h-7 w-7 shrink-0 items-center justify-center text-gray-400">{!! $fieldIcon('rocket.svg', 'h-7 w-7') !!}</span>
+                                                        <div><dt class="text-gray-500 text-xs">Startup</dt><dd class="font-medium">{{ $application->company_name }}</dd></div>
+                                                    </div>
                                                 </dl>
                                             </div>
                                             <div class="border border-gray-200 rounded-lg p-4">
-                                                <h4 class="font-bold text-sm text-gray-900 mb-3">Account Information</h4>
-                                                <dl class="space-y-2 text-sm">
-                                                    <div class="flex items-center justify-between">
-                                                        <dt class="text-gray-500 text-xs">Email Verified</dt>
-                                                        <dd>
-                                                            @if ($founder->hasVerifiedEmail())
-                                                                <span class="rounded-full border border-green-300 text-green-700 text-[11px] font-semibold px-2 py-0.5">● Verified</span>
-                                                            @else
-                                                                <span class="rounded-full border border-gray-300 text-gray-500 text-[11px] font-semibold px-2 py-0.5">Not Verified</span>
-                                                            @endif
-                                                        </dd>
+                                                <h4 class="flex items-center gap-2 font-bold text-sm text-gray-900 mb-3">
+                                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                                                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fill-rule="evenodd" d="M2 4.25A2.25 2.25 0 014.25 2h11.5A2.25 2.25 0 0118 4.25v8.5A2.25 2.25 0 0115.75 15h-3.105a3.501 3.501 0 00-3.29 0H4.25A2.25 2.25 0 012 12.75v-8.5zM6 5a1 1 0 000 2h.01a1 1 0 100-2H6zm0 3a1 1 0 000 2h.01a1 1 0 100-2H6zm3-3a1 1 0 100 2h5a1 1 0 100-2H9zm-1 4a1 1 0 011-1h5a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd" />
+                                                            <path d="M4.462 16.667c.834-.64 1.887-1.02 3.03-1.02h5.017c1.143 0 2.196.38 3.03 1.02a.75.75 0 01-.912 1.19 4.501 4.501 0 00-2.118-.71H7.575a4.5 4.5 0 00-2.118.71.75.75 0 11-.912-1.19z" />
+                                                        </svg>
+                                                    </span>
+                                                    Account Information
+                                                </h4>
+                                                <dl class="divide-y divide-gray-100 text-sm">
+                                                    <div class="flex items-center justify-between gap-3 py-3">
+                                                        <span class="flex items-center gap-3 text-gray-500 text-xs">
+                                                            <span class="text-gray-400">{!! $fieldIcon('check-shield.svg') !!}</span>
+                                                            Email Verified
+                                                        </span>
+                                                        @if ($founder->hasVerifiedEmail())
+                                                            <span class="rounded-full border border-green-300 text-green-700 text-[11px] font-semibold px-2 py-0.5">&#10003; Verified</span>
+                                                        @else
+                                                            <span class="rounded-full border border-gray-300 text-gray-500 text-[11px] font-semibold px-2 py-0.5">Not Verified</span>
+                                                        @endif
                                                     </div>
-                                                    <div><dt class="text-gray-500 text-xs">Date Applied</dt><dd class="font-medium">{{ $founder->created_at->format('M j, Y g:i A') }}</dd></div>
-                                                    <div><dt class="text-gray-500 text-xs">Application ID</dt><dd class="font-medium">{{ $application->application_id }}</dd></div>
+                                                    <div class="flex items-center gap-3 py-3">
+                                                        <span class="text-gray-400">{!! $fieldIcon('cal.svg') !!}</span>
+                                                        <div><dt class="text-gray-500 text-xs">Date Applied</dt><dd class="font-medium">{{ $founder->created_at->format('M j, Y g:i A') }}</dd></div>
+                                                    </div>
+                                                    <div class="flex items-center gap-3 py-3">
+                                                        <span class="text-gray-400">{!! $fieldIcon('assessmentHub.svg') !!}</span>
+                                                        <div><dt class="text-gray-500 text-xs">Application ID</dt><dd class="font-medium">{{ $application->application_id }}</dd></div>
+                                                    </div>
                                                     @if ($founder->isApprovedAccount())
-                                                        <div><dt class="text-gray-500 text-xs">Cohort</dt><dd class="font-medium">{{ $application->cohort?->display_label ?? ('Cohort '.$application->cohort_number) }}</dd></div>
-                                                        <div><dt class="text-gray-500 text-xs">Portfolio Coordinator</dt><dd class="font-medium">{{ optional($application->activeCoordinatorAssignment?->coordinator)->display_name ?? '—' }}</dd></div>
+                                                        <div class="flex items-center gap-3 py-3">
+                                                            <span class="text-gray-400">{!! $fieldIcon('3person.svg') !!}</span>
+                                                            <div><dt class="text-gray-500 text-xs">Cohort</dt><dd class="font-medium">{{ $application->cohort?->display_label ?? ('Cohort '.$application->cohort_number) }}</dd></div>
+                                                        </div>
+                                                        <div class="flex items-center gap-3 py-3">
+                                                            <span class="text-gray-400">{!! $fieldIcon('coordProfile.svg') !!}</span>
+                                                            <div><dt class="text-gray-500 text-xs">Portfolio Coordinator</dt><dd class="font-medium">{{ optional($application->activeCoordinatorAssignment?->coordinator)->display_name ?? '—' }}</dd></div>
+                                                        </div>
                                                     @endif
                                                 </dl>
                                             </div>
                                         </div>
 
                                         <div>
-                                            <h4 class="font-bold text-sm text-gray-900 mb-2">Status History</h4>
+                                            <h4 class="flex items-center gap-2 font-bold text-sm text-gray-900 mb-2">
+                                                <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                                    <circle cx="10" cy="10" r="7.25" />
+                                                    <path d="M10 6v4l2.5 2.5" />
+                                                </svg>
+                                                Status History
+                                            </h4>
                                             <x-founder-application-timeline :startup="$application" />
                                         </div>
 
@@ -415,6 +562,13 @@
                                             </div>
                                         @endif
                                     </div>
+
+                                    <div class="flex justify-end border-t border-gray-100 px-6 py-4 flex-shrink-0">
+                                        <button type="button" @click="step = null"
+                                            class="rounded-lg border border-gray-300 px-4 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                                            Close
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             @endif
@@ -427,6 +581,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
 
         @if ($applications->total() > 0)
             <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-4 py-3">

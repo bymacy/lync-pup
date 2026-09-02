@@ -13,7 +13,8 @@
     </div>
     @else
     <div class="overflow-hidden rounded-xl border border-gray-200">
-        <table class="w-full text-sm">
+        <div class="overflow-x-auto overflow-y-hidden">
+        <table class="w-full min-w-[640px] table-fixed text-sm">
             <thead>
                 <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-left text-white">
                     <th class="px-4 py-3 font-semibold">File Name</th>
@@ -92,6 +93,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     </div>
     @endif
 </div>
