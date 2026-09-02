@@ -268,8 +268,22 @@
             </div>
         </div>
 
+        {{--
+            2-up on laptop/desktop, 1-up everywhere else (phones, tablets,
+            and iPads — including landscape, up to iPad Pro 12.9" at
+            1366px). None of Tailwind's compiled breakpoints land cleanly
+            above every iPad width without also catching a standard 1024px
+            iPad landscape, so this uses a plain scoped media query instead
+            of a Tailwind class.
+        --}}
+        <style>
+            @media (min-width: 1400px) {
+                .donut-row-grid { grid-template-columns: 1fr 1fr; }
+            }
+        </style>
+
         {{-- Incubation Progress + Risk Classification --}}
-        <div class="grid grid-cols-1 gap-6 mb-8 items-stretch">
+        <div class="donut-row-grid grid grid-cols-1 gap-6 mb-8 items-stretch">
             <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
                 <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-3">
                     <h2 class="text-white font-semibold text-lg">Incubation Progress</h2>
