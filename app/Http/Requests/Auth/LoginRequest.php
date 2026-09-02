@@ -51,7 +51,7 @@ class LoginRequest extends FormRequest
 
             throw ValidationException::withMessages(
                 $emailExists
-                    ? ['password' => 'These credentials do not match our records. Invalid password.']
+                    ? ['password' => 'Incorrect Password']
                     : ['email' => trans('auth.failed')]
             );
         }
