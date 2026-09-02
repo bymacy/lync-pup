@@ -74,10 +74,6 @@
             </div>
         @endif
 
-        {{-- What's new: admin-side changes the founder hasn't opened yet.
-             Blue, not pink — these are updates to be aware of, not chores
-             blocking their progress. Each clears itself once the linked page
-             is visited (see DashboardController::updates()). --}}
         @foreach ($updates ?? [] as $update)
             <div class="{{ $loop->last ? 'mb-5 sm:mb-6' : 'mb-3' }} flex flex-col gap-4 rounded-2xl border border-[#11386A]/40 bg-[#11386A]/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
                 <div class="flex items-center gap-3 sm:gap-4">

@@ -13,7 +13,7 @@
     ],
 ])
 
-<div class="section-title">I. FOUNDER'S INFORMATION</div>
+@include('admin.exports._section-bar', ['image' => 'section-i-founders-information.jpg', 'text' => "I. FOUNDER'S INFORMATION"])
 <table style="margin-top: 6px;">
     <tr>
         <td width="50%" style="vertical-align: top;">
@@ -22,15 +22,26 @@
                 <tr><td class="info-label">2. First Name:</td><td class="info-value">{!! $v($sheet?->first_name) !!}</td></tr>
                 <tr><td class="info-label">3. Middle Name:</td><td class="info-value">{!! $v($sheet?->middle_name) !!}</td></tr>
                 <tr><td class="info-label">4. Name Extension:</td><td class="info-value">{!! $v($sheet?->name_extension) !!}</td></tr>
+            </table>
+            <table class="info-table" style="margin-top: 10px;">
                 <tr><td class="info-label">5. Height (m):</td><td class="info-value">{!! $v($sheet?->height_m) !!}</td></tr>
                 <tr><td class="info-label">6. Weight (kg):</td><td class="info-value">{!! $v($sheet?->weight_kg) !!}</td></tr>
                 <tr><td class="info-label">7. Blood Type:</td><td class="info-value">{!! $v($sheet?->blood_type) !!}</td></tr>
+            </table>
+            <table class="info-table" style="margin-top: 10px;">
                 <tr><td class="info-label">8. GSIS ID No.:</td><td class="info-value">{!! $v($sheet?->gsis_no) !!}</td></tr>
                 <tr><td class="info-label">9. Pag-IBIG No.:</td><td class="info-value">{!! $v($sheet?->pagibig_no) !!}</td></tr>
                 <tr><td class="info-label">10. PhilHealth No.:</td><td class="info-value">{!! $v($sheet?->philhealth_no) !!}</td></tr>
                 <tr><td class="info-label">11. SSS No.:</td><td class="info-value">{!! $v($sheet?->sss_no) !!}</td></tr>
-                <tr><td class="info-label">12. Residential Address:</td><td class="info-value">{!! $v($sheet?->residential_address) !!}</td></tr>
-                <tr><td class="info-label">13. Permanent Address:</td><td class="info-value">{!! $v($sheet?->permanent_address) !!}</td></tr>
+                {{-- Personal TIN No. (item 12 on the real form) isn't captured
+                     by the Information Sheet data model yet - kept as a blank
+                     row so the field numbering below stays lined up with the
+                     official form (13/14) instead of drifting by one. --}}
+                <tr><td class="info-label">12. TIN No.:</td><td class="info-value">&nbsp;</td></tr>
+            </table>
+            <table class="info-table" style="margin-top: 10px;">
+                <tr><td class="info-label">13. Residential Address:</td><td class="info-value">{!! $v($sheet?->residential_address) !!}</td></tr>
+                <tr><td class="info-label">14. Permanent Address:</td><td class="info-value">{!! $v($sheet?->permanent_address) !!}</td></tr>
             </table>
         </td>
         <td width="50%" style="vertical-align: top;">
@@ -39,6 +50,8 @@
                 <tr><td class="info-label">16. Civil Status:</td><td class="info-value">{!! $v($sheet?->civil_status) !!}</td></tr>
                 <tr><td class="info-label">17. Citizenship (By Birth):</td><td class="info-value">{!! $v($sheet?->citizenship_by_birth) !!}</td></tr>
                 <tr><td class="info-label">&nbsp;&nbsp;&nbsp;If Dual Citizenship:</td><td class="info-value">{!! $v($sheet?->citizenship_dual) !!}</td></tr>
+            </table>
+            <table class="info-table" style="margin-top: 10px;">
                 <tr><td class="info-label">18. Place of Birth:</td><td class="info-value">{!! $v($sheet?->place_of_birth) !!}</td></tr>
                 <tr><td class="info-label">19. Date of Birth:</td><td class="info-value">{!! $d($sheet?->date_of_birth) !!}</td></tr>
                 <tr><td class="info-label">20. Mobile No.:</td><td class="info-value">{!! $v($sheet?->mobile_no) !!}</td></tr>
@@ -48,7 +61,7 @@
     </tr>
 </table>
 
-<div class="section-title">22. EDUCATIONAL BACKGROUND</div>
+<div class="item-heading">22. EDUCATIONAL BACKGROUND</div>
 <table class="bordered" style="margin-top: 4px;">
     <tr><th>Level</th><th>Name of School</th><th>Degree/Course</th><th>Highest Level/Units</th><th>Year Graduated</th></tr>
     @foreach (['secondary' => 'Secondary', 'vocational' => 'Vocational/Trade', 'college' => 'College', 'graduate' => 'Graduate Studies'] as $key => $label)
@@ -62,12 +75,12 @@
     @endforeach
 </table>
 
-<div class="section-title">23. SCHOLARSHIP / ACADEMIC HONORS RECEIVED</div>
+<div class="item-heading">23. SCHOLARSHIP/ ACADEMIC HONORS RECEIVED</div>
 <div style="border: 1px solid #000; padding: 6px; min-height: 20px;">{!! nl2br($v($sheet?->scholarships_academic_honors)) !!}</div>
 
-<div class="section-title">24. CORE TEAM FORMATION</div>
+@include('admin.exports._section-bar', ['image' => 'section-ii-core-team-formation.jpg', 'text' => 'II. CORE TEAM FORMATION'])
 <table class="bordered" style="margin-top: 4px;">
-    <tr><th>Name</th><th>Designation</th><th>Phone</th><th>Address</th><th>Date of Birth</th><th>Email</th><th>Citizenship</th><th>Sex</th><th>Civil Status</th></tr>
+    <tr><th>24. Name (Surname, Firstname, Middle Name, Ext)</th><th>Designation</th><th>Phone No.</th><th>Address</th><th>Date of Birth</th><th>Email</th><th>Citizenship</th><th>Sex</th><th>Civil Status</th></tr>
     @forelse ($startup->teamMembers as $member)
     <tr>
         <td>{!! $v($member->full_name) !!}</td>
@@ -85,9 +98,15 @@
     @endforelse
 </table>
 
-<div class="section-title">25. INCUBATION INVOLVEMENT</div>
+@include('admin.exports._section-bar', ['image' => 'section-iii-incubation-involvement.jpg', 'text' => 'III. INCUBATION INVOLVEMENT IN GOVERNMENT / NON-GOVERNMENT / PRIVATE / TECH ORGANIZATION/S'])
 <table class="bordered" style="margin-top: 4px;">
-    <tr><th>Organization Name &amp; Address</th><th>From</th><th>To</th><th>No. of Hours</th><th>Incubation Program/Focus</th></tr>
+    <tr>
+        <th rowspan="2">25. Name &amp; Address of Organization (Write in full)</th>
+        <th colspan="2">Inclusive Dates</th>
+        <th rowspan="2">Number of Hours</th>
+        <th rowspan="2">Incubation Program or Focus</th>
+    </tr>
+    <tr><th>From</th><th>To</th></tr>
     @forelse ($sheet?->incubationInvolvements ?? [] as $row)
     <tr>
         <td>{!! $v($row->organization_name_address) !!}</td>
@@ -104,9 +123,15 @@
     @endforelse
 </table>
 
-<div class="section-title">26. LEARNING &amp; DEVELOPMENT INTERVENTIONS / TRAINING PROGRAMS</div>
+@include('admin.exports._section-bar', ['image' => 'section-iv-learning-development.jpg', 'text' => 'IV. LEARNING AND DEVELOPMENT (L&amp;D) INTERVENTIONS/TRAINING PROGRAMS ATTENDED BY THE TEAM / FOUNDER'])
 <table class="bordered" style="margin-top: 4px;">
-    <tr><th>Title</th><th>From</th><th>To</th><th>No. of Hours</th><th>Conducted/Sponsored By</th></tr>
+    <tr>
+        <th rowspan="2">26. Title of Learning and Development Interventions/Training Programs (Write in full)</th>
+        <th colspan="2">Inclusive Dates</th>
+        <th rowspan="2">Number of Hours</th>
+        <th rowspan="2">Conducted/ Sponsored By</th>
+    </tr>
+    <tr><th>From</th><th>To</th></tr>
     @forelse ($sheet?->ldInterventions ?? [] as $row)
     <tr>
         <td>{!! $v($row->title) !!}</td>
@@ -120,7 +145,7 @@
     @endforelse
 </table>
 
-<div class="section-title">V. STARTUP INFORMATION</div>
+@include('admin.exports._section-bar', ['image' => 'section-v-startup-information.jpg', 'text' => 'V. STARTUP INFORMATION'])
 <table style="margin-top: 6px;">
     <tr>
         <td width="50%" style="vertical-align: top;">
@@ -134,27 +159,33 @@
         </td>
         <td width="50%" style="vertical-align: top;">
             <span class="field-label">33. Startup Overview:</span>
-            <div style="border: 1px solid #000; padding: 6px; min-height: 40px; margin-top: 4px;">{!! nl2br($v(filled($sheet?->startup_overview) ? $sheet->startup_overview : $sheet?->business_description)) !!}</div>
+            <div style="margin-top: 4px;">{!! nl2br($v(filled($sheet?->startup_overview) ? $sheet->startup_overview : $sheet?->business_description)) !!}</div>
         </td>
     </tr>
 </table>
 
-<table style="margin-top: 6px;">
+<table style="margin-top: 8px;">
     <tr>
-        <td width="50%">
-            <span class="field-label">32. Non-Academic Distinctions:</span>
-            <div style="border: 1px solid #000; padding: 6px; min-height: 24px; margin-top: 4px;">{!! nl2br($v($sheet?->non_academic_distinctions)) !!}</div>
+        <td width="50%" style="vertical-align: top; padding-right: 6px;">
+            <table class="bordered">
+                <tr><th>32. Non-Academic Distinctions / Recognition / Eligibilities</th></tr>
+                <tr><td>{!! $v($sheet?->non_academic_distinctions) !!}</td></tr>
+                <tr><td>&nbsp;</td></tr>
+            </table>
         </td>
-        <td width="50%">
-            <span class="field-label">34. Membership in Association/Organization:</span>
-            <div style="border: 1px solid #000; padding: 6px; min-height: 24px; margin-top: 4px;">{!! nl2br($v($sheet?->membership_associations)) !!}</div>
+        <td width="50%" style="vertical-align: top; padding-left: 6px;">
+            <table class="bordered">
+                <tr><th>34. Membership in Association/Organization</th></tr>
+                <tr><td>{!! $v($sheet?->membership_associations) !!}</td></tr>
+                <tr><td>&nbsp;</td></tr>
+            </table>
         </td>
     </tr>
 </table>
 
-<div class="section-title">35. REFERENCES</div>
+<div class="item-heading">35. REFERENCES</div>
 <table class="bordered" style="margin-top: 4px;">
-    <tr><th>Name</th><th>Contact</th><th>Email Address</th><th>Address</th></tr>
+    <tr><th>Name</th><th>Contract No.</th><th>Email Address</th><th>Address</th></tr>
     @forelse ($sheet?->references ?? [] as $ref)
     <tr>
         <td>{!! $v($ref->name) !!}</td>
@@ -167,9 +198,9 @@
     @endforelse
 </table>
 
-<div class="section-title">36. DECLARATION</div>
+@include('admin.exports._section-bar', ['image' => 'section-blank.jpg', 'text' => ''])
 <div style="padding: 8px 0; font-size: 10px; margin-top: 4px;">
-    I declare that I have personally accomplished this Startup Information Sheet which is a true, correct and complete statement
+    36. I declare that I have personally accomplished this Startup Information Sheet which is a true, correct and complete statement
     pursuant to the provisions of pertinent laws, rules and regulations of the Republic of the Philippines. I authorize the agency
     head/authorized representative to verify/validate the contents stated herein. I agree that any misrepresentation made in this
     document and its attachments shall cause the filing of administrative/criminal case/s against me.
@@ -177,10 +208,10 @@
     <div class="signature-box" style="margin-top: 24px; width: 260px;"></div>
     <div class="signature-caption" style="width: 260px;">Founder's Signature (Sign inside the box)</div>
 
-    <div style="margin-top: 14px;">Date Accomplished: <span class="field-value">{!! $d($sheet?->date_accomplished) !!}</span></div>
+    <div class="sig-line" style="width: 260px;">{!! $d($sheet?->date_accomplished) !!}<br>Date Accomplished</div>
 </div>
 
-<div style="font-style: italic; font-size: 10px; margin-top: 10px; border-top: 1px solid #000; padding-top: 6px;">For Technology Business Incubation &amp; Development Office Only</div>
+<div style="font-style: italic; font-size: 10px; margin-top: 10px; border-top: 1px solid #000; padding-top: 6px; text-align: center;">For Technology Business Incubation &amp; Development Office Only</div>
 <div class="section-heading-plain">Endorsement and Approval</div>
 <table style="margin-top: 6px;">
     <tr>
@@ -195,7 +226,7 @@
         <td width="50%" style="vertical-align: top;">
             <div class="signature-box" style="width: 220px;"></div>
             <div class="signature-caption" style="width: 220px;">Director's Signature (Sign inside the box)</div>
-            <div style="margin-top: 8px;">Date of Approval: <span class="field-value">{!! $d($sheet?->director_approval_date) !!}</span></div>
+            <div class="sig-line" style="width: 220px;">{!! $d($sheet?->director_approval_date) !!}<br>Date of Approval</div>
         </td>
     </tr>
 </table>

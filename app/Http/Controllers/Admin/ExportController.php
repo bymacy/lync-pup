@@ -177,6 +177,30 @@ class ExportController extends Controller
         return back()->with('status', 'Report file deleted.');
     }
 
+    /**
+     * Dev/QA helper: streams a single document's PDF straight into the
+     * browser tab (inline, not a download) so layout tweaks in the Blade
+     * views can be checked with just a page refresh - no need to go
+     * through Generate -> Save -> Download each time.
+     *
+     * Visit /admin/exports/preview to preview document 1 for the first
+     * startup in the database, or /admin/exports/preview/{startup} for a
+     * specific one. Add ?document=N to preview a different document
+     * number (only document 1 has its pixel-matched template so far).
+     */
+    public function preview(Request $request, ?Startup $startup = null)
+    {
+        $startup ??= Startup::query()->orderBy('startup_id')->first();
+
+        abort_unless($startup, 404, 'No startups found to preview.');
+
+        $documentNumber = (int) $request->query('document', 1);
+        $html = $this->renderDocumentContent($documentNumber, $startup);
+        $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => [$html]])->setPaper($this->paperSizeFor($documentNumber));
+
+        return $pdf->stream("preview-doc{$documentNumber}.pdf");
+    }
+
     // ============ document content resolution ============
 
     protected function renderDocumentContent(int $documentNumber, Startup $startup): string
@@ -230,11 +254,27 @@ class ExportController extends Controller
     // ============ file builders ============
 
     /**
+     * Document 1 (Startup Information Sheet) is printed on Legal paper
+     * (8.5in x 14in) per Macy's request - every other document keeps the
+     * A4 default. DomPDF renders one paper size per PDF, so a bundle that
+     * mixes document 1 with other documents in a single merged file can't
+     * honor both sizes at once; in that mixed case the whole bundle falls
+     * back to A4 (only a bundle containing document 1 *alone* switches to
+     * Legal). Individual-PDF and ZIP exports are unaffected by this since
+     * each document already gets its own separate PDF there.
+     */
+    protected function paperSizeFor(int $documentNumber): string
+    {
+        return $documentNumber === 1 ? 'legal' : 'a4';
+    }
+
+    /**
      * @param  array<int, string>  $sections  document number => rendered content-only HTML
      */
     protected function makeBundleFile(string $dir, string $baseName, array $sections): array
     {
-        $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => array_values($sections)])->setPaper('a4');
+        $paper = array_keys($sections) === [1] ? 'legal' : 'a4';
+        $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => array_values($sections)])->setPaper($paper);
         $binary = $pdf->output();
 
         $fileName = "{$baseName}.pdf";
@@ -258,7 +298,7 @@ class ExportController extends Controller
         $files = [];
 
         foreach ($sections as $num => $html) {
-            $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => [$html]])->setPaper('a4');
+            $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => [$html]])->setPaper($this->paperSizeFor($num));
             $binary = $pdf->output();
 
             $label = self::DOCUMENTS[$num]['label'];
@@ -296,7 +336,7 @@ class ExportController extends Controller
 
         $totalPages = 0;
         foreach ($sections as $num => $html) {
-            $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => [$html]])->setPaper('a4');
+            $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => [$html]])->setPaper($this->paperSizeFor($num));
             $binary = $pdf->output();
             $totalPages += $this->pageCount($pdf) ?? 0;
 
