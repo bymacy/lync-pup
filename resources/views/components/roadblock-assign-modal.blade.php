@@ -27,6 +27,7 @@ $assigneeDefault = $prefillExisting ? $originalAssignee : '';
 $meetingDateDefault = $prefillExisting ? $roadblock->meeting_date?->format('Y-m-d') : '';
 $platformDefault = $prefillExisting ? $roadblock->meeting_platform : '';
 $linkDefault = $prefillExisting ? $roadblock->meeting_link : '';
+$notesDefault = $prefillExisting ? $roadblock->notes : '';
 
 $selectedAssignee = $oldFor('assignee', $assigneeDefault);
 
@@ -355,6 +356,13 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 data-original="{{ $linkDefault }}"
                                 class="{{ $fieldCls }}">{{ $oldFor('meeting_link', $linkDefault) }}</textarea>
                             @if ($isErroredRoadblock) @error('meeting_link') <p class="mt-1 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
+
+                            <label class="{{ $lblCls }} mt-3">Notes</label>
+                            <textarea name="notes" autocomplete="off" rows="3"
+                                placeholder="Optional note for the founder (e.g. what to prepare, what to expect)"
+                                data-original="{{ $notesDefault }}"
+                                class="{{ $fieldCls }}">{{ $oldFor('notes', $notesDefault) }}</textarea>
+                            @if ($isErroredRoadblock) @error('notes') <p class="mt-1 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
                         </div>
                     </div>
                 </form>

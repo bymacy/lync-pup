@@ -26,6 +26,7 @@ class Roadblock extends Model
         'meeting_end_time',
         'meeting_platform',
         'meeting_link',
+        'notes',
         'resolved_at',
         'failed_at',
     ];
@@ -114,6 +115,7 @@ class Roadblock extends Model
             'meeting_end_time' => null,
             'meeting_platform' => null,
             'meeting_link' => null,
+            'notes' => null,
             'status' => 'Pending',
         ];
     }

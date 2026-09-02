@@ -23,6 +23,46 @@
         newMembers: [''],
         deletedMembers: [],
 
+        // Core Team is the Profile's own roster now (StartupTeamMember -
+        // see migration 000049), separate from the Information Sheet's own
+        // Core Team table. Must have at least 3 members (see
+        // UpdateStartupProfileRequest) - this just tallies existing rows
+        // minus what's marked for deletion plus any new, non-blank rows
+        // being added.
+        existingTeamCount: @js($startup->startupTeamMembers->count()),
+
+        get remainingTeamCount() {
+            return (this.existingTeamCount - this.deletedMembers.length)
+                + this.newMembers.filter(name => name.trim() !== '').length;
+        },
+
+        // Mirrors UpdateStartupProfileRequest::rules() so the Save button
+        // reflects the same 'required' set the server will enforce anyway —
+        // this is a client-side head start, not a replacement for it.
+        company_name: @js(old('company_name', $startup->company_name) ?? ''),
+        industry_sector: @js(old('industry_sector', $startup->industry_sector) ?? ''),
+        business_description: @js(old('business_description', $startup->business_description) ?? ''),
+        founder_name: @js(old('founder_name', auth()->user()->name) ?? ''),
+        contact_phone: @js(old('contact_phone', $startup->contact_phone) ?? ''),
+        location: @js(old('location', $startup->location) ?? ''),
+
+        // startup_photo is only required the first time (see the request
+        // class); the nested photo x-data fires 'startup-photo-selected' on
+        // a successful crop so this flips true without the two components
+        // sharing scope.
+        hasPhoto: @js((bool) $startup->startup_photo_path),
+
+        get canSave() {
+            return this.company_name.trim() !== ''
+                && this.industry_sector.trim() !== ''
+                && this.business_description.trim().length >= 50
+                && this.founder_name.trim() !== ''
+                && /^(09\d{9}|\+639\d{9})$/.test(this.contact_phone.trim())
+                && this.location.trim() !== ''
+                && this.hasPhoto
+                && this.remainingTeamCount >= 3;
+        },
+
         // Cancel has to do three things, and the old version did only the first:
         //   1. leave edit mode
         //   2. clear dirty, or the unsaved-changes guard keeps firing on a cancel
@@ -54,6 +94,10 @@
                 e.preventDefault();
                 e.returnValue = '';
             }
+        });
+
+        window.addEventListener('startup-photo-selected', () => {
+            hasPhoto = true;
         });
 ">
 
@@ -106,7 +150,8 @@
                             <input
                                 type="text"
                                 name="company_name"
-                                value="{{ old('company_name', $startup->company_name) }}"
+                                x-model="company_name"
+                                required
                                 :readonly="!editing"
                                 :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                 class="w-full border rounded-lg px-3 py-2 text-sm"
@@ -121,7 +166,8 @@
                                 <input
                                     type="text"
                                     name="industry_sector"
-                                    value="{{ old('industry_sector', $startup->industry_sector) }}"
+                                    x-model="industry_sector"
+                                    required
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                     class="w-full border rounded-lg px-3 py-2 text-sm"
@@ -145,14 +191,30 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Business Description <span class="text-red-500">*</span></label>
+                            {{-- This is the Startup's own copy (see migration 000048) -
+                                 it only ever seeds the Information Sheet's copy once,
+                                 while that one's still blank, so it stays editable here
+                                 regardless of the sheet's lock status. --}}
                             {{-- No whitespace inside <textarea>: it becomes part of the value --}}
                             <textarea
                                 name="business_description"
                                 rows="4"
+                                x-model="business_description"
+                                required
+                                minlength="50"
                                 :readonly="!editing"
                                 :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                 class="w-full border rounded-lg px-3 py-2 text-sm"
-                                @input="dirty = true">{{ old('business_description', $startup->informationSheet?->business_description) }}</textarea>
+                                @input="dirty = true"></textarea>
+
+                            {{-- Mirrors the server's min:50 rule (see
+                                 UpdateStartupProfileRequest) so founders see
+                                 the requirement before they hit Save, not
+                                 only after a rejected submit. --}}
+                            <p x-show="editing" x-cloak
+                                class="text-xs mt-1"
+                                :class="business_description.trim().length >= 50 ? 'text-gray-400' : 'text-red-500'"
+                                x-text="business_description.trim().length + ' / 50 characters minimum'"></p>
 
                             @error('business_description')
                             <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
@@ -168,7 +230,8 @@
                             <input
                                 type="text"
                                 name="founder_name"
-                                value="{{ old('founder_name', auth()->user()->name) }}"
+                                x-model="founder_name"
+                                required
                                 :readonly="!editing"
                                 :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                 class="w-full border rounded-lg px-3 py-2 text-sm"
@@ -188,11 +251,27 @@
                                 <input
                                     type="text"
                                     name="contact_phone"
-                                    value="{{ old('contact_phone', $startup->contact_phone) }}"
+                                    inputmode="tel"
+                                    x-model="contact_phone"
+                                    required
+                                    pattern="^(09[0-9]{9}|\+639[0-9]{9})$"
+                                    maxlength="13"
+                                    title="Enter a valid Philippine mobile number, for example 09171234567 or +639171234567."
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                     class="w-full border rounded-lg px-3 py-2 text-sm"
                                     @input="dirty = true">
+
+                                {{-- Format only, not a real-number lookup: digits and a
+                                     leading + only, matching the server's regex (see
+                                     UpdateStartupProfileRequest). --}}
+                                <p x-show="editing && contact_phone.trim() !== ''" x-cloak
+                                    class="text-xs mt-1"
+                                    :class="/^(09\d{9}|\+639\d{9})$/.test(contact_phone.trim()) ? 'text-gray-400' : 'text-red-500'"
+                                    x-text="/^(09\d{9}|\+639\d{9})$/.test(contact_phone.trim())
+                                        ? 'Valid format'
+                                        : 'Enter a valid Philippine mobile number, for example 09171234567 or +639171234567.'"></p>
+
                                 @error('contact_phone') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                             </div>
                         </div>
@@ -216,7 +295,8 @@
                                 <input
                                     type="text"
                                     name="location"
-                                    value="{{ old('location', $startup->location) }}"
+                                    x-model="location"
+                                    required
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                     class="w-full border rounded-lg px-3 py-2 text-sm"
@@ -227,19 +307,29 @@
                     </div>
 
                     <div class="bg-white rounded-xl border border-gray-200 p-6 mt-6">
-                        <h2 class="font-bold text-gray-900 mb-4">Team Members</h2>
+                        <h2 class="font-bold text-gray-900">Team Members <span class="text-red-500">*</span></h2>
+
+                        {{-- This is the Profile's own roster now (StartupTeamMember -
+                             see migration 000049), separate from the Information
+                             Sheet's own Core Team table, so it's never gated on
+                             the sheet's lock. --}}
+                        <p x-show="editing" x-cloak
+                            class="text-xs mt-1 mb-4"
+                            :class="remainingTeamCount >= 3 ? 'text-gray-400' : 'text-red-500'"
+                            x-text="remainingTeamCount + ' / 3 members minimum'"></p>
+                        <p x-show="!editing" class="text-xs text-gray-500 mb-4">Minimum of 3 members.</p>
 
                         <div class="space-y-3 mb-4">
-                            @foreach($startup->teamMembers as $member)
+                            @foreach($startup->startupTeamMembers as $member)
 
                             <div
-                                x-show="!deletedMembers.includes({{ $member->member_id }})"
+                                x-show="!deletedMembers.includes({{ $member->startup_team_member_id }})"
                                 class="grid grid-cols-[1fr_32px] gap-2 items-center">
 
                                 <input
                                     type="text"
-                                    name="team_members[{{ $member->member_id }}]"
-                                    value="{{ old("team_members.$member->member_id", $member->full_name) }}"
+                                    name="team_members[{{ $member->startup_team_member_id }}]"
+                                    value="{{ old("team_members.$member->startup_team_member_id", $member->full_name) }}"
                                     :readonly="!editing"
                                     :class="editing
                                         ? 'bg-white'
@@ -251,7 +341,7 @@
                                     x-show="editing"
                                     type="button"
                                     @click="
-                                        deletedMembers.push({{ $member->member_id }});
+                                        deletedMembers.push({{ $member->startup_team_member_id }});
                                         dirty = true;
                                     "
                                     class="text-red-600 hover:text-red-800 text-lg px-2">
@@ -260,8 +350,8 @@
 
                                 <input
                                     type="hidden"
-                                    x-bind:disabled="!deletedMembers.includes({{ $member->member_id }})"
-                                    value="{{ $member->member_id }}"
+                                    x-bind:disabled="!deletedMembers.includes({{ $member->startup_team_member_id }})"
+                                    value="{{ $member->startup_team_member_id }}"
                                     name="deleted_team_members[]">
 
                             </div>
@@ -305,13 +395,22 @@
 
                         </div>
                         @error('full_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                        @error('team_members') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                     </div>
 
-                    <div x-show="editing" x-transition class="mt-6 flex justify-end">
+                    <div x-show="editing" x-transition class="mt-6 flex flex-col items-end gap-2">
+
+                        <p x-show="!canSave" x-cloak class="text-xs text-gray-500">
+                            Fill in every required field (marked with <span class="text-red-500">*</span>) before saving.
+                        </p>
 
                         <button
                             type="submit"
-                            class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-sm font-medium rounded-lg px-5 py-2.5">
+                            :disabled="!canSave"
+                            :class="canSave
+                                ? 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-90'
+                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+                            class="text-sm font-medium rounded-lg px-5 py-2.5 transition">
                             Save Changes
                         </button>
 
@@ -366,6 +465,7 @@
 
                                 this.photoPreview = URL.createObjectURL(blob);
                                 this.dirty = true;
+                                window.dispatchEvent(new CustomEvent('startup-photo-selected'));
                                 this.closeCrop();
                             }, 'image/jpeg', 0.9);
                         },
@@ -448,12 +548,12 @@
 
                     {{-- The photo is one of the fields Startup::isProfileComplete()
                          checks, so it is required until one is stored (see
-                         UpdateStartupProfileRequest) — say so, and surface the
-                         error instead of failing silently. --}}
+                         UpdateStartupProfileRequest). The asterisk is the only
+                         reminder here - the explanatory sentence was dropped
+                         as redundant now that a real validation message
+                         (@error('startup_photo') below) surfaces on submit. --}}
                     @if (! $startup->startup_photo_path)
-                    <p class="mt-3 text-xs text-gray-500">
-                        Startup photo <span class="text-red-500">*</span> — required to complete your profile
-                    </p>
+                    <p class="mt-3 text-xs text-red-500">*</p>
                     @endif
 
                     @error('startup_photo')
@@ -510,7 +610,7 @@
 
                 <p class="text-center font-bold text-gray-900">{{ $startup->company_name }}</p>
                 <p class="text-center text-xs text-gray-500 mb-3">{{ $startup->industry_sector }} · {{ $startup->batch_label }}</p>
-                <p class="text-xs text-gray-500 line-clamp-3 mb-3">{{ $startup->informationSheet?->business_description }}</p>
+                <p class="text-xs text-gray-500 line-clamp-3 mb-3">{{ $startup->business_description }}</p>
                 <div class="text-xs text-gray-500 flex items-center justify-between border-t pt-3">
                     <span>{{ $startup->location }}</span>
                     @if ($startup->latestReadinessAssessment)

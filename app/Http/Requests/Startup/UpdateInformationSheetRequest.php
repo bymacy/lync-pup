@@ -153,16 +153,50 @@ class UpdateInformationSheetRequest extends FormRequest
 
         // Names: letters only (plus the punctuation real names carry — spaces,
         // hyphens, apostrophes, periods, Ñ/accents). No digits, no symbols.
+        // Everyone has a surname and a first name, so - unlike Middle Name and
+        // Name Extension just below - N/A is not a valid answer here: the
+        // character class has no slash in it, so "N/A" simply can't match.
+        $properName = fn (int $max) => [
+            'required', 'string', 'max:'.$max,
+            'regex:/^[\p{L}][\p{L}\s\.\-\x{2019}\']*$/iu',
+        ];
+
+        // Same shape as above, but N/A is a real answer here - not everyone
+        // has a middle name or a suffix.
         $name = fn (int $max) => [
             'required', 'string', 'max:'.$max,
             'regex:/^(n\/a|[\p{L}][\p{L}\s\.\-\x{2019}\']*)$/iu',
         ];
 
-        // ID numbers: digits with optional spaces or dashes, e.g. 12-3456789-0.
-        // No letters, so a typo like "SSS 12" is caught here.
+        // The business TIN: digits and hyphens only - no spaces, no letters -
+        // e.g. 123-456-789-000. This is the only field left using this shape;
+        // GSIS/Pag-IBIG/PhilHealth/SSS moved to $govId below for their exact
+        // digit counts.
         $idNumber = fn (int $max) => [
             'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[0-9][0-9\s\-]*)$/i',
+            'regex:/^(n\/a|[0-9][0-9\-]*)$/i',
+        ];
+
+        // A Philippine government ID number: digits and hyphens only - no
+        // spaces - that must total an exact digit count once the hyphens are
+        // stripped out. Each agency's number has a fixed, well-known length:
+        // GSIS 11, Pag-IBIG 12, PhilHealth 12, SSS 10. Stricter than
+        // $idNumber above, which is still used for numbers without a fixed
+        // length (e.g. the business TIN).
+        $govId = fn (int $digits, string $label) => [
+            'required', 'string', 'max:20',
+            'regex:/^(n\/a|[0-9\-]+)$/i',
+            function ($attribute, $value, $fail) use ($digits, $label) {
+                if (is_string($value) && strcasecmp(trim($value), 'N/A') === 0) {
+                    return;
+                }
+
+                $count = strlen(preg_replace('/[^0-9]/', '', (string) $value));
+
+                if ($count !== $digits) {
+                    $fail("Please enter a valid {$label}.");
+                }
+            },
         ];
 
         // Words only: letters plus the punctuation that shows up inside real
@@ -173,25 +207,45 @@ class UpdateInformationSheetRequest extends FormRequest
             'regex:/^(n\/a|[\p{L}][\p{L}\s\.\-\x{2019}\']*)$/iu',
         ];
 
-        // Place names: words plus commas, e.g. "Sta. Mesa, Manila".
+        // Place names: words, digits and commas - some barangays and streets are
+        // numbered, e.g. "Sta. Mesa, Manila" or "Barangay 176, Caloocan".
         $place = fn (int $max) => [
             'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[\p{L}][\p{L}\s\.\,\-\x{2019}\']*)$/iu',
+            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\,\-\x{2019}\']*)$/iu',
         ];
 
         // Addresses: words and house/unit numbers, plus the punctuation an
-        // address actually uses. Rejects @ ! $ % ^ * = < > and friends.
+        // address actually uses. Rejects @ ! $ % ^ * = < > and friends. A real
+        // address is never this short, so a minimum length is what actually
+        // keeps out "N/A" and other non-answers - the character class alone
+        // wouldn't, since digits, letters and / are all valid address text.
         $address = fn (int $max) => [
-            'required', 'string', 'max:'.$max,
+            'required', 'string', 'max:'.$max, 'min:10',
             'regex:/^(n\/a|[\p{L}\p{N}\#][\p{L}\p{N}\s\.\,\-\#\/\(\)\&\x{2019}\']*)$/iu',
         ];
 
-        // Schools, courses and units earned: same shape as an address minus the
-        // unit sign — "Polytechnic University of the Philippines", "St. Paul's
-        // College", "36 units", "Bachelor's Degree".
-        $institution = fn (int $max) => [
+        // Name of School: letters, numbers, spaces, and . - ' & ( ) - no
+        // slash, no comma, e.g. "Polytechnic University of the Philippines"
+        // or "St. Paul's College".
+        $schoolName = fn (int $max) => [
             'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\,\-\/\(\)\&\x{2019}\']*)$/iu',
+            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\-\&\(\)\x{2019}\']*)$/iu',
+        ];
+
+        // Degree / Course: letters, numbers, spaces, and . - / & ( ) - no
+        // apostrophe, no comma, e.g. "BS Computer Science / IT" or
+        // "Bachelor's" (spelled without the apostrophe, since that one isn't
+        // allowed here).
+        $degreeCourse = fn (int $max) => [
+            'required', 'string', 'max:'.$max,
+            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\&\(\)]*)$/iu',
+        ];
+
+        // Highest Level / Unit: letters, numbers, spaces, and . - / ( ) - no
+        // ampersand, no apostrophe, no comma, e.g. "4th Year" or "36 units".
+        $highestLevelUnit = fn (int $max) => [
+            'required', 'string', 'max:'.$max,
+            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\(\)]*)$/iu',
         ];
 
         // Blood type: A, B, AB or O with a + or - sign.
@@ -200,33 +254,124 @@ class UpdateInformationSheetRequest extends FormRequest
             'regex:/^(n\/a|(a|b|ab|o)\s?[+\-])$/i',
         ];
 
-        // Free-form paragraphs. Punctuation is expected here, so only the
-        // markup characters are blocked.
+        // The startup overview: letters, numbers, spaces and common
+        // punctuation . , ! ? ' - ( ) only - no emoji, no HTML/code, no other
+        // symbols. Must start with a letter or number, so a string of bare
+        // punctuation can't pass as a description.
         $prose = fn (int $max) => [
             'required', 'string', 'max:'.$max,
-            'regex:/^[^<>{}|\\^~]*$/u',
+            'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\,\!\?\'\-\(\)]*$/u',
         ];
 
-        // Items 23, 31 and 34 are row tables the founder may genuinely have
-        // nothing to put in, so they are the one place on this sheet where a
-        // blank is an answer. Anything typed is still shape-checked.
+        // Items 31 and 34 (Non-Academic Distinctions, Membership in
+        // Associations) are row tables the founder may genuinely have nothing
+        // to put in, so N/A is a real answer - prepareForValidation() above
+        // turns a blank into "N/A" before this even runs. Anything actually
+        // typed is restricted to letters, numbers, spaces and . , & ' - ( ) /.
         $optionalProse = fn (int $max) => [
             'nullable', 'string', 'max:'.$max,
-            'regex:/^[^<>{}|\\^~]*$/u',
+            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\,\&\'\-\(\)\/]*)$/iu',
         ];
+
+        // Item 23 is a packed list (see the row-table widget in the view) -
+        // one scholarship/honor per line, normally shaped "<name>, <year>" or
+        // "<name>, <year>-<year>", e.g. "Dean's Lister, 2016-2018". The
+        // "no markup" check above isn't strict enough to catch a symbols-only
+        // entry or a bogus year, so each line gets checked on its own here.
+        $scholarshipEntry = function ($attribute, $value, $fail) {
+            if (! is_string($value)) {
+                return;
+            }
+
+            $trimmed = trim($value);
+
+            if ($trimmed === '' || strcasecmp($trimmed, 'N/A') === 0) {
+                return;
+            }
+
+            $currentYear = (int) date('Y');
+
+            foreach (preg_split('/\r\n|\r|\n/', $trimmed) as $line) {
+                $line = trim($line);
+
+                if ($line === '') {
+                    continue;
+                }
+
+                // Letters, numbers, spaces, and . , - ' & / ( ) - the comma is
+                // the separator between the name and the year, not part of
+                // the name itself, but it's simplest to allow it everywhere
+                // in the line and let the "at least one letter" check below
+                // catch an entry that's really just digits or symbols.
+                $validChars = preg_match('/^[\p{L}\p{N}][\p{L}\p{N}\s\.,\-\'\&\/\(\)]*$/u', $line);
+                $hasLetter = preg_match('/\p{L}/u', $line);
+
+                if (! $validChars || ! $hasLetter) {
+                    $fail('Please enter a valid scholarship or academic honor.');
+                    return;
+                }
+
+                $lastComma = strrpos($line, ',');
+
+                if ($lastComma === false) {
+                    continue;
+                }
+
+                $yearPart = trim(substr($line, $lastComma + 1));
+
+                // Nothing after the last comma, or nothing that even looks
+                // like a year (e.g. "Dean's Lister, College of Engineering")
+                // - not every entry has a year, so this isn't required on
+                // its own.
+                if ($yearPart === '' || ! preg_match('/\d/', $yearPart)) {
+                    continue;
+                }
+
+                if (preg_match('/^(19|20)\d{2}$/', $yearPart)) {
+                    if ((int) $yearPart > $currentYear) {
+                        $fail('Please enter a valid year or year range.');
+                        return;
+                    }
+                } elseif (preg_match('/^(19|20)\d{2}\s*-\s*(19|20)\d{2}$/', $yearPart)) {
+                    [$from, $to] = array_map('trim', explode('-', $yearPart));
+
+                    if ((int) $from > $currentYear || (int) $to > $currentYear) {
+                        $fail('Please enter a valid year or year range.');
+                        return;
+                    }
+                } else {
+                    $fail('Please enter a valid year or year range.');
+                    return;
+                }
+            }
+        };
 
         // Registration codes are deliberately mixed — "CS201812345",
-        // "DTI-0054321", "07-000123-4". Letters and digits are both fine; what
-        // is rejected is punctuation that never appears in a real reference
-        // number (@, #, emoji, quotes), so a junk entry can't pass as a code.
+        // "DTI-0054321", "07000123". Letters, digits and hyphens only - no
+        // spaces, no slash, no period - so a junk entry (or a code typed with
+        // stray punctuation) can't pass as one.
         $code = fn (int $max) => [
             'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[A-Za-z0-9][A-Za-z0-9\s\-\/\.]*)$/i',
+            'regex:/^(n\/a|[A-Za-z0-9][A-Za-z0-9\-]*)$/i',
         ];
 
 
-        // "N/A" or a 4-digit year
-        $year = ['required', 'string', 'max:10', 'regex:/^(n\/a|(19|20)\d{2})$/i'];
+        // "N/A" or a 4-digit year that isn't later than this year - a real
+        // transcript can't have graduated someone yet to come.
+        $currentYear = (int) date('Y');
+        $year = [
+            'required', 'string', 'max:10',
+            'regex:/^(n\/a|(19|20)\d{2})$/i',
+            function ($attribute, $value, $fail) use ($currentYear) {
+                if (is_string($value) && strcasecmp(trim($value), 'N/A') === 0) {
+                    return;
+                }
+
+                if (is_numeric($value) && (int) $value > $currentYear) {
+                    $fail('Year graduated cannot be in the future.');
+                }
+            },
+        ];
 
         return [
             // The sheet's own overview column. Pre-filled from the Startup
@@ -234,8 +379,8 @@ class UpdateInformationSheetRequest extends FormRequest
             // editing it here never changes the Profile.
             'startup_overview' => $prose(5000),
 
-            'surname' => $name(100),
-            'first_name' => $name(100),
+            'surname' => $properName(100),
+            'first_name' => $properName(100),
             'middle_name' => $name(100),
             'name_extension' => $name(20),
             // The two boxes the founder actually types in, plus the unit each
@@ -251,10 +396,10 @@ class UpdateInformationSheetRequest extends FormRequest
             'height_m' => ['required', 'numeric', 'between:0.5,2.5'],
             'weight_kg' => ['required', 'numeric', 'between:20,500'],
             'blood_type' => $bloodType,
-            'gsis_no' => $idNumber(50),
-            'pagibig_no' => $idNumber(50),
-            'philhealth_no' => $idNumber(50),
-            'sss_no' => $idNumber(50),
+            'gsis_no' => $govId(11, 'GSIS ID number'),
+            'pagibig_no' => $govId(12, 'PAG-IBIG number'),
+            'philhealth_no' => $govId(12, 'PhilHealth number'),
+            'sss_no' => $govId(10, 'SSS number'),
             'residential_address' => $address(255),
             'permanent_address' => $address(255),
             // Both come from a fixed control now (segmented buttons / a dropdown),
@@ -271,23 +416,29 @@ class UpdateInformationSheetRequest extends FormRequest
             'mobile_no' => ['required', 'string', 'max:20', 'regex:/^(\+63|0)9\d{2}[ -]?\d{3}[ -]?\d{4}$/'],
             'founder_email' => ['required', 'email', 'max:150'],
 
-            'secondary_school' => $institution(150),
-            'secondary_degree_course' => $institution(150),
-            'secondary_highest_level_unit' => $institution(100),
+            'secondary_school' => $schoolName(150),
+            'secondary_degree_course' => $degreeCourse(150),
+            'secondary_highest_level_unit' => $highestLevelUnit(100),
             'secondary_year_graduated' => $year,
-            'vocational_school' => $institution(150),
-            'vocational_degree_course' => $institution(150),
-            'vocational_highest_level_unit' => $institution(100),
+            'vocational_school' => $schoolName(150),
+            'vocational_degree_course' => $degreeCourse(150),
+            'vocational_highest_level_unit' => $highestLevelUnit(100),
             'vocational_year_graduated' => $year,
-            'college_school' => $institution(150),
-            'college_degree_course' => $institution(150),
-            'college_highest_level_unit' => $institution(100),
+            'college_school' => $schoolName(150),
+            'college_degree_course' => $degreeCourse(150),
+            'college_highest_level_unit' => $highestLevelUnit(100),
             'college_year_graduated' => $year,
-            'graduate_school' => $institution(150),
-            'graduate_degree_course' => $institution(150),
-            'graduate_highest_level_unit' => $institution(100),
+            'graduate_school' => $schoolName(150),
+            'graduate_degree_course' => $degreeCourse(150),
+            'graduate_highest_level_unit' => $highestLevelUnit(100),
             'graduate_year_graduated' => $year,
-            'scholarships_academic_honors' => $optionalProse(2000),
+            // 500 chars, not $optionalProse's usual 2000 - this is a short
+            // packed list, not a paragraph.
+            'scholarships_academic_honors' => [
+                'nullable', 'string', 'max:500',
+                'regex:/^[^<>{}|\\^~]*$/u',
+                $scholarshipEntry,
+            ],
 
             'sec_registration' => $code(100),
             'business_id_number' => $code(100),
@@ -305,79 +456,81 @@ class UpdateInformationSheetRequest extends FormRequest
     {
         $messages = [
             // Personal information
-            'surname.required' => 'Enter the founder\'s surname.',
+            'surname.required' => 'Please enter your surname.',
             'surname.regex' => 'Surname can only contain letters, spaces, hyphens and periods.',
-            'first_name.required' => 'Enter the founder\'s first name.',
+            'first_name.required' => 'Please enter your first name.',
             'first_name.regex' => 'First name can only contain letters, spaces, hyphens and periods.',
-            'middle_name.required' => 'Enter the middle name, or N/A if there is none.',
+            'middle_name.required' => 'Please enter your middle name or N/A.',
             'middle_name.regex' => 'Middle name can only contain letters, spaces, hyphens and periods.',
-            'name_extension.required' => 'Enter a name extension such as Jr., Sr. or III, or N/A if there is none.',
+            'name_extension.required' => 'Please enter your name extension or N/A.',
             'name_extension.regex' => 'Name extension can only contain letters and periods.',
 
-            'height_input.required' => 'Enter the height.',
-            'height_input.regex' => 'Height must be a number - digits only, for example 175.',
+            'height_input.required' => 'Please enter your height.',
+            'height_input.regex' => 'Please enter a valid height.',
             'height_unit.required' => 'Choose cm, in, m or ft for the height.',
             'height_unit.in' => 'Choose cm, in, m or ft for the height.',
-            'height_m.required' => 'Enter the height.',
-            'height_m.numeric' => 'Height must be a number, for example 175.',
-            'height_m.between' => 'Check the height - that is not a realistic measurement.',
+            'height_m.required' => 'Please enter your height.',
+            'height_m.numeric' => 'Please enter a valid height.',
+            'height_m.between' => 'Please enter a valid height.',
 
-            'weight_input.required' => 'Enter the weight.',
-            'weight_input.regex' => 'Weight must be a number - digits only, for example 58.',
+            'weight_input.required' => 'Please enter your weight.',
+            'weight_input.regex' => 'Please enter a valid weight.',
             'weight_unit.required' => 'Choose kg or lb for the weight.',
             'weight_unit.in' => 'Choose kg or lb for the weight.',
-            'weight_kg.required' => 'Enter the weight.',
-            'weight_kg.numeric' => 'Weight must be a number, for example 58.',
-            'weight_kg.between' => 'Check the weight - that is not a realistic measurement.',
-            'blood_type.required' => 'Enter the blood type, for example O+.',
+            'weight_kg.required' => 'Please enter your weight.',
+            'weight_kg.numeric' => 'Please enter a valid weight.',
+            'weight_kg.between' => 'Please enter a valid weight.',
+            'blood_type.required' => 'Please enter your blood type or N/A.',
 
-            'gsis_no.required' => 'Enter the GSIS number, or N/A if there is none.',
-            'gsis_no.regex' => 'GSIS number must contain digits only (dashes and spaces are allowed).',
-            'pagibig_no.required' => 'Enter the Pag-IBIG MID number, or N/A if there is none.',
-            'pagibig_no.regex' => 'Pag-IBIG number must contain digits only (dashes and spaces are allowed).',
-            'philhealth_no.required' => 'Enter the PhilHealth number, or N/A if there is none.',
-            'philhealth_no.regex' => 'PhilHealth number must contain digits only (dashes and spaces are allowed).',
-            'sss_no.required' => 'Enter the SSS number, or N/A if there is none.',
-            'sss_no.regex' => 'SSS number must contain digits only (dashes and spaces are allowed).',
+            'gsis_no.required' => 'Please enter your GSIS ID number or N/A.',
+            'gsis_no.regex' => 'Please enter a valid GSIS ID number.',
+            'pagibig_no.required' => 'Please enter your PAG-IBIG number or N/A.',
+            'pagibig_no.regex' => 'Please enter a valid PAG-IBIG number.',
+            'philhealth_no.required' => 'Please enter your PhilHealth number or N/A.',
+            'philhealth_no.regex' => 'Please enter a valid PhilHealth number.',
+            'sss_no.required' => 'Please enter your SSS number or N/A.',
+            'sss_no.regex' => 'Please enter a valid SSS number.',
 
-            'residential_address.required' => 'Enter the current residential address.',
+            'residential_address.required' => 'Please enter your residential address.',
             'residential_address.regex' => 'Use letters, numbers and normal address punctuation only (. , - # / & ).',
+            'residential_address.min' => 'Please enter your complete residential address.',
             'permanent_address.regex' => 'Use letters, numbers and normal address punctuation only (. , - # / & ).',
+            'permanent_address.min' => 'Please enter your complete permanent address.',
             'blood_type.regex' => 'Enter a blood type such as O+, A-, AB+.',
             'sex.in' => 'Choose Male or Female.',
             'civil_status.in' => 'Choose one of the listed civil statuses.',
             'citizenship_by_birth.regex' => 'Use letters only, for example Filipino.',
             'citizenship_dual.regex' => 'Use letters only, or N/A if there is none.',
-            'place_of_birth.regex' => 'Use letters, commas and periods only, for example Sta. Mesa, Manila.',
+            'place_of_birth.regex' => 'Use letters, numbers, commas and periods only, for example Sta. Mesa, Manila.',
             'scholarships_academic_honors.regex' => 'Remove the < > { } | \\ ^ ~ characters.',
-            'non_academic_distinctions.regex' => 'Remove the < > { } | \\ ^ ~ characters.',
-            'membership_associations.regex' => 'Remove the < > { } | \\ ^ ~ characters.',
-            'startup_overview.regex' => 'Remove the < > { } | \\ ^ ~ characters.',
-            'permanent_address.required' => 'Enter the permanent address. Repeat the residential address if they are the same.',
-            'sex.required' => 'Choose Male or Female.',
-            'civil_status.required' => 'Choose a civil status.',
-            'citizenship_by_birth.required' => 'Enter the citizenship by birth, for example Filipino.',
-            'citizenship_dual.required' => 'Enter the second citizenship, or N/A if there is none.',
-            'place_of_birth.required' => 'Enter the city or municipality of birth.',
-            'date_of_birth.required' => 'Select the date of birth.',
-            'date_of_birth.date' => 'Enter the date of birth as a valid date.',
-            'date_of_birth.before' => 'Date of birth must be 2009 or earlier.',
-            'date_of_birth.after' => 'Check the date of birth — the year looks too early.',
+            'non_academic_distinctions.regex' => 'Please enter a valid distinction, recognition, or eligibility.',
+            'membership_associations.regex' => 'Please enter a valid organization or association.',
+            'startup_overview.regex' => 'Please enter a valid startup overview.',
+            'permanent_address.required' => 'Please enter your permanent address.',
+            'sex.required' => 'Please select your sex.',
+            'civil_status.required' => 'Please select your civil status.',
+            'citizenship_by_birth.required' => 'Please enter your citizenship.',
+            'citizenship_dual.required' => 'Please enter your dual citizenship or N/A.',
+            'place_of_birth.required' => 'Please enter your place of birth.',
+            'date_of_birth.required' => 'Please enter your date of birth.',
+            'date_of_birth.date' => 'Please enter a valid date of birth.',
+            'date_of_birth.before' => 'Please enter a valid date of birth.',
+            'date_of_birth.after' => 'Please enter a valid date of birth.',
 
-            'mobile_no.required' => 'Enter an active mobile number, for example 09171234567.',
-            'mobile_no.regex' => 'Enter a valid Philippine mobile number, for example 09171234567 or +639171234567.',
-            'founder_email.required' => 'Enter an email address that can receive updates.',
-            'founder_email.email' => 'Enter a valid email address, for example name@email.com.',
+            'mobile_no.required' => 'Please enter your mobile number or N/A.',
+            'mobile_no.regex' => 'Please enter a valid mobile number (e.g., 09171234567).',
+            'founder_email.required' => 'Please enter your email address.',
+            'founder_email.email' => 'Please enter a valid email address.',
 
             // Business registration
             'sec_registration.required' => 'Enter the SEC registration number, or N/A if not registered.',
             'business_id_number.required' => 'Enter the business ID number, or N/A if there is none.',
             'dti_registration_number.required' => 'Enter the DTI registration number, or N/A if not registered.',
             'business_tin.required' => 'Enter the business TIN, or N/A if there is none.',
-            'business_tin.regex' => 'TIN must contain digits only (dashes and spaces are allowed).',
-            'sec_registration.regex' => 'SEC registration can only contain letters, numbers, dashes and slashes.',
-            'business_id_number.regex' => 'Business ID number can only contain letters, numbers, dashes and slashes.',
-            'dti_registration_number.regex' => 'DTI registration can only contain letters, numbers, dashes and slashes.',
+            'business_tin.regex' => 'Please enter a valid TIN.',
+            'sec_registration.regex' => 'Please enter a valid SEC registration number.',
+            'business_id_number.regex' => 'Please enter a valid business ID number.',
+            'dti_registration_number.regex' => 'Please enter a valid DTI registration number.',
 
             // Long-form entries
             'startup_overview.required' => 'Describe what the startup does.',
@@ -395,14 +548,14 @@ class UpdateInformationSheetRequest extends FormRequest
         ];
 
         foreach ($levels as $key => $label) {
-            $messages[$key.'_school.required'] = "Enter the name of the {$label} attended, or N/A if not applicable.";
-            $messages[$key.'_degree_course.required'] = "Enter the degree or course taken for {$label}, or N/A if not applicable.";
-            $messages[$key.'_highest_level_unit.required'] = "Enter the highest level or units earned for {$label}, or N/A if not applicable.";
-            $messages[$key.'_year_graduated.required'] = "Enter the year graduated for {$label}, or N/A if not applicable.";
+            $messages[$key.'_school.required'] = 'Please enter the name of the school or N/A.';
+            $messages[$key.'_degree_course.required'] = 'Please enter the degree/course or N/A.';
+            $messages[$key.'_highest_level_unit.required'] = 'Please enter the highest level/unit or N/A.';
+            $messages[$key.'_year_graduated.required'] = 'Please enter the year graduated or N/A.';
             $messages[$key.'_year_graduated.regex'] = "Year graduated for {$label} must be a 4-digit year, for example 2018.";
-            $messages[$key.'_school.regex'] = "The {$label} name can only contain letters, numbers and . , - / & punctuation.";
-            $messages[$key.'_degree_course.regex'] = "The {$label} degree or course can only contain letters, numbers and . , - / & punctuation.";
-            $messages[$key.'_highest_level_unit.regex'] = "The {$label} level or units can only contain letters, numbers and . , - / & punctuation.";
+            $messages[$key.'_school.regex'] = "The {$label} name can only contain letters, numbers and . - ' & ( ) punctuation.";
+            $messages[$key.'_degree_course.regex'] = "The {$label} degree or course can only contain letters, numbers and . - / & ( ) punctuation.";
+            $messages[$key.'_highest_level_unit.regex'] = "The {$label} level or units can only contain letters, numbers and . - / ( ) punctuation.";
         }
 
         // Fallback for anything not named above.

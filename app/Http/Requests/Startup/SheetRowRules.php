@@ -73,6 +73,35 @@ trait SheetRowRules
     }
 
     /**
+     * A real person's name: letters, spaces, and . - ' only - no digits, no
+     * N/A (unlike rowName() above, which is shared with rows that may
+     * genuinely have nothing to put there). Suffixes like "Jr." or "III"
+     * are just letters and a period, so they already fit.
+     */
+    protected function rowPersonName(int $max): array
+    {
+        return ['required', 'string', 'max:'.$max, 'regex:/^[\p{L}][\p{L}\s\.\-\x{2019}\']*$/iu'];
+    }
+
+    /** A job title or role: letters, numbers, spaces, and . - / & - no N/A. */
+    protected function rowDesignation(int $max): array
+    {
+        return ['required', 'string', 'max:'.$max, 'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\&]*$/iu'];
+    }
+
+    /** A real address: letters, numbers, spaces, and , . - # / - no N/A. */
+    protected function rowAddress(int $max): array
+    {
+        return ['required', 'string', 'max:'.$max, 'regex:/^[\p{L}\p{N}\#][\p{L}\p{N}\s\.\,\-\#\/]*$/iu'];
+    }
+
+    /** A citizenship/nationality: letters, spaces, and . - ' only - no N/A. */
+    protected function rowCitizenship(int $max): array
+    {
+        return ['required', 'string', 'max:'.$max, 'regex:/^[\p{L}][\p{L}\s\.\-\x{2019}\']*$/iu'];
+    }
+
+    /**
      * Fallback wording, so a column without its own message still tells the
      * founder what to do rather than showing Laravel's default.
      */

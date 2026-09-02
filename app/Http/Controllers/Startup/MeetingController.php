@@ -37,6 +37,7 @@ class MeetingController extends Controller
                     'mentor_name' => $roadblock->assignee?->display_name ?: '—',
                     'platform' => $roadblock->meeting_platform,
                     'meeting_link' => $roadblock->meeting_link,
+                    'notes' => $roadblock->notes,
                     // Joinable for the whole meeting day, not just its exact
                     // start–end window — see Roadblock::isJoinable().
                     'can_join' => $roadblock->isJoinable(),

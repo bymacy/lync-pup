@@ -21,13 +21,18 @@ class StoreTeamMemberRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'full_name' => $this->rowName(150),
-            'designation' => $this->rowText(100),
+            // These four use their own dedicated shapes (rowPersonName,
+            // rowDesignation, rowAddress, rowCitizenship) rather than the
+            // rowName/rowText/rowWords shared with References, Incubation
+            // and L&D - a Core Team member is a real, named person, so
+            // (unlike those other rows) none of these accept N/A here.
+            'full_name' => $this->rowPersonName(150),
+            'designation' => $this->rowDesignation(100),
             'phone' => $this->rowPhone(),
-            'address' => $this->rowText(255),
+            'address' => $this->rowAddress(255),
             'date_of_birth' => ['required', 'date', 'before:2010-01-01', 'after:1900-01-01'],
             'email' => ['required', 'email', 'max:150'],
-            'citizenship' => $this->rowWords(100),
+            'citizenship' => $this->rowCitizenship(100),
             // Both are dropdowns on the sheet, so the list is the rule.
             'sex' => ['required', 'string', 'in:'.implode(',', SheetOptions::sexes())],
             'civil_status' => ['required', 'string', 'in:'.implode(',', SheetOptions::civilStatuses())],
@@ -37,18 +42,21 @@ class StoreTeamMemberRequest extends FormRequest
     public function messages(): array
     {
         return $this->rowMessages([
-            'full_name.required' => 'Enter the team member\'s name, surname first.',
-            'designation.required' => 'Enter the team member\'s designation.',
-            'phone.required' => 'Enter the team member\'s mobile number.',
-            'phone.regex' => 'Enter a valid Philippine mobile number, for example 09171234567.',
-            'address.required' => 'Enter the team member\'s address.',
+            'full_name.required' => 'Please enter the team member\'s name.',
+            'full_name.regex' => 'Please enter a valid name.',
+            'designation.required' => 'Please enter the team member\'s designation.',
+            'phone.required' => 'Please enter the team member\'s phone number.',
+            'phone.regex' => 'Please enter a valid phone number.',
+            'address.required' => 'Please enter the team member\'s address.',
+            'address.regex' => 'Please enter a valid address.',
             'date_of_birth.required' => 'Select the team member\'s date of birth.',
             'date_of_birth.before' => 'Date of birth must be 2009 or earlier.',
             'email.required' => 'Enter the team member\'s email address.',
-            'citizenship.required' => 'Enter the team member\'s citizenship, for example Filipino.',
-            'sex.required' => 'Choose the team member\'s sex.',
+            'citizenship.required' => 'Please enter the team member\'s citizenship.',
+            'citizenship.regex' => 'Please enter a valid citizenship.',
+            'sex.required' => 'Please select the team member\'s sex.',
             'sex.in' => 'Choose Male or Female.',
-            'civil_status.required' => 'Choose the team member\'s civil status.',
+            'civil_status.required' => 'Please select the team member\'s civil status.',
             'civil_status.in' => 'Choose one of the listed civil statuses.',
         ]);
     }

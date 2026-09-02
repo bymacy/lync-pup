@@ -14,7 +14,7 @@ class Startup extends Model
     protected $primaryKey = 'startup_id';
 
     protected $fillable = [
-        'user_id', 'company_name', 'industry_sector', 'cohort_number',
+        'user_id', 'company_name', 'industry_sector', 'business_description', 'cohort_number',
         'contact_phone', 'location', 'website', 'startup_photo_path', 'pitch_deck_requested_at',
         'cohort_id', 'admin_remarks', 'rejection_reason', 'application_decided_at',
     ];
@@ -74,6 +74,17 @@ class Startup extends Model
     public function teamMembers()
     {
         return $this->hasMany(TeamMember::class, 'startup_id');
+    }
+
+    /**
+     * The Startup Profile page's own Core Team roster (see migration
+     * 000049) - separate from teamMembers() above, which belongs to the
+     * Information Sheet. Only ever seeds teamMembers() once, while that
+     * one's still empty (see StartupProfileController::update()).
+     */
+    public function startupTeamMembers()
+    {
+        return $this->hasMany(StartupTeamMember::class, 'startup_id');
     }
 
     public function readinessAssessments()
@@ -199,9 +210,11 @@ class Startup extends Model
      * industry, location, phone, photo) has all of its required fields
      * filled in — the gate for the founder-side Information Sheet module
      * (see InformationSheetController) and the first step of the founder
-     * dashboard's "Startup Onboarding" tracker. Deliberately excludes the
-     * Information Sheet's own fields (business_description, submission_date)
-     * since those belong to the module this gates, not the profile itself.
+     * dashboard's "Startup Onboarding" tracker. Deliberately excludes
+     * business_description (required on the Profile form itself, but not
+     * part of this particular gate) and the Information Sheet's own
+     * submission_date, which belongs to the module this gates, not the
+     * profile itself.
      */
     public function isProfileComplete(): bool
     {
@@ -234,6 +247,20 @@ class Startup extends Model
     public function hasApprovedInformationSheet(): bool
     {
         return $this->informationSheet?->approval_status === 'Approved';
+    }
+
+    /**
+     * Everywhere the Information Sheet itself is locked for editing (see
+     * InformationSheetController::update()'s two abort_if calls): either
+     * it's Approved for good, or today happens to be the scheduled
+     * evaluation day. Anything else that writes into the same underlying
+     * records (StartupProfileController's Business Description sync and
+     * Core Team CRUD) needs to respect this exact same window, or it
+     * becomes a back door around the lock.
+     */
+    public function isInformationSheetLocked(): bool
+    {
+        return $this->hasApprovedInformationSheet() || $this->evaluationDayLockActive();
     }
 
     /**

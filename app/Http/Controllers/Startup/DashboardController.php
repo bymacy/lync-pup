@@ -43,6 +43,8 @@ class DashboardController extends Controller
             $readinessStage = $assessment ? 'Pre-Assessment' : null;
         }
 
+        $onboardingSteps = $this->onboardingSteps($startup);
+
         return view('startup.dashboard', [
             'startup' => $startup,
             'cohortSequence' => $cohortSequence,
@@ -57,8 +59,9 @@ class DashboardController extends Controller
             'awaitingSheetApproval' => $startup->isProfileComplete()
                 && $startup->hasSubmittedInformationSheet()
                 && ! $startup->hasApprovedInformationSheet(),
-            'onboardingSteps' => $this->onboardingSteps($startup),
+            'onboardingSteps' => $onboardingSteps,
             'graduationSteps' => $this->graduationSteps($startup),
+            'onboardingComplete' => collect($onboardingSteps)->last()['state'] === 'done',
             'updates' => $this->updates(),
         ]);
     }

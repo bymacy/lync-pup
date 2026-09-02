@@ -77,7 +77,6 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
         dt: new DataTransfer(),
         dragOver: false,
         showConfirm: false,
-        showSuccess: {{ session('roadblock_submitted') ? 'true' : 'false' }},
         activeRoadblock: null,
         activeUpdate: null,
         previewImageUrl: null,
@@ -247,6 +246,10 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
         x-init="
         $watch('tab', value => setQueryParam('tab', value));
         $watch('archiveStatusFilter', value => setQueryParam('status', value));
+        @if(session('roadblock_submitted'))
+            tab = 'archive';
+            $store.toast.success('Great!', 'Submission successful.');
+        @endif
     ">
         {{-- Header: text between the tags covers the pre-Alpine render, x-text takes over after boot --}}
         <div class="mb-6">
@@ -800,47 +803,6 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                             @click="if (validateAll()) { showConfirm = false; $refs.form.requestSubmit(); }"
                             class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 focus:outline-none">
                             Submit
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- ============================================================
-             Success modal
-             ============================================================ --}}
-        <div x-show="showSuccess" x-cloak
-            x-transition.opacity.duration.200ms
-            @keydown.escape.window="showSuccess = false"
-            class="{{ $modalOverlay }}">
-
-            <div @click.outside="showSuccess = false"
-                x-transition:enter="transition ease-out duration-200"
-                x-transition:enter-start="opacity-0 scale-95"
-                x-transition:enter-end="opacity-100 scale-100"
-                class="{{ $modalPanel }}">
-
-                {{-- Gradient header --}}
-                <div class="flex shrink-0 items-center justify-center bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-3">
-                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm">
-                        <svg class="h-4 w-4 text-[#11386A]" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5 13l4 4L19 7" />
-                        </svg>
-                    </div>
-                </div>
-
-                <div class="{{ $modalBody }} pt-5">
-                    <h3 class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-xl font-bold text-transparent">
-                        Great!
-                    </h3>
-
-                    <p class="mt-1.5 text-xs leading-5 text-gray-600">Submission successful.</p>
-
-                    <div class="mt-4">
-                        <button type="button" @click="showSuccess = false; tab = 'archive'"
-                            class="mx-auto block h-10 w-full max-w-[200px] rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 focus:outline-none">
-                            Continue
                         </button>
                     </div>
                 </div>

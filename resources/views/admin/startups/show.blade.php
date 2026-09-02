@@ -31,8 +31,8 @@
 
             // filled() catches null, '' and whitespace-only in one check — ?? only catches null,
             // which is why a blank description rendered as an empty line rather than a fallback.
-            $description = filled($startup->informationSheet?->business_description)
-            ? $startup->informationSheet->business_description
+            $description = filled($startup->business_description)
+            ? $startup->business_description
             : null;
 
             // Arriving here from the RL's assessment page ("View Profile") should

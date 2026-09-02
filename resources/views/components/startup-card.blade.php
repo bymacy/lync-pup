@@ -70,7 +70,7 @@ $hasSecondAction = in_array($startup->status, ['Assign Coordinator', 'Pending'])
         </div>
 
         <p class="min-h-[1.75rem] flex-1 text-[11px] leading-relaxed text-gray-500 line-clamp-2">
-            {{ $startup->informationSheet?->business_description ?? 'No description submitted yet.' }}
+            {{ $startup->business_description ?? 'No description submitted yet.' }}
         </p>
 
         <div class="flex items-center justify-between gap-2 text-[11px] text-gray-500">

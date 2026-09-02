@@ -50,17 +50,25 @@
                 </a>
             </div>
         @elseif ($awaitingSheetApproval)
-            {{-- Navy, not maroon: nothing for the founder to do here. It only
-                 explains why Meeting / Submission / Readiness Result are still
-                 locked (see App\Http\Middleware\EnsureFounderStage). --}}
+            @php
+                $scheduledEvaluation = $startup->evaluationSchedules()
+                    ->where('status', '!=', 'Cancelled')
+                    ->orderByDesc('evaluation_date')
+                    ->first();
+            @endphp
             <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#11386A]/40 bg-[#11386A]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
                 <div class="flex items-center gap-3 sm:gap-4">
                     <span class="flex shrink-0 items-center justify-center rounded-md bg-[#11386A] text-white" style="width: 44px; height: 44px;">
                         <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/clock.svg') }}')"></span>
                     </span>
                     <div class="min-w-0">
-                        <p class="text-sm font-bold text-gray-900">Information Sheet Submitted &middot; Waiting for Approval</p>
-                        <p class="text-xs text-gray-600">TBIDO is reviewing TBIDO Form No.001. Your Meeting tab is already open - Submission and Readiness Result unlock once the sheet is approved.</p>
+                        @if ($scheduledEvaluation)
+                            <p class="text-sm font-bold text-gray-900">Information Sheet Completed &middot; Evaluation Scheduled</p>
+                            <p class="text-xs text-gray-600">Your evaluation is set for {{ $scheduledEvaluation->evaluation_date->format('F j, Y') }}. Your Meeting tab is already open - Submission and Readiness Result unlock once the sheet is approved.</p>
+                        @else
+                            <p class="text-sm font-bold text-gray-900">Information Sheet Completed &middot; Awaiting Evaluation Schedule</p>
+                            <p class="text-xs text-gray-600">TBIDO is reviewing TBIDO Form No.001. Your Meeting tab is already open - Submission and Readiness Result unlock once the sheet is approved.</p>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -233,18 +241,24 @@
                 </div>
             </div>
 
-            <div class="border-t border-gray-200"></div>
+            {{-- Graduation only appears once Onboarding (the Information
+                 Sheet track above) is fully approved - showing an empty
+                 roadmap before then just confuses founders who haven't
+                 started it yet. --}}
+            @if ($onboardingComplete)
+                <div class="border-t border-gray-200"></div>
 
-            <div class="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:gap-6">
-                <div class="shrink-0 sm:max-w-[100px]">
-                    <p class="text-sm font-bold leading-snug text-gray-900">Graduation Roadmap</p>
-                </div>
-                <div class="-mx-4 overflow-x-auto pb-1 sm:mx-0 sm:flex-1 sm:pb-0">
-                    <div class="flex min-w-[520px] items-center xl:min-w-[760px]">
-                        <x-step-tracker :steps="$graduationSteps" />
+                <div class="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:gap-6">
+                    <div class="shrink-0 sm:max-w-[100px]">
+                        <p class="text-sm font-bold leading-snug text-gray-900">Graduation Roadmap</p>
+                    </div>
+                    <div class="-mx-4 overflow-x-auto pb-1 sm:mx-0 sm:flex-1 sm:pb-0">
+                        <div class="flex min-w-[520px] items-center xl:min-w-[760px]">
+                            <x-step-tracker :steps="$graduationSteps" />
+                        </div>
                     </div>
                 </div>
-            </div>
+            @endif
         </div>
     @endif
 

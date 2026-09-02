@@ -29,16 +29,24 @@ class AssignRoadblockRequest extends FormRequest
     {
         $assignee = $this->input('assignee');
 
-        if (! $assignee || ! str_contains($assignee, '-')) {
-            return;
+        if ($assignee && str_contains($assignee, '-')) {
+            [$type, $id] = explode('-', $assignee, 2);
+
+            $this->merge([
+                'mentor_id' => $type === 'mentor' ? $id : null,
+                'coordinator_id' => $type === 'coordinator' ? $id : null,
+            ]);
         }
 
-        [$type, $id] = explode('-', $assignee, 2);
+        // A whitespace-only note is "nothing typed", not a real answer — store
+        // it as null so the founder-side card's `!empty($meeting['notes'])`
+        // check (and any other blank check) reliably treats it as unset,
+        // rather than rendering an empty-looking Note box.
+        if ($this->has('notes')) {
+            $trimmedNotes = trim((string) $this->input('notes'));
 
-        $this->merge([
-            'mentor_id' => $type === 'mentor' ? $id : null,
-            'coordinator_id' => $type === 'coordinator' ? $id : null,
-        ]);
+            $this->merge(['notes' => $trimmedNotes === '' ? null : $trimmedNotes]);
+        }
     }
 
     public function rules(): array
@@ -159,6 +167,10 @@ class AssignRoadblockRequest extends FormRequest
             // picked — a Zoom link and a physical address look nothing
             // alike. See platformLinkValidator() for the per-platform rules.
             'meeting_link' => ['required', 'string', 'max:255', $this->platformLinkValidator()],
+            // Optional context for the founder — what to prepare, what to
+            // expect, etc. Same "no markup" guard as the sheet's other free
+            // -text fields; nothing here is ever required.
+            'notes' => ['nullable', 'string', 'max:1000', 'regex:/^[^<>{}|\\^~]*$/u'],
         ];
     }
 
@@ -214,6 +226,7 @@ class AssignRoadblockRequest extends FormRequest
     {
         return [
             'mentor_id.required_without' => 'Please select a mentor or coordinator.',
+            'notes.regex' => 'Remove the < > { } | \\ ^ ~ characters.',
         ];
     }
 

@@ -40,9 +40,12 @@ class UpdateStartupProfileRequest extends FormRequest
         return [
             'company_name' => ['required', 'string', 'max:150'],
             'industry_sector' => ['required', 'string', 'max:100'],
-            'business_description' => ['required', 'string'],
+            // Business Description lives on the Startup itself (see
+            // migration 000048), so it's a normal Profile field - no lock
+            // to check here.
+            'business_description' => ['required', 'string', 'min:50'],
             'founder_name' => ['required', 'string', 'max:150'],
-            'contact_phone' => ['required', 'string', 'max:20'],
+            'contact_phone' => ['required', 'string', 'max:13', 'regex:/^(09\d{9}|\+639\d{9})$/'],
             'website' => ['nullable', 'url', 'max:255'],
             'location' => ['required', 'string', 'max:255'],
             'startup_photo' => [
@@ -62,6 +65,34 @@ class UpdateStartupProfileRequest extends FormRequest
                     'That photo could not be uploaded. Please try again with an image under 20MB.'
                 );
             }
+
+            // Core Team (the Profile's own StartupTeamMember roster - see
+            // migration 000049) must have at least 3 members — tally what
+            // survives this save: existing rows minus the ones marked for
+            // deletion, plus any new, non-blank rows being added. Always
+            // enforced: this roster is independent of the Information
+            // Sheet's lock.
+            $startup = $this->user()->startup;
+
+            if ($startup) {
+                $deletedIds = collect($this->input('deleted_team_members', []))
+                    ->map(fn ($id) => (int) $id);
+
+                $remainingExisting = $startup->startupTeamMembers()
+                    ->whereNotIn('startup_team_member_id', $deletedIds)
+                    ->count();
+
+                $newCount = collect($this->input('new_team_members', []))
+                    ->filter(fn ($name) => filled($name))
+                    ->count();
+
+                if (($remainingExisting + $newCount) < 3) {
+                    $validator->errors()->add(
+                        'team_members',
+                        'Your Core Team must have at least 3 members.'
+                    );
+                }
+            }
         });
     }
 
@@ -69,8 +100,10 @@ class UpdateStartupProfileRequest extends FormRequest
     {
         return [
             'contact_phone.required' => 'A phone number is required to complete your Startup Profile.',
+            'contact_phone.regex' => 'Enter a valid Philippine mobile number, for example 09171234567 or +639171234567.',
             'location.required' => 'An address is required to complete your Startup Profile.',
             'startup_photo.required' => 'A startup photo is required to complete your Startup Profile.',
+            'business_description.min' => 'Your business description must be at least 50 characters.',
         ];
     }
 

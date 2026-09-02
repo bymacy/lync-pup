@@ -28,8 +28,17 @@
             // One class string so every info row stays identical
             $row = 'flex items-center gap-2 py-2 sm:gap-3';
             $rowIcon = 'w-4 h-4 flex-shrink-0 text-[#6D0D23] sm:w-5 sm:h-5';
+
+            // Notes render inside a narrow column, so anything past what
+            // visually fits in 2 lines gets clipped (line-clamp-2 below) with
+            // a "View" button that opens the full text in a modal instead of
+            // blowing up the card's height. This character count is just the
+            // heuristic for *showing* that button — the actual clipping is
+            // done by CSS, so a wrong guess here never lets text overflow.
+            $noteLimit = 50;
             @endphp
 
+            <div x-data="{ viewingNote: null }">
             <div class="mb-6">
                 <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Meeting</h1>
                 <p class="mt-1 text-sm text-gray-500 sm:text-base">View your meetings.</p>
@@ -82,7 +91,7 @@
                             </svg>
                             <div class="min-w-0">
                                 <p class="text-xs font-semibold text-gray-900 sm:text-sm">Date</p>
-                                <p class="truncate text-xs text-gray-600 sm:text-sm" title="{{ $meeting['date_label'] }}">{{ $meeting['date_label'] }}</p>
+                                <p class="text-xs text-gray-600 sm:text-sm">{{ $meeting['date_label'] }}</p>
                             </div>
                         </div>
 
@@ -177,26 +186,71 @@
                     <div class="w-full flex-shrink-0 border-t border-gray-200 px-3 pb-3 pt-3 sm:px-4 sm:pb-4 sm:pt-4 xl:flex xl:w-36 xl:items-end xl:justify-center xl:border-t-0 xl:pb-5 xl:pt-5 2xl:w-44">
                         @if ($meeting['type'] === 'mentorship')
                         @if (($meeting['platform'] ?? null) === 'Location')
-                        {{-- In-person meeting: nothing to join online. --}}
-                        <div class="text-xs text-gray-600">
+                        {{-- In-person meeting: nothing to join online — the admin's note
+                             (e.g. actual directions) takes the spot of the generic
+                             fallback line once one has been set. --}}
+                        @php
+                        $inPersonNote = $meeting['notes'] ?: 'See Location for the address.';
+                        $inPersonNoteIsLong = mb_strlen($inPersonNote) > $noteLimit;
+                        @endphp
+                        <div class="min-w-0 text-xs text-gray-600">
                             <p class="font-semibold text-gray-800">In-person</p>
-                            <p class="italic">See Location for the address.</p>
+                            <p class="line-clamp-2 break-words italic">{{ $inPersonNote }}</p>
+                            @if ($inPersonNoteIsLong)
+                            <button type="button" @click="viewingNote = @js($inPersonNote)"
+                                class="mt-1 font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
+                                View
+                            </button>
+                            @endif
                         </div>
-                        @elseif ($meeting['can_join'] && $meeting['meeting_link'])
-                        <a href="{{ $meeting['meeting_link'] }}" target="_blank" rel="noopener"
-                            class="block w-full rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2 text-center text-xs font-medium text-white transition hover:opacity-95 sm:py-2.5 sm:text-sm">
-                            Join Meeting
-                        </a>
                         @else
-                        <button type="button" disabled
-                            class="block w-full cursor-not-allowed rounded-lg bg-gray-300 py-2 text-center text-xs font-medium text-gray-500 sm:py-2.5 sm:text-sm">
-                            Join Meeting
-                        </button>
+                        {{-- Wrapped in one w-full div so the button and the note below
+                             it stay a single flex item and stack vertically — the panel
+                             switches to a row-direction flex container at xl, and these
+                             two would otherwise land side by side as separate items. --}}
+                        <div class="w-full">
+                            @if ($meeting['can_join'] && $meeting['meeting_link'])
+                            <a href="{{ $meeting['meeting_link'] }}" target="_blank" rel="noopener"
+                                class="block w-full rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2 text-center text-xs font-medium text-white transition hover:opacity-95 sm:py-2.5 sm:text-sm">
+                                Join Meeting
+                            </a>
+                            @else
+                            <button type="button" disabled
+                                class="block w-full cursor-not-allowed rounded-lg bg-gray-300 py-2 text-center text-xs font-medium text-gray-500 sm:py-2.5 sm:text-sm">
+                                Join Meeting
+                            </button>
+                            @endif
+                            {{-- Admin-entered note, shown right under the Join Meeting
+                                 button/placeholder — only when one was actually set. --}}
+                            @if (!empty($meeting['notes']))
+                            @php $noteIsLong = mb_strlen($meeting['notes']) > $noteLimit; @endphp
+                            <div class="mt-2 min-w-0 text-xs text-gray-600">
+                                <p class="font-semibold text-gray-800">Note:</p>
+                                <p class="line-clamp-2 break-words italic">{{ $meeting['notes'] }}</p>
+                                @if ($noteIsLong)
+                                <button type="button" @click="viewingNote = @js($meeting['notes'])"
+                                    class="mt-1 font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
+                                    View
+                                </button>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
                         @endif
                         @else
-                        <div class="text-xs text-gray-600">
+                        @php
+                        $evalNote = $meeting['notes'] ?: 'Bring 1 valid ID each startup member.';
+                        $evalNoteIsLong = mb_strlen($evalNote) > $noteLimit;
+                        @endphp
+                        <div class="min-w-0 text-xs text-gray-600">
                             <p class="mb-1 font-semibold text-gray-800">Note:</p>
-                            <p class="italic">{{ $meeting['notes'] ?: 'Bring 1 valid ID each startup member.' }}</p>
+                            <p class="line-clamp-2 break-words italic">{{ $evalNote }}</p>
+                            @if ($evalNoteIsLong)
+                            <button type="button" @click="viewingNote = @js($evalNote)"
+                                class="mt-1 font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
+                                View
+                            </button>
+                            @endif
                         </div>
                         @endif
                     </div>
@@ -206,5 +260,34 @@
                     No upcoming meetings scheduled.
                 </div>
                 @endforelse
+            </div>
+
+            {{-- Full-note modal: shared by every card's "View" button above. --}}
+            <div x-show="viewingNote !== null" x-cloak
+                x-transition.opacity.duration.200ms
+                @keydown.escape.window="viewingNote = null"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+
+                <div @click.outside="viewingNote = null"
+                    x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0 scale-95"
+                    x-transition:enter-end="opacity-100 scale-100"
+                    class="relative flex w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+                    <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-4 text-white">
+                        <h3 class="text-sm font-bold sm:text-base">Note</h3>
+                        <button type="button" @click="viewingNote = null" aria-label="Close"
+                            class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none">
+                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="max-h-[70vh] overflow-y-auto p-5">
+                        <p class="whitespace-pre-line break-words text-sm leading-relaxed text-gray-700" x-text="viewingNote"></p>
+                    </div>
+                </div>
+            </div>
             </div>
 </x-layouts.founder>

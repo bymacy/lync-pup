@@ -168,6 +168,27 @@ pendingRemoval: [],
                     : (e?.message || 'Something went wrong while saving. Please try again.')
             );
         }
+    },
+
+    // Cancel discards whatever was typed since Edit was clicked. Most of
+    // these fields aren't bound through Alpine (x-model) - they're plain
+    // inputs the browser owns directly - so just flipping `editing` back to
+    // false doesn't put their value back; it only makes the box read-only
+    // again, showing whatever was last typed, even a cleared-out saved
+    // answer. Reloading is what actually guarantees every field - including
+    // the ones with their own nested Alpine scope, like height/weight and
+    // the sex/civil status dropdowns - reverts to what's really saved,
+    // instead of only doing that after a manual page refresh.
+    cancelEdit() {
+        if (this.dirty) {
+            this.dirty = false;
+            this.$store.navigation.hasUnsavedChanges = false;
+            window.location.reload();
+            return;
+        }
+
+        this.editing = false;
+        this.pendingRemoval = [];
     }
 }"
         @click.capture="
@@ -261,7 +282,7 @@ pendingRemoval: [],
                     'height_m' => 'e.g. 1.65',
                     'weight_kg' => 'e.g. 58',
                     'blood_type' => 'e.g. O+',
-                    'gsis_no' => 'e.g. 1234567890',
+                    'gsis_no' => 'e.g. 12345678901',
                     'pagibig_no' => 'e.g. 1234-5678-9012',
                     'philhealth_no' => 'e.g. 12-345678901-2',
                     'sss_no' => 'e.g. 12-3456789-0',
@@ -1553,7 +1574,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                     <template x-if="editing && !isLocked">
                         <button
                             type="button"
-                            @click="editing = false; dirty = false; pendingRemoval = []"
+                            @click="cancelEdit()"
                             class="flex-1 border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold
                    hover:bg-gray-50 transition">
                             Cancel
@@ -1861,17 +1882,15 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                 return true;
             });
 
-            // Deletes go last, so a failed update can't leave a row already destroyed.
-            forms.sort((a, b) => {
-                const aDel = a.classList.contains('js-deleteform') ? 1 : 0;
-                const bDel = b.classList.contains('js-deleteform') ? 1 : 0;
-                return aDel - bDel;
-            });
+            // Deletes still go last, so a failed update can't leave a row already
+            // destroyed - but everything else (the main sheet, every Core Team /
+            // Incubation / L&D / Reference row) is submitted in the same pass
+            // below, so a problem in row 3 shows up next to a problem in row 1
+            // instead of waiting for a second save attempt to be discovered.
+            const nonDeleteForms = forms.filter((form) => ! form.classList.contains('js-deleteform'));
+            const deleteForms = forms.filter((form) => form.classList.contains('js-deleteform'));
 
-            let created = 0;
-            let removed = 0;
-
-            for (const form of forms) {
+            const submitOne = async (form) => {
                 const response = await fetch(form.action, {
                     method: 'POST',
                     body: new FormData(form),
@@ -1890,21 +1909,59 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                         try {
                             const body = await response.json();
                             error.validation = body.errors || null;
-
-                            const count = Object.keys(body.errors || {}).length;
-                            error.message = count
-                                ? (count === 1
-                                    ? Object.values(body.errors)[0][0]
-                                    : `${count} fields need fixing — see the messages on the form.`)
-                                : (body.message || error.message);
                         } catch (ignored) {}
                     }
 
                     throw error;
                 }
 
-                if (form.classList.contains('js-addform')) created++;
-                if (form.classList.contains('js-deleteform')) removed++;
+                return form;
+            };
+
+            let created = 0;
+            const combinedValidation = {};
+            let firstHardError = null;
+
+            // Attempt every create/update, even after one of them fails - a
+            // validation failure never persists anything, so there's nothing
+            // unsafe about continuing, and it's the only way to collect every
+            // problem in one go instead of one form at a time.
+            for (const form of nonDeleteForms) {
+                try {
+                    const saved = await submitOne(form);
+                    if (saved.classList.contains('js-addform')) created++;
+                } catch (error) {
+                    if (error.status === 422 && error.validation) {
+                        Object.assign(combinedValidation, error.validation);
+                    } else if (! firstHardError) {
+                        firstHardError = error;
+                    }
+                }
+            }
+
+            const problemCount = Object.keys(combinedValidation).length;
+
+            if (problemCount > 0) {
+                const error = new Error(
+                    problemCount === 1
+                        ? Object.values(combinedValidation)[0][0]
+                        : `${problemCount} fields need fixing — see the messages on the form.`
+                );
+                error.validation = combinedValidation;
+                throw error;
+            }
+
+            if (firstHardError) {
+                throw firstHardError;
+            }
+
+            // Only reached once every create/update above succeeded - safe to
+            // delete now, in order, same as before.
+            let removed = 0;
+
+            for (const form of deleteForms) {
+                await submitOne(form);
+                removed++;
             }
 
             return {

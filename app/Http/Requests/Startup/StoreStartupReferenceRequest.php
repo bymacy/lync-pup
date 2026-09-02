@@ -14,16 +14,18 @@ class StoreStartupReferenceRequest extends FormRequest
     }
 
     /**
-     * Item 35 of the Information Sheet. Every column is required — see
-     * SheetRowRules for why, and for the shared column shapes.
+     * Item 35 of the Information Sheet. Every column is required. A
+     * reference is a real, named person, so - like Core Team - name and
+     * address use the dedicated shapes below rather than the
+     * rowName/rowText shared with rows that may genuinely be N/A.
      */
     public function rules(): array
     {
         return [
-            'name' => $this->rowName(150),
+            'name' => $this->rowPersonName(150),
             'contact' => $this->rowPhone(),
             'email' => ['required', 'email', 'max:150'],
-            'address' => $this->rowText(255),
+            'address' => $this->rowAddress(255),
         ];
     }
 
@@ -31,10 +33,13 @@ class StoreStartupReferenceRequest extends FormRequest
     {
         return $this->rowMessages([
             'name.required' => 'Enter the reference\'s full name.',
+            'name.regex' => 'Please enter a valid name.',
             'contact.required' => 'Enter the reference\'s mobile number.',
-            'contact.regex' => 'Enter a valid Philippine mobile number, for example 09171234567.',
+            'contact.regex' => 'Please enter a valid phone number.',
             'email.required' => 'Enter the reference\'s email address.',
+            'email.email' => 'Please enter a valid email address.',
             'address.required' => 'Enter the reference\'s address.',
+            'address.regex' => 'Please enter a valid address.',
         ]);
     }
 }
