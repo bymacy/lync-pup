@@ -40,9 +40,11 @@
         documentNumbers: @js(array_keys($exportDocuments)),
         startupId: null,
         selectedDocs: [],
+        availableDocs: [],
+        loadingAvailableDocs: false,
         format: 'PDF Bundle',
         formats: [
-            { value: 'PDF Bundle', label: 'Export as PDF' },
+            { value: 'PDF Bundle', label: 'Export as PDF Bundle' },
             { value: 'Individual PDFs', label: 'Export as Individual PDFs' },
             { value: 'ZIP Archive', label: 'Export as ZIP' },
         ],
@@ -67,10 +69,26 @@
             return !! this.startupId && this.selectedDocs.length > 0;
         },
 
+        // Chronological gating: documents can't be picked until a startup
+        // is chosen, and the export format/button can't be touched until
+        // at least one document is picked.
+        get canPickDocuments() {
+            return !! this.startupId;
+        },
+
+        get canPickFormat() {
+            return this.selectedDocs.length > 0;
+        },
+
+        isDocAvailable(num) {
+            return this.availableDocs.includes(num);
+        },
+
         openModal() {
             this.step = 'select';
             this.startupId = null;
             this.selectedDocs = [];
+            this.availableDocs = [];
             this.format = 'PDF Bundle';
             this.fileName = '';
             this.result = null;
@@ -84,7 +102,33 @@
             this.open = false;
         },
 
+        // Fetches which of the 13 documents actually have data yet for this
+        // startup, so the checklist below can gray out the not-started
+        // ones. Also drops any already-picked doc that turns out not to be
+        // available (e.g. leftover from a previously selected startup).
+        async selectStartup(id) {
+            this.startupId = id;
+            this.selectedDocs = [];
+            this.availableDocs = [];
+            this.loadingAvailableDocs = true;
+
+            try {
+                const url = '{{ route('admin.exports.status', ['startup' => 'STARTUP_ID_PLACEHOLDER']) }}'.replace('STARTUP_ID_PLACEHOLDER', id);
+                const response = await fetch(url, {
+                    headers: { 'Accept': 'application/json' },
+                });
+                const body = await response.json().catch(() => ({}));
+                this.availableDocs = body.available || [];
+            } catch (e) {
+                this.availableDocs = [];
+            } finally {
+                this.loadingAvailableDocs = false;
+            }
+        },
+
         toggleDoc(num) {
+            if (! this.isDocAvailable(num)) return;
+
             this.selectedDocs = this.selectedDocs.includes(num)
                 ? this.selectedDocs.filter(n => n !== num)
                 : [...this.selectedDocs, num];
@@ -174,9 +218,25 @@
             }
         },
 
+        // A plain window.open() just displays a PDF inline in a new tab
+        // (browsers preview PDFs rather than saving them), and calling it
+        // repeatedly in a loop gets every call after the first blocked as a
+        // popup since only the very first one is still tied to the click
+        // that triggered downloadAll(). A programmatic <a download> click
+        // avoids both problems: it forces an actual file save instead of a
+        // preview, and isn't treated as a popup at all.
+        downloadOne(file) {
+            const link = document.createElement('a');
+            link.href = file.download_url;
+            link.download = file.file_name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        },
+
         downloadAll() {
             (this.result?.files ?? []).forEach((file, i) => {
-                setTimeout(() => window.open(file.download_url, '_blank'), i * 300);
+                setTimeout(() => this.downloadOne(file), i * 400);
             });
         },
     }"
@@ -247,7 +307,7 @@
 
                             <template x-for="s in startups" :key="s.id">
                                 <button type="button" role="option" :aria-selected="startupId === s.id"
-                                    @click="startupId = s.id; open = false"
+                                    @click="selectStartup(s.id); open = false"
                                     class="w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white"
                                     :class="startupId === s.id ? 'rounded-md bg-rose-50 font-medium text-rose-900' : 'text-gray-700'"
                                     x-text="s.name"></button>
@@ -260,49 +320,59 @@
                 </section>
 
                 {{-- 2. Documents --}}
-                <section class="rounded-xl border border-gray-200 bg-white p-4">
+                <section class="rounded-xl border border-gray-200 bg-white p-4" :class="! canPickDocuments && 'opacity-50'">
                     <div class="mb-3 flex items-start gap-2">
                         <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#6D0D23] text-[11px] font-bold text-white">2</span>
                         <div>
                             <h3 class="text-sm font-semibold text-[#6D0D23]">Select Documents to Export</h3>
-                            <p class="text-xs text-gray-400">Tick every document to include in this export.</p>
+                            <p class="text-xs text-gray-400" x-show="canPickDocuments">
+                                Tick every document to include in this export. Documents this startup hasn't started yet are grayed out.
+                            </p>
+                            <p class="text-xs text-gray-400" x-show="!canPickDocuments">Select a startup first.</p>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                         @foreach ($exportDocuments as $num => [$label, $icon, $tone])
                             <label
-                                class="flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 transition {{ $loop->last ? 'lg:col-start-2' : '' }}"
-                                :class="selectedDocs.includes({{ $num }})
-                                    ? 'border-[#6D0D23] bg-[#6D0D23]/[0.04]'
-                                    : 'border-gray-200 hover:border-gray-300'">
-                                <input type="checkbox" :checked="selectedDocs.includes({{ $num }})" @change="toggleDoc({{ $num }})"
-                                    class="h-4 w-4 shrink-0 rounded border-gray-300 text-[#6D0D23] focus:ring-[#6D0D23]">
+                                class="flex items-center gap-2.5 rounded-lg border px-3 py-2.5 transition {{ $loop->last ? 'lg:col-start-2' : '' }}"
+                                :class="{
+                                    'border-[#6D0D23] bg-[#6D0D23]/[0.04]': selectedDocs.includes({{ $num }}),
+                                    'border-gray-200 hover:border-gray-300 cursor-pointer': !selectedDocs.includes({{ $num }}) && canPickDocuments && isDocAvailable({{ $num }}),
+                                    'border-gray-100 opacity-40 cursor-not-allowed': !canPickDocuments || !isDocAvailable({{ $num }}),
+                                }">
+                                <input type="checkbox" :checked="selectedDocs.includes({{ $num }})"
+                                    :disabled="!canPickDocuments || !isDocAvailable({{ $num }})"
+                                    @change="toggleDoc({{ $num }})"
+                                    class="h-4 w-4 shrink-0 rounded border-gray-300 text-[#6D0D23] focus:ring-[#6D0D23] disabled:cursor-not-allowed">
                                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {{ $tone }}">
                                     <span class="icon-mask h-4 w-4" style="--icon: url('{{ asset('images/icons/'.$icon) }}')"></span>
                                 </span>
                                 <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-700"
                                     title="{{ $num }}. {{ $label }}">{{ $num }}. {{ $label }}</span>
+                                <span x-show="canPickDocuments && !isDocAvailable({{ $num }})" x-cloak
+                                    class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Not started</span>
                             </label>
                         @endforeach
                     </div>
                 </section>
 
                 {{-- 3. Export option + actions --}}
-                <section class="rounded-xl border border-gray-200 bg-white p-4">
+                <section class="rounded-xl border border-gray-200 bg-white p-4" :class="! canPickFormat && 'opacity-50'">
                     <div class="mb-3 flex items-center gap-2">
                         <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#6D0D23] text-[11px] font-bold text-white">3</span>
                         <h3 class="text-sm font-semibold text-[#6D0D23]">Export Option</h3>
                     </div>
 
+                    <p x-show="!canPickFormat" class="mb-3 text-xs text-gray-400">Select at least one document first.</p>
                     <p x-show="error" x-text="error" class="mb-3 text-sm text-red-600"></p>
 
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div class="relative w-full sm:w-64" x-data="{ open: false }"
                             @click.outside="open = false" @keydown.escape="open = false">
-                            <button type="button" @click="open = ! open"
+                            <button type="button" @click="canPickFormat && (open = ! open)" :disabled="! canPickFormat"
                                 :aria-expanded="open" aria-haspopup="listbox"
-                                class="flex w-full items-stretch overflow-hidden rounded-lg border text-left transition focus:outline-none focus:ring-2"
+                                class="flex w-full items-stretch overflow-hidden rounded-lg border text-left transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed"
                                 :class="open
                                     ? 'border-rose-400 ring-2 ring-rose-100'
                                     : 'border-rose-200 focus:border-rose-400 focus:ring-rose-100'">
@@ -387,10 +457,10 @@
                                             <span x-text="file.file_size_label"></span>
                                         </div>
                                     </div>
-                                    <a :href="file.download_url" target="_blank"
+                                    <button type="button" @click="downloadOne(file)"
                                         class="shrink-0 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
                                         Download
-                                    </a>
+                                    </button>
                                 </div>
                             </template>
                         </div>

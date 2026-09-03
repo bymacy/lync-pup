@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Notifications\VerifyEmailNotification;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -24,6 +26,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'email_verification_token',
     ];
 
     protected function casts(): array
@@ -76,5 +79,20 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isRejected(): bool
     {
         return $this->account_status === 'Rejected';
+    }
+
+    /**
+     * Overrides the stock MustVerifyEmail behavior: every time a
+     * verification email goes out (registration, or a "resend" click),
+     * regenerate the invalidation token first, so any previously sent
+     * verification link stops working — only the newest one is valid. See
+     * VerifyEmailNotification and VerifyEmailController for the other two
+     * pieces of this.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->forceFill(['email_verification_token' => Str::random(40)])->save();
+
+        $this->notify(new VerifyEmailNotification);
     }
 }

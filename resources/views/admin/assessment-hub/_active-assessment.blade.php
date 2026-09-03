@@ -113,27 +113,69 @@
         // clear on their own without another failed Save.
         doc8ValidationAttempted: false,
         doc8InvalidCategory: null,
+        pendingDoc: null,
+        showDocSwitchConfirm: false,
         isDirty() {
             return JSON.stringify(this.doc6) !== JSON.stringify(this.initialDoc6)
                 || JSON.stringify(this.doc7) !== JSON.stringify(this.initialDoc7)
                 || JSON.stringify(this.doc8) !== JSON.stringify(this.initialDoc8);
+        },
+        // Same leave-or-stay confirmation as the Readiness Level type tabs
+        // (TRL/MRL/TMRL/SRL) and the Founder's Information Sheet — switching
+        // Document 6/7/8 used to jump instantly with no warning at all, even
+        // with an unsaved draft sitting on the tab being left.
+        switchDoc(num) {
+            if (this.activeDoc === num) return;
+            if (this.isDirty()) {
+                this.pendingDoc = num;
+                this.showDocSwitchConfirm = true;
+            } else {
+                this.activeDoc = num;
+            }
+        },
+        confirmSwitchDoc() {
+            this.discardChanges();
+            this.activeDoc = this.pendingDoc;
+            this.pendingDoc = null;
+            this.showDocSwitchConfirm = false;
+        },
+        cancelSwitchDoc() {
+            this.pendingDoc = null;
+            this.showDocSwitchConfirm = false;
+        },
+        discardChanges() {
+            this.doc6 = JSON.parse(JSON.stringify(this.initialDoc6));
+            this.doc7 = JSON.parse(JSON.stringify(this.initialDoc7));
+            this.doc8 = JSON.parse(JSON.stringify(this.initialDoc8));
+            this.doc8ValidationAttempted = false;
+            this.doc8InvalidCategory = null;
         },
         doc8CategoryIncomplete(category) {
             return this.doc8.ratings[category].some(v => v === null || v === '');
         },
         // Gates the shared Save button: Document 6/7 have no completeness
         // rule (unchanged), but Document 8's 6 rating tables must each be
-        // fully rated. Blocks on the FIRST incomplete category (in the same
-        // order the tables render) rather than listing every offender, since
-        // the scroll-to-table only makes sense one at a time.
+        // fully rated — ONLY while the admin is actually on the Document 8
+        // tab, though. Otherwise saving Document 6 or 7 progress (with
+        // Document 8 not even open yet, let alone started) would get
+        // wrongly blocked and force-jump to Document 8 over a table the
+        // admin never intended to touch this time. Blocks on the FIRST
+        // incomplete category (in the same order the tables render) rather
+        // than listing every offender, since the scroll-to-table only
+        // makes sense one at a time.
         trySubmit(event) {
+            if (this.activeDoc !== 8) {
+                this.doc8InvalidCategory = null;
+                this.$store.navigation.hasUnsavedChanges = false;
+                return;
+            }
+
             this.doc8ValidationAttempted = true;
             const firstIncomplete = Object.keys(this.doc8.ratings).find(cat => this.doc8CategoryIncomplete(cat));
 
             if (firstIncomplete) {
                 event.preventDefault();
                 this.doc8InvalidCategory = firstIncomplete;
-                this.activeDoc = 8;
                 this.$nextTick(() => {
                     document.getElementById('doc8-cat-' + firstIncomplete)
                         ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -203,7 +245,7 @@
 
     <div class="mb-4 grid grid-cols-3 overflow-hidden rounded-lg border border-gray-200">
         @foreach ([6 => 'Document 6', 7 => 'Document 7', 8 => 'Document 8'] as $num => $label)
-            <button type="button" @click="activeDoc = {{ $num }}"
+            <button type="button" @click="switchDoc({{ $num }})"
                 class="border-t-2 border-r border-gray-200 px-1.5 py-2 text-center transition last:border-r-0 sm:px-3"
                 :class="activeDoc === {{ $num }} ? 'border-t-[#6C0E24] bg-[#6C0E24]/5' : 'border-t-transparent bg-white hover:bg-[#6C0E24]/5'">
                 <p class="whitespace-nowrap text-xs font-bold leading-tight sm:text-base" :class="activeDoc === {{ $num }} ? 'text-[#6C0E24]' : 'text-gray-900'">{{ $label }}</p>
@@ -213,6 +255,36 @@
                 </p>
             </button>
         @endforeach
+    </div>
+
+    {{-- Same leave-or-stay convention as the RL type tabs and the app's
+         global unsaved-changes modal: Leave really discards the draft
+         instead of quietly carrying it along to whichever document tab
+         gets opened next. --}}
+    <div x-show="showDocSwitchConfirm" x-cloak
+        class="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+        <div class="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <div class="mb-4 flex justify-center">
+                <div class="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-xl font-bold text-white">
+                    !
+                </div>
+            </div>
+            <h2 class="text-center text-xl font-bold text-[#5B1933]">Unsaved Changes</h2>
+            <p class="mt-2 text-center text-sm text-gray-600">
+                You have unsaved changes on this section. Stay to keep editing and save
+                them, or leave to switch documents now and discard these changes.
+            </p>
+            <div class="mt-6 flex gap-3">
+                <button type="button" @click="cancelSwitchDoc()"
+                    class="flex-1 rounded-lg border border-gray-300 py-2.5 font-medium text-gray-700 hover:bg-gray-50">
+                    Stay
+                </button>
+                <button type="button" @click="confirmSwitchDoc()"
+                    class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 font-medium text-white">
+                    Leave
+                </button>
+            </div>
+        </div>
     </div>
 
     <form method="POST" action="{{ route('admin.assessment-hub.assessments.update-documents', $selectedStartup) }}" id="active-assessment-form"

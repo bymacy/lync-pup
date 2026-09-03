@@ -148,6 +148,7 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/assessment-hub/assessments/{startup}/venture-exit/generate-ai', [VentureExitAiController::class, 'generate'])->name('assessment-hub.assessments.venture-exit.generate-ai');
 
     Route::get('/exports/documents', [ExportController::class, 'documents'])->name('exports.documents');
+    Route::get('/exports/{startup}/status', [ExportController::class, 'documentStatus'])->name('exports.status');
     Route::get('/exports/preview/{startup?}', [ExportController::class, 'preview'])->name('exports.preview');
     Route::post('/exports/generate', [ExportController::class, 'generate'])->name('exports.generate');
     Route::post('/exports/save', [ExportController::class, 'save'])->name('exports.save');

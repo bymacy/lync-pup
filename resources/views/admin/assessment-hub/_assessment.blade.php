@@ -314,6 +314,7 @@ for ($i = 0; $i < $count; $i++) {
                 }
             },
             confirmSwitchType() {
+                this.discardChanges();
                 this.activeType = this.pendingType;
                 this.pendingType = null;
                 this.showTypeSwitchConfirm = false;
@@ -321,6 +322,35 @@ for ($i = 0; $i < $count; $i++) {
             cancelSwitchType() {
                 this.pendingType = null;
                 this.showTypeSwitchConfirm = false;
+            },
+            // Leave has to actually discard back to the last-saved values,
+            // not just move to the other tab while quietly keeping the draft
+            // in memory — otherwise the whole form stays dirty even though
+            // nothing is unsaved on whichever type you actually switched to,
+            // so switching again later (even back to a type you never
+            // touched) wrongly re-triggers this same confirmation.
+            discardChanges() {
+                this.progress = JSON.parse(JSON.stringify(this.initialProgress));
+                this.trlOverview = JSON.parse(JSON.stringify(this.initialTrlOverview));
+                this.assessmentDate = this.initialAssessmentDate;
+                this.evaluatedBy = this.initialEvaluatedBy;
+                this.reviewedBy = this.initialReviewedBy;
+                this.notedBy = this.initialNotedBy;
+                this.preparedBy = this.initialPreparedBy;
+                this.preparedByPosition = this.initialPreparedByPosition;
+                this.trlNotedBy = this.initialTrlNotedBy;
+                this.trlNotedByPosition = this.initialTrlNotedByPosition;
+                this.approvedBy = this.initialApprovedBy;
+                this.approvedByPosition = this.initialApprovedByPosition;
+                this.evaluatedByPosition = this.initialEvaluatedByPosition;
+                this.reviewedByPosition = this.initialReviewedByPosition;
+                this.notedByPosition = this.initialNotedByPosition;
+                this.srlEvaluatedBy = this.initialSrlEvaluatedBy;
+                this.srlEvaluatedByPosition = this.initialSrlEvaluatedByPosition;
+                this.srlReviewedBy = this.initialSrlReviewedBy;
+                this.srlReviewedByPosition = this.initialSrlReviewedByPosition;
+                this.srlNotedBy = this.initialSrlNotedBy;
+                this.srlNotedByPosition = this.initialSrlNotedByPosition;
             },
             isDirty() {
                 return JSON.stringify(this.progress) !== JSON.stringify(this.initialProgress)
@@ -416,11 +446,12 @@ for ($i = 0; $i < $count; $i++) {
                     @endforeach
                 </div>
 
-                {{-- Switching TRL/MRL/TMRL/SRL tabs never actually discards
-                     anything (all four share this one form/progress object
-                     and get saved together), but a confirmation is still
-                     shown for unsaved edits so the behavior reads the same
-                     as leaving the page entirely. --}}
+                {{-- Same "leave or stay" convention as the rest of the app
+                     (see components/layouts/admin.blade.php's own unsaved-
+                     changes modal): switching type tabs mid-edit is treated
+                     exactly like navigating away from the page, so Leave
+                     really does discard the draft rather than quietly
+                     carrying it along to whichever tab you switch to. --}}
                 <div x-show="showTypeSwitchConfirm" x-cloak
                     class="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
                     <div class="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
@@ -431,18 +462,17 @@ for ($i = 0; $i < $count; $i++) {
                         </div>
                         <h2 class="text-center text-xl font-bold text-[#5B1933]">Unsaved Changes</h2>
                         <p class="mt-2 text-center text-sm text-gray-600">
-                            You have unsaved changes on this section. You can keep editing here, or
-                            switch sections now — your edits stay on the form, but remember to
-                            press Save before you leave the page.
+                            You have unsaved changes on this section. Stay to keep editing and save
+                            them, or leave to switch sections now and discard these changes.
                         </p>
                         <div class="mt-6 flex gap-3">
                             <button type="button" @click="cancelSwitchType()"
                                 class="flex-1 rounded-lg border border-gray-300 py-2.5 font-medium text-gray-700 hover:bg-gray-50">
-                                Keep Editing
+                                Stay
                             </button>
                             <button type="button" @click="confirmSwitchType()"
                                 class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 font-medium text-white">
-                                Switch Anyway
+                                Leave
                             </button>
                         </div>
                     </div>

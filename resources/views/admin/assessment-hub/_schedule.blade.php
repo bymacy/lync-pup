@@ -39,8 +39,9 @@ return $url
                     <thead>
                         <tr class="{{ $gradient }} text-white text-center">
                             <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Startup</th>
-                            <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Registration Date</th>
+                            <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Date Started</th>
                             <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Cohort</th>
+                            <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Status</th>
                             <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Action</th>
                         </tr>
                     </thead>
@@ -62,7 +63,21 @@ return $url
                             </td>
                             <td class="px-3 py-2 text-center text-xs text-gray-600">{{ $startup->cohort_number ?? '—' }}</td>
 
+                            @php
+                                $infoStatus = $startup->informationSheetStatus();
+                                $infoStatusTone = match ($infoStatus) {
+                                    'Completed' => 'border-green-300 text-green-700',
+                                    'In Progress' => 'border-blue-300 text-blue-700',
+                                    default => 'border-gray-300 text-gray-500',
+                                };
+                                $canSchedule = $infoStatus === 'Completed';
+                            @endphp
                             <td class="px-3 py-2 text-center">
+                                <span class="rounded-full border px-2.5 py-1 text-[11px] font-semibold {{ $infoStatusTone }}">{{ $infoStatus }}</span>
+                            </td>
+
+                            <td class="px-3 py-2 text-center">
+                                @if ($canSchedule)
                                 <button type="button" @click="scheduleOpen = true"
                                     class="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-md text-[11px] font-semibold whitespace-nowrap transition bg-[#6C0E24] text-white hover:opacity-90">
                                     <img src="{{ asset('images/icons/cal.svg') }}" alt="" class="h-3.5 w-3.5 brightness-0 invert" aria-hidden="true">
@@ -78,11 +93,23 @@ return $url
                                             :time-slots="$timeSlots" :booked-slots="$bookedSlots" />
                                     </div>
                                 </div>
+                                @else
+                                {{-- Not yet submitted — nothing to evaluate yet, so scheduling
+                                     stays locked until the founder finishes and submits their
+                                     Information Sheet (same chronological-gating idea used
+                                     elsewhere, e.g. the Export Document modal). --}}
+                                <button type="button" disabled
+                                    title="Set Evaluation unlocks once this startup submits their Information Sheet."
+                                    class="inline-flex cursor-not-allowed items-center justify-center gap-1.5 h-8 px-3 rounded-md text-[11px] font-semibold whitespace-nowrap bg-gray-200 text-gray-400">
+                                    <img src="{{ asset('images/icons/cal.svg') }}" alt="" class="h-3.5 w-3.5 opacity-40" aria-hidden="true">
+                                    <span>Set Evaluation</span>
+                                </button>
+                                @endif
                             </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-8 text-center text-sm text-gray-400">No startups waiting on evaluation.</td>
+                            <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-400">No startups waiting on evaluation.</td>
                         </tr>
                         @endforelse
                     </tbody>

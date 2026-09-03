@@ -54,6 +54,55 @@ class ExportController extends Controller
     }
 
     /**
+     * Which of the 13 documents actually have real data yet for this
+     * startup — powers the "not-started documents are unselectable" rule
+     * in the Export Document modal's checklist. A document number missing
+     * from the returned list means nothing has been filled in for it, so
+     * there'd be nothing meaningful to export.
+     */
+    public function documentStatus(Startup $startup): JsonResponse
+    {
+        $available = [];
+
+        if ($startup->informationSheet) {
+            $available[] = 1;
+        }
+
+        $rubricMap = [
+            2 => ['TRL', 'Pre-Assessment'], 3 => ['MRL', 'Pre-Assessment'],
+            4 => ['TMRL', 'Pre-Assessment'], 5 => ['SRL', 'Pre-Assessment'],
+            9 => ['TRL', 'Post-Assessment'], 10 => ['MRL', 'Post-Assessment'],
+            11 => ['TMRL', 'Post-Assessment'], 12 => ['SRL', 'Post-Assessment'],
+        ];
+
+        $assessmentsByStage = ReadinessLevelAssessment::where('startup_id', $startup->startup_id)
+            ->whereIn('stage', ['Pre-Assessment', 'Post-Assessment'])
+            ->get()
+            ->keyBy('stage');
+
+        foreach ($rubricMap as $num => [$type, $stage]) {
+            $assessment = $assessmentsByStage->get($stage);
+            if ($assessment && $assessment->scoreFor($type) !== null) {
+                $available[] = $num;
+            }
+        }
+
+        $documents = AssessmentDocument::where('startup_id', $startup->startup_id)
+            ->whereIn('document_number', [6, 7, 8, 13])
+            ->get();
+
+        foreach ($documents as $document) {
+            if (filled($document->data)) {
+                $available[] = $document->document_number;
+            }
+        }
+
+        sort($available);
+
+        return response()->json(['available' => array_values($available)]);
+    }
+
+    /**
      * Generates the actual PDF/ZIP file(s) for the selected startup +
      * documents + format, and stores them to the public disk. Nothing is
      * written to `saved_reports` yet — that only happens if the admin
@@ -326,13 +375,22 @@ class ExportController extends Controller
         $fileName = "{$baseName}.zip";
         $path = "{$dir}/{$fileName}";
 
-        // Ensure the directory exists on disk before ZipArchive opens a
-        // real filesystem path there.
-        Storage::disk('public')->put($path, '');
+        // ZipArchive writes straight to a real filesystem path (it doesn't
+        // go through the Storage facade), so the destination directory has
+        // to actually exist first — makeDirectory() here, rather than the
+        // old trick of Storage::put()-ing an empty placeholder file, which
+        // left ZipArchive::open() with nothing to fall back on (and no
+        // error surfaced, since the public disk has 'throw' => false) if
+        // that placeholder write ever failed.
+        Storage::disk('public')->makeDirectory($dir);
         $absolutePath = Storage::disk('public')->path($path);
 
         $zip = new ZipArchive();
-        $zip->open($absolutePath, ZipArchive::OVERWRITE);
+        $opened = $zip->open($absolutePath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+        if ($opened !== true) {
+            throw new \RuntimeException("Could not create the ZIP archive (error code {$opened}).");
+        }
 
         $totalPages = 0;
         foreach ($sections as $num => $html) {
@@ -346,6 +404,10 @@ class ExportController extends Controller
 
         $zip->close();
 
+        // ZipArchive wrote this file outside of the Storage facade, so PHP's
+        // stat cache for this path may still be stale — clear it before
+        // asking Storage for the size, otherwise this can read back as 0.
+        clearstatcache(true, $absolutePath);
         $size = Storage::disk('public')->size($path);
 
         return [

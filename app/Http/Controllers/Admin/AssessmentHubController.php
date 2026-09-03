@@ -15,15 +15,25 @@ class AssessmentHubController extends Controller
 {
     public function index(Request $request): View
     {
-        // "Awaiting Schedule" / "Unscheduled" — startups whose Information Sheet has
-        // been submitted and is still Pending, and that have no active (Scheduled)
-        // evaluation yet. Once an evaluation is set, the startup disappears from here
-        // and shows up under the Evaluation tab instead. See
-        // Startup::scopeAwaitingSchedule() for why the submission itself is checked.
+        // "Awaiting Schedule" / "Unscheduled" — every startup that isn't yet
+        // Approved/Rejected and has no active (Scheduled) evaluation, regardless
+        // of how far along their Information Sheet is (see
+        // Startup::scopePending() and Startup::informationSheetStatus()). Once an
+        // evaluation is set, the startup disappears from here and shows up under
+        // the Evaluation tab instead. "Set Evaluation" itself still only opens up
+        // once the sheet is actually submitted — see _schedule.blade.php — so a
+        // Not Started/In Progress row is visible here but not yet actionable.
+        $pendingPerPage = (int) $request->query('per_page', 4);
+        if (! in_array($pendingPerPage, [4, 8, 12, 20], true)) {
+            $pendingPerPage = 4;
+        }
+
         $pendingStartups = Startup::with(['informationSheet', 'latestEvaluationSchedule'])
-            ->awaitingSchedule()
+            ->pending()
+            ->whereDoesntHave('evaluationSchedules', fn ($q) => $q->where('status', 'Scheduled'))
             ->orderBy('created_at')
-            ->get();
+            ->paginate($pendingPerPage)
+            ->withQueryString();
 
         // Once a startup's Information Sheet is approved, they're done with
         // the evaluation stage — their schedule row (even if still

@@ -32,8 +32,16 @@
                             <p style="margin:0 0 16px 0; font-size:14px; line-height:22px; color:#4b5563;">
                                 Thank you for your interest in the PUP TBIDO Startup Incubation Program. After careful review, we regret that we are unable to accept your application at this time.
                             </p>
+                            <p style="margin:0 0 16px 0; font-size:14px; line-height:22px; color:#4b5563;">
+                                <strong>Reason:</strong> {{ $startup->rejection_reason }}
+                            </p>
+                            @if ($startup->admin_remarks)
+                            <p style="margin:0 0 16px 0; font-size:14px; line-height:22px; color:#4b5563;">
+                                <strong>Additional Remarks:</strong> {{ $startup->admin_remarks }}
+                            </p>
+                            @endif
                             <p style="margin:0 0 24px 0; font-size:14px; line-height:22px; color:#4b5563;">
-                                The high volume of qualified applications made our selection process difficult. We appreciate your efforts and encourage you to continue developing your startup. We wish you the best in your future endeavors.
+                                We appreciate your efforts and encourage you to continue developing your startup. We wish you the best in your future endeavors.
                             </p>
                             <p style="margin:0; font-size:14px; line-height:22px; color:#4b5563;">
                                 Sincerely,<br>

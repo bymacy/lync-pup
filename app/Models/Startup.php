@@ -239,6 +239,24 @@ class Startup extends Model
     }
 
     /**
+     * Three-state Information Sheet progress for the Assessment Hub's
+     * "Awaiting Schedule" list: 'Not Started' (no sheet row at all yet —
+     * the founder hasn't opened it), 'In Progress' (a row exists — created
+     * the moment a founder saves their Startup Profile — but they haven't
+     * submitted it), or 'Completed' (submitted; see
+     * hasSubmittedInformationSheet()). Only 'Completed' is actually ready
+     * to have an evaluation scheduled against it.
+     */
+    public function informationSheetStatus(): string
+    {
+        if (! $this->informationSheet) {
+            return 'Not Started';
+        }
+
+        return $this->hasSubmittedInformationSheet() ? 'Completed' : 'In Progress';
+    }
+
+    /**
      * True once an admin has approved the Information Sheet. This is the
      * gate for the founder's remaining modules (Meeting, Submission,
      * Readiness Result) — see App\Http\Middleware\EnsureFounderStage and

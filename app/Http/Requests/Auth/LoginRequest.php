@@ -65,7 +65,7 @@ class LoginRequest extends FormRequest
             $selected = $this->input('role') === 'Startup' ? 'Founder' : 'Admin';
 
             throw ValidationException::withMessages([
-                'email' => "This account is not registered as {$selected}. Please select the correct sign-in type.",
+                'email' => "This account is not registered as {$selected}.",
             ]);
         }
 

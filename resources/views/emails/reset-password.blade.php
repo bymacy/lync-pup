@@ -42,7 +42,7 @@
                             </table>
 
                             <p style="margin:0 0 16px 0; font-size:13px; color:#374151;">
-                                This link will expire in <strong>15 minutes.</strong>
+                                This link will expire in <strong>3 minutes.</strong>
                             </p>
 
                             <p style="margin:0; font-size:13px; color:#9ca3af;">

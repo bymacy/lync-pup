@@ -96,9 +96,9 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
-            // 15 minutes, matching the expiry stated in the branded reset
+            // 3 minutes, matching the expiry stated in the branded reset
             // email (resources/views/emails/reset-password.blade.php).
-            'expire' => 15,
+            'expire' => 3,
             'throttle' => 60,
         ],
     ],
@@ -121,16 +121,16 @@ return [
     | Email Verification Link Expiration
     |--------------------------------------------------------------------------
     |
-    | 24 hours, matching the expiry stated in the branded verification email
-    | (resources/views/emails/verify-email.blade.php). Laravel's default is
-    | 60 minutes; widened here for the new self-service Founder registration
-    | flow so the link doesn't die before someone gets a chance to check
-    | their inbox.
+    | 3 minutes, matching the expiry stated in the branded verification email
+    | (resources/views/emails/verify-email.blade.php). Also see
+    | User::sendEmailVerificationNotification() — only the MOST RECENTLY sent
+    | verification link is ever valid regardless of this expiration, since
+    | every new send invalidates whatever link came before it.
     |
     */
 
     'verification' => [
-        'expire' => 1440,
+        'expire' => 3,
     ],
 
 ];

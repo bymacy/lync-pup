@@ -26,13 +26,14 @@ class EmailVerificationTest extends TestCase
     public function test_email_can_be_verified(): void
     {
         $user = User::factory()->unverified()->create();
+        $user->forceFill(['email_verification_token' => 'test-token'])->save();
 
         Event::fake();
 
         $verificationUrl = URL::temporarySignedRoute(
             'verification.verify',
             now()->addMinutes(60),
-            ['id' => $user->id, 'hash' => sha1($user->email)]
+            ['id' => $user->id, 'hash' => sha1($user->email), 'token' => 'test-token']
         );
 
         $response = $this->actingAs($user)->get($verificationUrl);
@@ -43,9 +44,35 @@ class EmailVerificationTest extends TestCase
         // Unlike Breeze's default (straight into the dashboard), a
         // self-registered Founder still needs admin approval after
         // verifying, so VerifyEmailController logs them out and sends them
-        // to the "pending review" screen instead.
+        // back to login with that context in a flash message instead.
         $this->assertGuest();
-        $response->assertRedirect(route('registration.complete', absolute: false));
+        $response->assertRedirect(route('login', absolute: false));
+    }
+
+    /**
+     * The whole point of the invalidation token: once a NEWER verification
+     * link has been issued for this user, an OLDER (still unexpired,
+     * correctly signed) link must stop working.
+     */
+    public function test_an_old_verification_link_stops_working_once_a_newer_one_is_sent(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $user->forceFill(['email_verification_token' => 'old-token'])->save();
+
+        $oldVerificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email), 'token' => 'old-token']
+        );
+
+        // Simulates requesting a new link — regenerates the token, which
+        // invalidates the one baked into $oldVerificationUrl above.
+        $user->sendEmailVerificationNotification();
+
+        $response = $this->actingAs($user)->get($oldVerificationUrl);
+
+        $response->assertForbidden();
+        $this->assertFalse($user->fresh()->hasVerifiedEmail());
     }
 
     public function test_email_is_not_verified_with_invalid_hash(): void
