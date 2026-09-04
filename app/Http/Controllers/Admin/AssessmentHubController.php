@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AssessmentDocument;
 use App\Models\EvaluationSchedule;
 use App\Models\ReadinessLevelAssessment;
+use App\Models\SavedReport;
 use App\Models\Startup;
 use App\Support\ReadinessRubric;
 use Illuminate\Http\Request;
@@ -167,6 +168,52 @@ class AssessmentHubController extends Controller
             ? $selectedStartup->savedReports()->latest()->get()
             : collect();
 
+        // ============ Assessment tab: Reports ("All Startup" summary) ============
+        // With no startup selected, the Reports stage shows one row per
+        // startup that has ever saved an export, each with a pill per
+        // document type showing whether that startup's saved reports
+        // include it — same pill styling as the Overview table above, just
+        // keyed off SavedReport::document_numbers instead of assessment/
+        // document completion. Labels/order mirror $pillDefinitions below
+        // (documents 6/7/8/13) plus the Pre/Post RL-type export documents
+        // (2,3,4,5,9,10,11,12) — document 1 (Information Sheet) is left out,
+        // matching the Overview table's own pill set.
+        $reportDocumentLabels = [
+            2 => 'PRE - TRL',
+            3 => 'PRE - MRL',
+            5 => 'PRE - SRL',
+            4 => 'PRE - TMRL',
+            6 => 'DOCUMENT 6',
+            7 => 'DOCUMENT 7',
+            8 => 'DOCUMENT 8',
+            9 => 'POST - TRL',
+            10 => 'POST - MRL',
+            12 => 'POST - SRL',
+            11 => 'POST - TMRL',
+            13 => 'VENTURE EXIT',
+        ];
+
+        $savedReportsByStartup = SavedReport::whereIn('startup_id', $assessableStartups->pluck('startup_id'))
+            ->get()
+            ->groupBy('startup_id');
+
+        $allSavedReportsSummary = $assessableStartups
+            ->filter(fn (Startup $s) => $savedReportsByStartup->has($s->startup_id))
+            ->values()
+            ->map(function (Startup $s) use ($savedReportsByStartup, $reportDocumentLabels) {
+                $reports = $savedReportsByStartup->get($s->startup_id);
+                $includedDocuments = $reports->flatMap(fn ($r) => $r->document_numbers ?? [])->unique();
+
+                return [
+                    'startup' => $s,
+                    'exported_files_count' => $reports->count(),
+                    'documents' => collect($reportDocumentLabels)->map(fn ($label, $docNumber) => [
+                        'label' => $label,
+                        'included' => $includedDocuments->contains($docNumber),
+                    ])->values(),
+                ];
+            });
+
         // ============ Assessment tab: "All Startup" overview table ============
         // One row per assessable startup, with a completed/not-started pill
         // for each stage/RL-type combo — "Document 6/7/8" pills are
@@ -287,6 +334,7 @@ class AssessmentHubController extends Controller
             'postAssessmentSummary' => $postAssessmentSummary,
             'incompleteAssessments' => $incompleteAssessments,
             'savedReports' => $savedReports,
+            'allSavedReportsSummary' => $allSavedReportsSummary,
             'rubricMeta' => ReadinessRubric::meta($selectedStage),
             'rubricLevels' => ReadinessRubric::all(),
             'stages' => ReadinessRubric::STAGES,

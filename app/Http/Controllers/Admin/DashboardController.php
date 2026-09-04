@@ -53,11 +53,11 @@ class DashboardController extends Controller
     ];
 
     protected const INCUBATION_COLORS = [
-        'High Ready' => '#059669',
-        'Moderately Ready' => '#65A30D',
-        'Moderately Unready' => '#D97706',
-        'Not Ready' => '#EA580C',
-        'Critically Unready' => '#B91C1C',
+        'High Ready' => '#00BF1D',
+        'Moderately Ready' => '#FFE120',
+        'Moderately Unready' => '#FF9B20',
+        'Not Ready' => '#FF2525',
+        'Critically Unready' => '#8D8D8D',
     ];
 
     public function index(Request $request): View
@@ -293,12 +293,12 @@ class DashboardController extends Controller
         return 'Critically Unready';
     }
 
-    /** "High Ready (80.25% – 100.00%)" style label for the breakdown table. */
+    /** "(80.25% – 100.00%)" style range label for the breakdown table (name shown separately). */
     protected static function incubationRangeLabel(string $label): string
     {
         [$min, $max] = self::INCUBATION_BUCKETS[$label];
 
-        return sprintf('%s (%.2f%% – %.2f%%)', $label, $min, $max);
+        return sprintf('(%.2f%% – %.2f%%)', $min, $max);
     }
 
     /** Mirrors RiskMonitoringController's aggregation, scoped to $startupIds. */

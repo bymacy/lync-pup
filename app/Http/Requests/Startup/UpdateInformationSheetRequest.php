@@ -241,11 +241,12 @@ class UpdateInformationSheetRequest extends FormRequest
             'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\&\(\)]*)$/iu',
         ];
 
-        // Highest Level / Unit: letters, numbers, spaces, and . - / ( ) - no
-        // ampersand, no apostrophe, no comma, e.g. "4th Year" or "36 units".
+        // Highest Level / Unit: letters, numbers, spaces, and . - / ( ) plus an
+        // apostrophe - no ampersand, no comma, e.g. "4th Year", "36 units" or
+        // "Bachelor's Degree".
         $highestLevelUnit = fn (int $max) => [
             'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\(\)]*)$/iu',
+            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\(\)\x{2019}\']*)$/iu',
         ];
 
         // Blood type: A, B, AB or O with a + or - sign.
@@ -555,7 +556,7 @@ class UpdateInformationSheetRequest extends FormRequest
             $messages[$key.'_year_graduated.regex'] = "Year graduated for {$label} must be a 4-digit year, for example 2018.";
             $messages[$key.'_school.regex'] = "The {$label} name can only contain letters, numbers and . - ' & ( ) punctuation.";
             $messages[$key.'_degree_course.regex'] = "The {$label} degree or course can only contain letters, numbers and . - / & ( ) punctuation.";
-            $messages[$key.'_highest_level_unit.regex'] = "The {$label} level or units can only contain letters, numbers and . - / ( ) punctuation.";
+            $messages[$key.'_highest_level_unit.regex'] = "The {$label} level or units can only contain letters, numbers and . - / ( ) ' punctuation.";
         }
 
         // Fallback for anything not named above.

@@ -482,11 +482,17 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                 </div>
                             </div>
 
-                            <div class="flex items-start gap-2 py-1.5 text-sm">
-                                <label class="w-48 flex-shrink-0 text-gray-800"><span class="font-semibold">17.</span> CITIZENSHIP: <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></label>
-                                <div class="flex-1 space-y-1.5">
-                                    <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
-                                        <span class="text-xs text-gray-500 w-full flex-shrink-0 sm:w-32 sm:pt-1.5">&bull; By Birth</span>
+                            <div class="flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-start sm:gap-2">
+                                <label class="w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5"><span class="font-semibold">17.</span> CITIZENSHIP: <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></label>
+                                <div class="flex-1 min-w-0 space-y-1.5">
+                                    {{-- The By Birth / Dual Citizenship sub-rows always stack (label
+                                         above its textarea) rather than going side-by-side at any
+                                         breakpoint — the two-column grid above already narrows this
+                                         column, and no single breakpoint stays safe once the sidebar's
+                                         own width changes are factored in too. Stacking sidesteps that
+                                         entirely. --}}
+                                    <div class="flex flex-col gap-1">
+                                        <span class="text-xs text-gray-500">&bull; By Birth</span>
                                         <div class="flex-1 min-w-0">
                                             <textarea name="citizenship_by_birth" rows="1" form="info-sheet-form" required
                                             :readonly="!editing" placeholder="e.g. Filipino"
@@ -496,8 +502,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                             class="w-full resize-none overflow-hidden border rounded px-3 py-1.5 text-sm leading-snug uppercase placeholder:normal-case read-only:bg-gray-50 read-only:text-gray-500 placeholder:text-gray-300">{{ old('citizenship_by_birth', $sheet?->citizenship_by_birth) }}</textarea>
                                         </div>
                                     </div>
-                                    <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
-                                        <span class="text-xs text-gray-500 w-full flex-shrink-0 sm:w-32 sm:pt-1.5">&bull; If Dual Citizenship</span>
+                                    <div class="flex flex-col gap-1">
+                                        <span class="text-xs text-gray-500">&bull; If Dual Citizenship</span>
                                         <div class="flex-1 min-w-0">
                                             <textarea name="citizenship_dual" rows="1" form="info-sheet-form" required
                                             :readonly="!editing" placeholder="Second citizenship, if any"

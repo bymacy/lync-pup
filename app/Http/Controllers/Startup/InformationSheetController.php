@@ -14,6 +14,7 @@ use App\Models\IncubationInvolvement;
 use App\Models\LdIntervention;
 use App\Models\StartupReference;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 class InformationSheetController extends Controller
@@ -44,7 +45,7 @@ class InformationSheetController extends Controller
         ]);
     }
 
-    public function update(UpdateInformationSheetRequest $request): RedirectResponse
+    public function update(UpdateInformationSheetRequest $request): RedirectResponse|Response
     {
         $startup = auth()->user()->startup;
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
@@ -52,6 +53,20 @@ class InformationSheetController extends Controller
         abort_unless($startup->isProfileComplete(), 403, 'Please complete your Startup Profile first before filling out the Information Sheet.');
         abort_if($sheet->approval_status === 'Approved', 403, 'This Information Sheet is approved and locked. Contact your Coordinator for changes.');
         abort_if($startup->evaluationDayLockActive(), 403, 'This Information Sheet is locked for today - your evaluation is scheduled today. It reopens tomorrow if the evaluation does not push through.');
+
+        // The Information Sheet page submits every section (this main form,
+        // every Core Team row, every Incubation/L&D/Reference row) as its own
+        // independent request — see submitInfoSheetForms() in the edit view.
+        // To make the overall Save genuinely all-or-nothing, the page first
+        // fires every request in "dry run" mode (validation only, nothing
+        // persisted) and only re-fires for real once every section comes
+        // back clean. _dry_run short-circuits here, after the request's own
+        // validation and lock checks above have already run, so a locked
+        // sheet or an invalid field still fails the dry run exactly like a
+        // real save would.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
 
         $data = $request->validated();
 
@@ -93,17 +108,27 @@ class InformationSheetController extends Controller
     }
 
     // Incubation Involvement
-    public function storeIncubation(StoreIncubationInvolvementRequest $request): RedirectResponse
+    public function storeIncubation(StoreIncubationInvolvementRequest $request): RedirectResponse|Response
     {
+        // See the note on _dry_run in update() above — same all-or-nothing scheme.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $sheet = auth()->user()->startup->informationSheet;
         $sheet->incubationInvolvements()->create($request->validated());
 
         return redirect()->route('startup.information-sheet.edit')->with('status', 'Incubation involvement added.');
     }
 
-    public function updateIncubation(UpdateIncubationInvolvementRequest $request, IncubationInvolvement $incubationInvolvement): RedirectResponse
+    public function updateIncubation(UpdateIncubationInvolvementRequest $request, IncubationInvolvement $incubationInvolvement): RedirectResponse|Response
     {
         abort_unless($incubationInvolvement->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
+
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $incubationInvolvement->update($request->validated());
 
         return redirect()->route('startup.information-sheet.edit')->with('status', 'Updated.');
@@ -118,17 +143,26 @@ class InformationSheetController extends Controller
     }
 
     // L&D Interventions
-    public function storeLd(StoreLdInterventionRequest $request): RedirectResponse
+    public function storeLd(StoreLdInterventionRequest $request): RedirectResponse|Response
     {
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $sheet = auth()->user()->startup->informationSheet;
         $sheet->ldInterventions()->create($request->validated());
 
         return redirect()->route('startup.information-sheet.edit')->with('status', 'L&D intervention added.');
     }
 
-    public function updateLd(UpdateLdInterventionRequest $request, LdIntervention $ldIntervention): RedirectResponse
+    public function updateLd(UpdateLdInterventionRequest $request, LdIntervention $ldIntervention): RedirectResponse|Response
     {
         abort_unless($ldIntervention->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
+
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $ldIntervention->update($request->validated());
 
         return redirect()->route('startup.information-sheet.edit')->with('status', 'Updated.');
@@ -143,17 +177,26 @@ class InformationSheetController extends Controller
     }
 
     // References
-    public function storeReference(StoreStartupReferenceRequest $request): RedirectResponse
+    public function storeReference(StoreStartupReferenceRequest $request): RedirectResponse|Response
     {
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $sheet = auth()->user()->startup->informationSheet;
         $sheet->references()->create($request->validated());
 
         return redirect()->route('startup.information-sheet.edit')->with('status', 'Reference added.');
     }
 
-    public function updateReference(UpdateStartupReferenceRequest $request, StartupReference $reference): RedirectResponse
+    public function updateReference(UpdateStartupReferenceRequest $request, StartupReference $reference): RedirectResponse|Response
     {
         abort_unless($reference->informationSheet->startup_id === auth()->user()->startup->startup_id, 403);
+
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
+
         $reference->update($request->validated());
 
         return redirect()->route('startup.information-sheet.edit')->with('status', 'Updated.');

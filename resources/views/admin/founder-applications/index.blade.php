@@ -22,23 +22,23 @@
             return $svg;
         };
 
-        // Plain checkmark / X watermarks — "Approved" and "Rejected" aren't
-        // backed by an icon file, so they're drawn the same way the small
-        // badge icons on this page already were, just scaled up.
-        $checkIcon = '<svg class="h-24 w-24 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-        </svg>';
-        $xIcon = '<svg class="h-24 w-24 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>';
+        // Whole-number percentage of $total, safe against division by zero.
+        $pct = fn ($count, $total) => $total > 0 ? round(($count / $total) * 100) : 0;
 
         // One definition per card, same shape as the Startup Profile page's
         // $stats array, so a future layout tweak happens once, not four times.
         $stats = [
-            ['label' => 'Total Application', 'value' => $totals['total'], 'iconSvg' => $statIcon('assessmentHub.svg'), 'border' => 'border-[#FFE8EE]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => $cohortBreakdown],
-            ['label' => 'Pending', 'value' => $totals['pending'], 'iconSvg' => $statIcon('clock.svg'), 'border' => 'border-[#E3D4FF]', 'bg' => 'bg-[#FAF6FF]', 'note' => $totals['pending'].'/'.$totals['total'].' application is under evaluation'],
-            ['label' => 'Approved', 'value' => $totals['approved'], 'iconSvg' => $checkIcon, 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]', 'note' => $totals['approved'].'/'.$totals['total'].' application approved'],
-            ['label' => 'Rejected', 'value' => $totals['rejected'], 'iconSvg' => $xIcon, 'border' => 'border-[#FFE2AA]', 'bg' => 'bg-[#FFFBF2]', 'note' => $totals['rejected'].'/'.$totals['total'].' application rejected'],
+            // 1person.svg is a solo full-bleed silhouette (no badge), unlike the
+            // other three icons where the person only fills their glyph's upper-left
+            // ~65%x85% (the rest is reserved for the status badge). Rendered at the
+            // same box, it looked bigger and lower than the rest. Wrapping it in a
+            // same-size (w-24 h-24) positioning box and shrinking + pinning it to the
+            // top-right makes its person glyph line up with the others' head/shoulder
+            // position instead.
+            ['label' => 'Total Application', 'value' => $totals['total'], 'iconSvg' => '<div class="relative w-24 h-24">'.$statIcon('1person.svg', 'absolute top-[6px] right-0 w-[80px] h-[80px]').'</div>', 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]', 'breakdown' => $cohortBreakdown],
+            ['label' => 'Pending', 'value' => $totals['pending'], 'iconSvg' => $statIcon('person-loading.svg'), 'border' => 'border-[#FFE2AA]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['pending'], $totals['total']).'% application is under evaluation'],
+            ['label' => 'Approved', 'value' => $totals['approved'], 'iconSvg' => $statIcon('person-check.svg'), 'border' => 'border-[#AAFFBC]', 'bg' => 'bg-[#F2FFF2]', 'note' => $pct($totals['approved'], $totals['total']).'% application approved'],
+            ['label' => 'Rejected', 'value' => $totals['rejected'], 'iconSvg' => $statIcon('person-x.svg'), 'border' => 'border-[#FFD6E1]', 'bg' => 'bg-[#FFF7F7]', 'note' => $pct($totals['rejected'], $totals['total']).'% application rejected'],
         ];
     @endphp
 

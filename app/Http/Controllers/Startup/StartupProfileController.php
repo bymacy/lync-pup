@@ -13,6 +13,7 @@ use App\Models\StartupTeamMember;
 use App\Models\TeamMember;
 use App\Traits\CompressesImages;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
@@ -132,10 +133,19 @@ class StartupProfileController extends Controller
         return redirect()->route('startup.profile.edit')->with('status', 'Startup Profile updated successfully.');
     }
 
-    public function storeTeamMember(StoreTeamMemberRequest $request): RedirectResponse
+    public function storeTeamMember(StoreTeamMemberRequest $request): RedirectResponse|Response
     {
         $startup = auth()->user()->startup;
         $this->abortIfInformationSheetLocked($startup);
+
+        // This route is also used by the Information Sheet's Core Team "add
+        // row" form (see the _dry_run note on
+        // InformationSheetController::update()) — its all-or-nothing save
+        // dry-runs every section, this one included, before persisting any
+        // of them.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
 
         $startup->teamMembers()->create($request->validated());
 
@@ -174,11 +184,19 @@ class StartupProfileController extends Controller
         return redirect()->route('startup.profile.edit')->with('status', 'Team member removed.');
     }
 
-    public function updateTeamMemberDetails(UpdateTeamMemberDetailsRequest $request, TeamMember $teamMember): RedirectResponse
+    public function updateTeamMemberDetails(UpdateTeamMemberDetailsRequest $request, TeamMember $teamMember): RedirectResponse|Response
     {
         $startup = auth()->user()->startup;
         abort_unless($teamMember->startup_id === $startup->startup_id, 403);
         $this->abortIfInformationSheetLocked($startup);
+
+        // See the _dry_run note on InformationSheetController::update() —
+        // the Information Sheet page validates every section (this Core Team
+        // row included) before persisting any of them, so a typo in one row
+        // can't leave another row's — or the main sheet's — save half-done.
+        if ($request->boolean('_dry_run')) {
+            return response()->noContent();
+        }
 
         $teamMember->update($request->validated());
 

@@ -73,14 +73,17 @@ trait SheetRowRules
     }
 
     /**
-     * A real person's name: letters, spaces, and . - ' only - no digits, no
+     * A real person's name: letters, spaces, and . , - ' only - no digits, no
      * N/A (unlike rowName() above, which is shared with rows that may
      * genuinely have nothing to put there). Suffixes like "Jr." or "III"
-     * are just letters and a period, so they already fit.
+     * are just letters and a period, so they already fit. The comma is
+     * allowed (not required) so "Surname, Firstname" works even without a
+     * middle name or extension, matching the Core Team table's
+     * "Surname, Firstname, Middle Name, Ext" column format.
      */
     protected function rowPersonName(int $max): array
     {
-        return ['required', 'string', 'max:'.$max, 'regex:/^[\p{L}][\p{L}\s\.\-\x{2019}\']*$/iu'];
+        return ['required', 'string', 'max:'.$max, 'regex:/^[\p{L}][\p{L}\s\.\,\-\x{2019}\']*$/iu'];
     }
 
     /** A job title or role: letters, numbers, spaces, and . - / & - no N/A. */

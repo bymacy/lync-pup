@@ -18,9 +18,9 @@ class StoreCohortRequest extends FormRequest
             // elsewhere in the app as Startup::cohort_number) is
             // auto-assigned by the controller, not user-entered.
             'label' => ['required', 'string', 'max:100'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'description' => ['nullable', 'string', 'max:2000'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'description' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
@@ -28,6 +28,8 @@ class StoreCohortRequest extends FormRequest
     {
         return [
             'label.required' => 'Please enter a cohort name.',
+            'start_date.required' => 'Please enter a start date.',
+            'end_date.required' => 'Please enter an end date.',
             'end_date.after_or_equal' => 'End date must be on or after the start date.',
         ];
     }

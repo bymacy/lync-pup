@@ -172,7 +172,7 @@ for ($i = 0; $i < $count; $i++) {
             </div>
         </div>
 
-        @if ($selectedStage === 'Overview' || ! $selectedStartup)
+        @if ($selectedStage === 'Overview' || (! $selectedStartup && $selectedStage !== 'Reports'))
         {{-- ============ Overview: every assessable startup's completion status ============ --}}
         @if ($assessableStartups->isEmpty())
         <div class="rounded-xl border border-dashed p-12 text-center text-gray-400">

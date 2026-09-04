@@ -500,11 +500,19 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                 </div>
                             </div>
 
-                            <div class="flex items-start gap-2 py-1.5 text-sm">
-                                <label class="w-48 flex-shrink-0 text-gray-800"><span class="font-semibold">17.</span> CITIZENSHIP: <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></label>
-                                <div class="flex-1 space-y-1.5">
-                                    <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
-                                        <span class="text-xs text-gray-500 w-full flex-shrink-0 sm:w-32 sm:pt-1.5">&bull; By Birth</span>
+                            <div class="flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-start sm:gap-2">
+                                <label class="w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5"><span class="font-semibold">17.</span> CITIZENSHIP: <span class="text-rose-600 text-base font-bold leading-none align-middle">*</span></label>
+                                <div class="flex-1 min-w-0 space-y-1.5">
+                                    {{-- The By Birth / Dual Citizenship sub-rows always stack (label
+                                         above its textarea) rather than going side-by-side at any
+                                         breakpoint: the two-column grid above this already splits the
+                                         page into a narrow column, and the sidebar itself grows back in
+                                         around the same widths that would otherwise let a side-by-side
+                                         sub-label fit — so any single breakpoint for "go horizontal here"
+                                         breaks again at some viewport width. Stacking always sidesteps
+                                         that: each row gets the full column width for the textarea. --}}
+                                    <div class="flex flex-col gap-1">
+                                        <span class="text-xs text-gray-500">&bull; By Birth</span>
                                         <div class="flex-1 min-w-0">
                                             <textarea name="citizenship_by_birth" rows="1" form="info-sheet-form" required
                                             :readonly="!editing" placeholder="e.g. Filipino"
@@ -514,8 +522,8 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                             class="w-full resize-none overflow-hidden border rounded px-3 py-1.5 text-sm leading-snug uppercase placeholder:normal-case disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300">{{ old('citizenship_by_birth', $sheet?->citizenship_by_birth) }}</textarea>
                                         </div>
                                     </div>
-                                    <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
-                                        <span class="text-xs text-gray-500 w-full flex-shrink-0 sm:w-32 sm:pt-1.5">&bull; If Dual Citizenship</span>
+                                    <div class="flex flex-col gap-1">
+                                        <span class="text-xs text-gray-500">&bull; If Dual Citizenship</span>
                                         <div class="flex-1 min-w-0">
                                             <textarea name="citizenship_dual" rows="1" form="info-sheet-form" required
                                             :readonly="!editing" placeholder="Second citizenship, if any"
@@ -1631,7 +1639,15 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
         };
 
         window.showInfoSheetFieldErrors = function (errors) {
-            let first = null;
+            // Every flagged element/slot goes in here instead of just remembering
+            // whichever error happened to be processed first — Section I through
+            // V, and their errors, get merged in from separate requests (the main
+            // form, then every Core Team / Incubation / L&D / Reference row), so
+            // "first processed" is not reliably "first on the page". Sorting by
+            // actual position afterward is what guarantees the scroll always
+            // lands on the topmost error, Section I before II before III, no
+            // matter which request's response came back with it.
+            const candidates = [];
 
             const flag = (el) => {
                 el.style.borderColor = INFO_SHEET_ERROR_BORDER;
@@ -1651,7 +1667,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                     const box = document.querySelector('[data-packed-box="' + field + '"]');
                     if (box) flag(box);
 
-                    if (! first) first = box || slot;
+                    candidates.push(box || slot);
                     return;
                 }
 
@@ -1687,15 +1703,22 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                 note.textContent = text;
                 control.insertAdjacentElement('afterend', note);
 
-                if (! first) first = control;
+                candidates.push(control);
             });
 
-            if (first) {
-                first.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                if (typeof first.focus === 'function') first.focus({ preventScroll: true });
+            // Topmost on the page wins, regardless of which section's request
+            // happened to report its error first.
+            const topmost = candidates.reduce((top, el) => {
+                if (! top) return el;
+                return el.getBoundingClientRect().top < top.getBoundingClientRect().top ? el : top;
+            }, null);
+
+            if (topmost) {
+                topmost.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (typeof topmost.focus === 'function') topmost.focus({ preventScroll: true });
             }
 
-            return !! first;
+            return candidates.length > 0;
         };
 
         // Everything the founder must fill in, checked before a single request
@@ -1890,10 +1913,13 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
             const nonDeleteForms = forms.filter((form) => ! form.classList.contains('js-deleteform'));
             const deleteForms = forms.filter((form) => form.classList.contains('js-deleteform'));
 
-            const submitOne = async (form) => {
+            const submitOne = async (form, dryRun = false) => {
+                const data = new FormData(form);
+                if (dryRun) data.append('_dry_run', '1');
+
                 const response = await fetch(form.action, {
                     method: 'POST',
-                    body: new FormData(form),
+                    body: data,
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
                     },
@@ -1918,45 +1944,61 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                 return form;
             };
 
-            let created = 0;
-            const combinedValidation = {};
-            let firstHardError = null;
+            // Runs every non-delete form through submitOne with dryRun, collecting
+            // every validation problem in one pass instead of stopping at the
+            // first one — same "attempt everything, then decide" shape whether
+            // this is the dry run or the real save below.
+            const attemptAll = async (dryRun) => {
+                const combinedValidation = {};
+                let firstHardError = null;
+                let created = 0;
 
-            // Attempt every create/update, even after one of them fails - a
-            // validation failure never persists anything, so there's nothing
-            // unsafe about continuing, and it's the only way to collect every
-            // problem in one go instead of one form at a time.
-            for (const form of nonDeleteForms) {
-                try {
-                    const saved = await submitOne(form);
-                    if (saved.classList.contains('js-addform')) created++;
-                } catch (error) {
-                    if (error.status === 422 && error.validation) {
-                        Object.assign(combinedValidation, error.validation);
-                    } else if (! firstHardError) {
-                        firstHardError = error;
+                for (const form of nonDeleteForms) {
+                    try {
+                        const saved = await submitOne(form, dryRun);
+                        if (! dryRun && saved.classList.contains('js-addform')) created++;
+                    } catch (error) {
+                        if (error.status === 422 && error.validation) {
+                            Object.assign(combinedValidation, error.validation);
+                        } else if (! firstHardError) {
+                            firstHardError = error;
+                        }
                     }
                 }
-            }
 
-            const problemCount = Object.keys(combinedValidation).length;
+                const problemCount = Object.keys(combinedValidation).length;
 
-            if (problemCount > 0) {
-                const error = new Error(
-                    problemCount === 1
-                        ? Object.values(combinedValidation)[0][0]
-                        : `${problemCount} fields need fixing — see the messages on the form.`
-                );
-                error.validation = combinedValidation;
-                throw error;
-            }
+                if (problemCount > 0) {
+                    const error = new Error(
+                        problemCount === 1
+                            ? Object.values(combinedValidation)[0][0]
+                            : `${problemCount} fields need fixing — see the messages on the form.`
+                    );
+                    error.validation = combinedValidation;
+                    throw error;
+                }
 
-            if (firstHardError) {
-                throw firstHardError;
-            }
+                if (firstHardError) {
+                    throw firstHardError;
+                }
 
-            // Only reached once every create/update above succeeded - safe to
-            // delete now, in order, same as before.
+                return created;
+            };
+
+            // Phase 1 — dry run every section (main sheet, every Core Team /
+            // Incubation / L&D / Reference row). Nothing persists here; this
+            // only asks the server "would this be valid?" for every section at
+            // once. If anything anywhere would fail, this throws and nothing
+            // below ever runs — so a typo in one row can no longer leave a
+            // correct edit in another row (or the main sheet) saved on its own.
+            await attemptAll(true);
+
+            // Phase 2 — every section validated clean above, so it's now safe
+            // to actually persist all of them.
+            const created = await attemptAll(false);
+
+            // Phase 3 — only reached once every create/update above actually
+            // persisted - safe to delete now, in order, same as before.
             let removed = 0;
 
             for (const form of deleteForms) {

@@ -77,18 +77,18 @@
                         <div class="py-2">
                             <p class="px-4 pb-1 text-xs font-semibold uppercase tracking-widest text-gray-400">Active</p>
                             <a href="{{ request()->fullUrlWithQuery(['cohort' => null]) }}"
-                                class="flex items-center justify-between px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                                class="flex items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white {{ ! $selectedCohort ? 'bg-blue-50 text-[#11386A] font-medium' : 'text-gray-700' }}">
                                 All Cohort
                                 @if (! $selectedCohort)
-                                    <svg class="h-4 w-4 text-[#6D0D23]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
+                                    <svg class="h-4 w-4 text-[#11386A]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
                                 @endif
                             </a>
                             @foreach ($cohorts->where('status', 'Active') as $c)
                                 <a href="{{ request()->fullUrlWithQuery(['cohort' => $c->cohort_id]) }}"
-                                    class="flex items-center justify-between px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                                    class="flex items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white {{ $selectedCohort && $selectedCohort->cohort_id === $c->cohort_id ? 'bg-blue-50 text-[#11386A] font-medium' : 'text-gray-700' }}">
                                     {{ $c->display_label }}
                                     @if ($selectedCohort && $selectedCohort->cohort_id === $c->cohort_id)
-                                        <svg class="h-4 w-4 text-[#6D0D23]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
+                                        <svg class="h-4 w-4 text-[#11386A]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
                                     @endif
                                 </a>
                             @endforeach
@@ -98,10 +98,10 @@
                                 <p class="px-4 pb-1 text-xs font-semibold uppercase tracking-widest text-gray-400">Archived</p>
                                 @foreach ($cohorts->where('status', 'Inactive') as $c)
                                     <a href="{{ request()->fullUrlWithQuery(['cohort' => $c->cohort_id]) }}"
-                                        class="flex items-center justify-between px-4 py-2 text-sm text-gray-500 transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                                        class="flex items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white {{ $selectedCohort && $selectedCohort->cohort_id === $c->cohort_id ? 'bg-blue-50 text-[#11386A] font-medium' : 'text-gray-500' }}">
                                         {{ $c->display_label }}
                                         @if ($selectedCohort && $selectedCohort->cohort_id === $c->cohort_id)
-                                            <svg class="h-4 w-4 text-[#6D0D23]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
+                                            <svg class="h-4 w-4 text-[#11386A]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
                                         @endif
                                     </a>
                                 @endforeach
@@ -213,7 +213,7 @@
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
                         <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#C1DBFF]" style="width: 64px; height: 64px;">
-                            <img src="{{ asset('images/icons/1person-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
+                            <img src="{{ asset('images/icons/1person-solidgradient.svg') }}" alt="" class="h-12 w-12 object-contain">
                         </div>
                         <div class="min-w-0">
                             <p class="text-gray-800 font-semibold text-sm">Assessed Startup</p>
@@ -239,7 +239,7 @@
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
                         <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#FFDB96]" style="width: 64px; height: 64px;">
-                            <img src="{{ asset('images/icons/bell-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
+                            <img src="{{ asset('images/icons/warning-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
                         </div>
                         <div class="min-w-0">
                             <p class="text-gray-800 font-semibold text-sm">At Risk Startup</p>
@@ -256,7 +256,7 @@
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
                         <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#DCCBFF]" style="width: 64px; height: 64px;">
-                            <img src="{{ asset('images/icons/bell-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
+                            <img src="{{ asset('images/icons/hands-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
                         </div>
                         <div class="min-w-0">
                             <p class="text-gray-800 font-semibold text-sm">Intervention Provided</p>
@@ -284,11 +284,11 @@
 
         {{-- Incubation Progress + Risk Classification --}}
         <div class="donut-row-grid grid grid-cols-1 gap-6 mb-8 items-stretch">
-            <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
+            <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm flex flex-col">
                 <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-3">
                     <h2 class="text-white font-semibold text-lg">Incubation Progress</h2>
                 </div>
-                <div class="p-4 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8">
+                <div class="p-4 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8 flex-1">
                     <div class="relative shrink-0 rounded-full mx-auto sm:mx-0" style="width: 180px; height: 180px; background: {{ $incubationGradient }};">
                         <div class="absolute rounded-full bg-white flex flex-col items-center justify-center"
                             style="top: 25px; right: 25px; bottom: 25px; left: 25px;">
@@ -304,15 +304,18 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($incubationProgress['breakdown']->reverse() as $row)
+                            @foreach ($incubationProgress['breakdown'] as $row)
                                 <tr class="border-b border-gray-100 last:border-0">
                                     <td class="py-2.5 pr-2">
-                                        <span class="flex items-center gap-2 text-gray-700 font-medium">
+                                        <span class="flex items-center gap-2 text-gray-700">
                                             <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background: {{ $row['color'] }}"></span>
-                                            <span class="leading-tight text-[13px]">{{ $row['range'] }}</span>
+                                            <span class="flex flex-col leading-tight">
+                                                <span class="text-[13px] font-medium text-gray-700">{{ $row['label'] }}</span>
+                                                <span class="text-[12px] text-gray-400">{{ $row['range'] }}</span>
+                                            </span>
                                         </span>
                                     </td>
-                                    <td class="py-2.5 pl-2 text-right text-gray-500 whitespace-nowrap align-top">{{ $row['count'] }} ({{ $row['percent'] }}%)</td>
+                                    <td class="py-2.5 pl-2 text-right text-gray-500 whitespace-nowrap align-middle">{{ $row['count'] }} ({{ $row['percent'] }}%)</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -320,7 +323,7 @@
                 </div>
             </div>
 
-            <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm">
+            <div class="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-sm flex flex-col">
                 <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-3 flex items-center justify-between">
                     <h2 class="text-white font-semibold text-lg">Risk Classification</h2>
                     <a href="{{ route('admin.risk-monitoring.index') }}" class="flex items-center gap-2 text-sm font-medium text-white/80 hover:text-white">
@@ -328,7 +331,7 @@
                         <img src="{{ asset('images/icons/arrow-right.svg') }}" alt="" class="h-3 w-3">
                     </a>
                 </div>
-                <div class="p-4 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8">
+                <div class="p-4 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8 flex-1">
                     <div class="relative shrink-0 rounded-full mx-auto sm:mx-0" style="width: 180px; height: 180px; background: {{ $riskGradient }};">
                         <div class="absolute rounded-full bg-white flex flex-col items-center justify-center"
                             style="top: 25px; right: 25px; bottom: 25px; left: 25px;">
@@ -347,12 +350,19 @@
                             @foreach ($riskClassification['breakdown']->reverse() as $row)
                                 <tr class="border-b border-gray-100 last:border-0">
                                     <td class="py-2.5 pr-2 whitespace-nowrap">
-                                        <span class="flex items-center gap-2 text-gray-700 font-medium">
+                                        <span class="flex items-center gap-2 text-gray-700">
                                             <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background: {{ $row['color'] }}"></span>
-                                            {{ $row['label'] }}
+                                            {{-- Second (invisible) line matches Incubation Progress's two-line
+                                                 row markup exactly, so both tables' rows render at the same
+                                                 height and line up row-for-row instead of Risk's single-line
+                                                 rows drifting out of sync with Incubation's taller ones. --}}
+                                            <span class="flex flex-col leading-tight">
+                                                <span class="text-[13px] font-medium text-gray-700">{{ $row['label'] }}</span>
+                                                <span class="text-[12px] text-gray-400" aria-hidden="true">&nbsp;</span>
+                                            </span>
                                         </span>
                                     </td>
-                                    <td class="py-2.5 pl-2 text-right text-gray-500 whitespace-nowrap">{{ $row['count'] }} ({{ $row['percent'] }}%)</td>
+                                    <td class="py-2.5 pl-2 text-right text-gray-500 whitespace-nowrap align-middle">{{ $row['count'] }} ({{ $row['percent'] }}%)</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -479,13 +489,13 @@
                     </h3>
                     <button type="button"
                         class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                        @click="modal = null" aria-label="Close">
+                        @click="modal = null; document.getElementById('createCohortForm').reset()" aria-label="Close">
                         <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
-                <form method="POST" action="{{ route('admin.cohorts.store') }}" class="p-6 space-y-4">
+                <form id="createCohortForm" method="POST" action="{{ route('admin.cohorts.store') }}" class="p-6 space-y-4">
                     @csrf
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Cohort Name</label>
@@ -496,20 +506,21 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                            <input type="date" name="start_date" value="{{ $reopenModal === 'create' ? old('start_date') : '' }}" class="w-full border rounded-lg px-3 py-2 text-sm">
+                            <input type="date" name="start_date" value="{{ $reopenModal === 'create' ? old('start_date') : '' }}" required class="w-full border rounded-lg px-3 py-2 text-sm">
+                            @if ($reopenModal === 'create') @error('start_date') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                            <input type="date" name="end_date" value="{{ $reopenModal === 'create' ? old('end_date') : '' }}" class="w-full border rounded-lg px-3 py-2 text-sm">
+                            <input type="date" name="end_date" value="{{ $reopenModal === 'create' ? old('end_date') : '' }}" required class="w-full border rounded-lg px-3 py-2 text-sm">
                             @if ($reopenModal === 'create') @error('end_date') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea name="description" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm">{{ $reopenModal === 'create' ? old('description') : '' }}</textarea>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description <span class="font-normal text-gray-400">(Optional)</span></label>
+                        <textarea name="description" rows="3" maxlength="1000" class="w-full border rounded-lg px-3 py-2 text-sm">{{ $reopenModal === 'create' ? old('description') : '' }}</textarea>
                     </div>
                     <div class="flex gap-3 pt-2">
-                        <button type="button" @click="modal = null" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Cancel</button>
+                        <button type="button" @click="modal = null; document.getElementById('createCohortForm').reset()" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Cancel</button>
                         <button type="submit" class="flex-1 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium">Create Cohort</button>
                     </div>
                 </form>
@@ -527,13 +538,13 @@
                         </h3>
                         <button type="button"
                         class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                        @click="modal = null" aria-label="Close">
+                        @click="modal = null; document.getElementById('editCohortForm').reset()" aria-label="Close">
                         <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
                     </button>
                     </div>
-                    <form method="POST" action="{{ route('admin.cohorts.update', $selectedCohort) }}" class="p-6 space-y-4">
+                    <form id="editCohortForm" method="POST" action="{{ route('admin.cohorts.update', $selectedCohort) }}" class="p-6 space-y-4">
                         @csrf
                         @method('PATCH')
                         <div>
@@ -559,10 +570,10 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                            <textarea name="description" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm">{{ $reopenModal === 'edit' ? old('description', $selectedCohort->description) : $selectedCohort->description }}</textarea>
+                            <textarea name="description" rows="3" maxlength="1000" class="w-full border rounded-lg px-3 py-2 text-sm">{{ $reopenModal === 'edit' ? old('description', $selectedCohort->description) : $selectedCohort->description }}</textarea>
                         </div>
                         <div class="flex gap-3 pt-2">
-                            <button type="button" @click="modal = null" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Cancel</button>
+                            <button type="button" @click="modal = null; document.getElementById('editCohortForm').reset()" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Cancel</button>
                             <button type="submit" class="flex-1 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium">Save Changes</button>
                         </div>
                     </form>
@@ -573,7 +584,10 @@
             <div x-show="modal === 'details'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                 <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl" @click.stop>
                     <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
-                        <h3 class="text-white font-semibold">Cohort Details</h3>
+                        <h3 class="text-white font-semibold flex items-center gap-2">
+                            <x-icon name="3person.svg" class="h-5 w-5 shrink-0 text-white" />
+                            Cohort Details
+                        </h3>
                         <button type="button"
                         class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                         @click="modal = null" aria-label="Close">
@@ -591,7 +605,7 @@
                         <div class="flex justify-between border-b border-gray-100 pb-2"><span class="text-gray-500">Startups</span><span class="font-medium text-gray-800">{{ $selectedCohort->startups_count }}</span></div>
                         <div>
                             <p class="text-gray-500 mb-1">Description</p>
-                            <p class="text-gray-800">{{ $selectedCohort->description ?: '—' }}</p>
+                            <p class="text-gray-800 whitespace-pre-wrap break-words">{{ $selectedCohort->description ?: '—' }}</p>
                         </div>
                     </div>
                     <div class="px-6 pb-6">
@@ -643,9 +657,12 @@
 
             {{-- Delete Cohort modal --}}
             <div x-show="modal === 'delete'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl" @click.stop>
-                    <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
-                        <h3 class="text-white font-semibold">Delete Cohort</h3>
+                <div class="w-full max-w-sm rounded-xl bg-white overflow-hidden shadow-xl" @click.stop>
+                    <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-5 flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <x-icon name="3person.svg" class="h-6 w-6 shrink-0 text-white" />
+                            <h3 class="text-white font-semibold text-base">Delete Cohort</h3>
+                        </div>
                         <button type="button"
                         class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                         @click="modal = null; deleteConfirm = ''" aria-label="Close">
@@ -655,48 +672,39 @@
                     </button>
                     </div>
                     <div class="p-6">
-                        <div class="rounded-lg border border-rose-200 bg-rose-50 p-4 mb-4">
-                            <p class="text-sm font-semibold text-rose-700 mb-1">This action cannot be undone</p>
-                            <p class="text-xs text-rose-600">Deleting <span class="font-semibold">{{ $selectedCohort->display_label }}</span> permanently removes the cohort record. Startups already assigned to it keep their history but will no longer be linked to this cohort.</p>
+                        <div class="flex items-center gap-2 rounded-lg border border-[#6D0D23] bg-white px-3 py-2 mb-3">
+                            <svg class="h-4 w-4 flex-shrink-0 text-[#6D0D23]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 9v4M12 17h.01" />
+                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                            </svg>
+                            <p class="text-sm font-semibold text-[#6D0D23]">This action cannot be undone.</p>
                         </div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Type <span class="font-semibold">DELETE</span> to confirm</label>
-                        <input type="text" x-model="deleteConfirm" class="w-full border rounded-lg px-3 py-2 text-sm mb-4" placeholder="DELETE">
-                        <form method="POST" action="{{ route('admin.cohorts.destroy', $selectedCohort) }}" class="flex gap-3">
+                        <p class="text-xs text-gray-500 mb-1">Cohort:</p>
+                        <p class="text-sm font-bold text-gray-900 mb-2">{{ $selectedCohort->display_label }}</p>
+                        <p class="text-xs text-gray-600 mb-3">All data related to this cohort will be permanently deleted.</p>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Type <span class="font-semibold">DELETE</span> to confirm</label>
+                        <input type="text" x-model="deleteConfirm" class="w-full border rounded-lg px-3 py-1.5 text-sm mb-3" placeholder="DELETE">
+                        <form method="POST" action="{{ route('admin.cohorts.destroy', $selectedCohort) }}" class="flex gap-2">
                             @csrf
                             @method('DELETE')
-                            <button type="button" @click="modal = null; deleteConfirm = ''" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Cancel</button>
+                            <button type="button" @click="modal = null; deleteConfirm = ''" class="flex-1 rounded-lg border-2 border-[#11386A] text-[#11386A] py-2 text-sm font-semibold transition hover:bg-[#11386A]/5">Cancel</button>
                             <button type="submit" :disabled="deleteConfirm !== 'DELETE'" :class="deleteConfirm === 'DELETE' ? 'opacity-100' : 'opacity-40 cursor-not-allowed'"
-                                class="flex-1 bg-rose-600 text-white rounded-lg py-2.5 text-sm font-medium">Delete Cohort</button>
+                                class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white py-2 text-sm font-semibold">Delete Cohort</button>
                         </form>
                     </div>
                 </div>
             </div>
         @endif
 
-        {{-- Success confirmation modals --}}
+        {{-- Success toast: fires once on load instead of a modal, if a cohort
+             action (create/edit/archive/delete) just completed. --}}
         @foreach ([
             'created' => ['title' => 'New Cohort Created', 'desc' => 'The new cohort has been created and is now available in your Active cohort list.'],
             'updated' => ['title' => 'Cohort Edited', 'desc' => 'The cohort details have been updated successfully.'],
             'archived' => ['title' => 'Cohort Ended', 'desc' => 'The cohort has been archived. Its startups and history remain intact.'],
             'deleted' => ['title' => 'Cohort Deleted', 'desc' => 'The cohort has been permanently removed.'],
         ] as $key => $copy)
-            <div x-show="successModal === '{{ $key }}'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div class="w-full max-w-sm rounded-xl bg-white overflow-hidden shadow-xl text-center" @click.stop>
-                    <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 pt-8 pb-10">
-                        <div class="mx-auto flex items-center justify-center rounded-full bg-white/20" style="width: 64px; height: 64px;">
-                            <svg class="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
-                        </div>
-                    </div>
-                    <div class="px-6 -mt-4 pb-6">
-                        <div class="rounded-xl bg-white p-4">
-                            <h3 class="font-bold text-gray-900 text-lg">{{ $copy['title'] }}</h3>
-                            <p class="text-sm text-gray-500 mt-2">{{ $copy['desc'] }}</p>
-                            <button type="button" @click="successModal = null"
-                                class="mt-5 w-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium">Continue</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <div x-init="if (successModal === '{{ $key }}') { Alpine.store('toast').success(@js($copy['title']), @js($copy['desc'])); successModal = null; }"></div>
         @endforeach
 
     </div>

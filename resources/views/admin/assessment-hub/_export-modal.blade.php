@@ -65,6 +65,27 @@
             return f ? f.label : 'Export as PDF';
         },
 
+        get headerTitle() {
+            return this.step === 'completed' ? 'Export Completed' : 'Export Document';
+        },
+
+        get headerSubtitle() {
+            if (this.step === 'generating') {
+                const messages = {
+                    'PDF Bundle': 'Preparing startup records and compiling PDF Bundle.',
+                    'Individual PDFs': 'Preparing startup records and compiling Individual PDF\'s.',
+                    'ZIP Archive': 'Preparing startup records and compiling ZIP File.',
+                };
+                return messages[this.format] || 'Preparing startup records and compiling your export.';
+            }
+
+            if (this.step === 'completed') {
+                return 'Startup documents successfully generated.';
+            }
+
+            return 'Select a Startup and the documents you want to export.';
+        },
+
         get canExport() {
             return !! this.startupId && this.selectedDocs.length > 0;
         },
@@ -253,8 +274,8 @@
             <div class="flex items-center gap-3 bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-4 text-white">
                 <x-icon name="exportdoc.svg" class="h-8 w-8 shrink-0" />
                 <div class="min-w-0">
-                    <h2 class="text-lg font-bold leading-tight">Export Document</h2>
-                    <p class="text-xs text-white/70">Select a Startup and the documents you want to export.</p>
+                    <h2 class="text-lg font-bold leading-tight" x-text="headerTitle"></h2>
+                    <p class="text-xs text-white/70" x-text="headerSubtitle"></p>
                 </div>
                 <button type="button" @click="closeModal()" aria-label="Close"
                     class="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:bg-white hover:text-[#6D0D23]">
@@ -444,7 +465,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                                 </svg>
                             </span>
-                            <h3 class="text-sm font-semibold text-[#6D0D23]">Export Completed</h3>
+                            <h3 class="text-sm font-semibold text-[#6D0D23]">Export Ready</h3>
                         </div>
 
                         <div class="mb-4 max-h-56 space-y-2 overflow-y-auto">

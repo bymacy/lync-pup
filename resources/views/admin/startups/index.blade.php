@@ -21,13 +21,16 @@
             return $svg;
             };
 
+            // Whole-number percentage of $total, safe against division by zero.
+            $pct = fn ($count, $total) => $total > 0 ? round(($count / $total) * 100) : 0;
+
             // One definition per card so the four stay structurally identical — a change to
             // padding or watermark size happens once, not four times.
             $stats = [
             ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FFE8EE]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => $cohortBreakdown],
-            ['label' => 'Active', 'value' => $totals['active'], 'icon' => 'personcheck.svg', 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]', 'note' => $totals['active'].'/'.$totals['total'].' startup are active'],
-            ['label' => 'Assign Coordinator', 'value' => $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FFE2AA]', 'bg' => 'bg-[#FFFBF2]', 'note' => $totals['needsCoordinator'].'/'.$totals['total'].' startup needs assigned coordinator'],
-            ['label' => 'Pending', 'value' => $totals['pending'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E3D4FF]', 'bg' => 'bg-[#FAF6FF]', 'note' => $totals['pending'].'/'.$totals['total'].' startup is under evaluation'],
+            ['label' => 'Active', 'value' => $totals['active'], 'icon' => 'personcheck.svg', 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]', 'note' => $pct($totals['active'], $totals['total']).'% startup are active'],
+            ['label' => 'Assign Coordinator', 'value' => $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FFE2AA]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['needsCoordinator'], $totals['total']).'% startup needs assigned coordinator'],
+            ['label' => 'Pending', 'value' => $totals['pending'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E3D4FF]', 'bg' => 'bg-[#FAF6FF]', 'note' => $pct($totals['pending'], $totals['total']).'% startup is under evaluation'],
             ];
             @endphp
 

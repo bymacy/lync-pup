@@ -135,20 +135,20 @@ class RiskEngine
 
     /** Overall Total Risk Score -> risk level, per the reference thresholds. */
     public const LEVEL_COLORS = [
-        'Critical' => '#B91C1C',
-        'High' => '#EA580C',
-        'Moderate' => '#D97706',
-        'Low' => '#059669',
+        'Critical' => '#FF2525',
+        'High' => '#FF9B20',
+        'Moderate' => '#FFE120',
+        'Low' => '#00BF1D',
         'None' => '#9CA3AF',
     ];
 
     /** Per-indicator severity -> color, kept separate from LEVEL_COLORS since
      *  indicator severities use "Medium" where overall levels use "Moderate". */
     public const SEVERITY_COLORS = [
-        'Critical' => '#B91C1C',
-        'High' => '#EA580C',
-        'Medium' => '#D97706',
-        'Low' => '#059669',
+        'Critical' => '#FF2525',
+        'High' => '#FF9B20',
+        'Medium' => '#FFE120',
+        'Low' => '#00BF1D',
     ];
 
     public static function classify(int $score): string
