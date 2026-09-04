@@ -6,6 +6,21 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreRoadblockRequest extends FormRequest
 {
+    public const MAX_FILES = 5;
+
+    public const MAX_KILOBYTES = 10240;
+
+    public const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'mp4'];
+
+    /**
+     * Human-readable reasons for any supporting file that got dropped in
+     * prepareForValidation(), keyed by nothing in particular — just a flat
+     * list of "\"name.ext\": reason" strings the controller can flash back
+     * to the founder. A rejected/failed file should never block the ones
+     * that ARE fine (or the rest of the roadblock) from being submitted.
+     */
+    public array $skippedFiles = [];
+
     public function authorize(): bool
     {
         return $this->user()?->isStartup() ?? false;
@@ -13,14 +28,60 @@ class StoreRoadblockRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->hasFile('supporting_files')) {
-            $files = collect($this->file('supporting_files'))
-                ->filter(fn ($file) => $file && $file->isValid())
-                ->values()
-                ->all();
-
-            $this->files->set('supporting_files', $files);
+        if (! $this->hasFile('supporting_files')) {
+            return;
         }
+
+        $kept = collect($this->file('supporting_files'))
+            ->filter(function ($file) {
+                if (! $file) {
+                    return false;
+                }
+
+                $name = $file->getClientOriginalName() ?: 'file';
+
+                // The underlying PHP upload didn't complete cleanly (dropped
+                // connection, exceeded a server limit, etc).
+                if (! $file->isValid()) {
+                    $this->skippedFiles[] = "\"{$name}\" didn't finish uploading (connection interrupted or file too large).";
+
+                    return false;
+                }
+
+                // Trusting the file's own extension rather than Laravel's
+                // "mimes" content-sniffing rule — some perfectly normal
+                // PNGs/JPEGs get sniffed as an alternate/legacy MIME string
+                // depending on the phone/app/export tool that produced them
+                // and would otherwise be falsely rejected.
+                $ext = strtolower($file->getClientOriginalExtension());
+                if (! in_array($ext, self::ALLOWED_EXTENSIONS, true)) {
+                    $this->skippedFiles[] = "\"{$name}\" isn't a supported file type.";
+
+                    return false;
+                }
+
+                if ($file->getSize() > self::MAX_KILOBYTES * 1024) {
+                    $this->skippedFiles[] = "\"{$name}\" is larger than 10MB.";
+
+                    return false;
+                }
+
+                return true;
+            })
+            ->values();
+
+        // Still respect the 5-file cap even if more than 5 valid files were
+        // somehow submitted (the client already stops at 5, this is just the
+        // server-side backstop) — keep the first 5, note the rest as skipped.
+        if ($kept->count() > self::MAX_FILES) {
+            $kept->slice(self::MAX_FILES)->each(function ($file) {
+                $this->skippedFiles[] = "\"{$file->getClientOriginalName()}\" wasn't attached — only ".self::MAX_FILES.' files are allowed.';
+            });
+
+            $kept = $kept->take(self::MAX_FILES);
+        }
+
+        $this->files->set('supporting_files', $kept->values()->all());
     }
 
     public function rules(): array
@@ -29,30 +90,12 @@ class StoreRoadblockRequest extends FormRequest
             'problem_category' => ['required', 'in:Business Development,Technical Support,Market Research,Strategy Consultant,Others'],
             'problem_category_other' => ['nullable', 'required_if:problem_category,Others', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:5000'],
+            // Every file that reaches here already passed the type/size/
+            // upload checks in prepareForValidation() above — anything that
+            // failed those was quietly dropped (and recorded in
+            // $skippedFiles) rather than rejecting the whole submission.
             'supporting_files' => ['nullable', 'array'],
-            'supporting_files.*' => [
-                'file',
-                'max:10240',
-                function ($attribute, $value, $fail) {
-                    // Laravel's built-in "mimes" rule rejects a file whose
-                    // *content-sniffed* MIME doesn't map cleanly back to one
-                    // of the listed extensions (via Symfony's guessExtension()).
-                    // Some perfectly normal PNGs/JPEGs — depending on the phone,
-                    // app, or export tool that produced them — get sniffed as
-                    // an alternate/legacy MIME string (or fail to guess an
-                    // extension at all), so "mimes" silently rejected them even
-                    // though nothing was actually wrong with the file. Trusting
-                    // the file's own extension instead avoids that false
-                    // rejection; CompressesImages separately guards against a
-                    // genuinely unreadable image at the processing step.
-                    $allowed = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'mp4'];
-                    $ext = strtolower($value->getClientOriginalExtension());
-
-                    if (! in_array($ext, $allowed, true)) {
-                        $fail('The '.$attribute.' must be a file of type: '.implode(', ', $allowed).'.');
-                    }
-                },
-            ],
+            'supporting_files.*' => ['file'],
         ];
     }
 }

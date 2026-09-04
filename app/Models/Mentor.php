@@ -17,6 +17,7 @@ class Mentor extends Model
         'last_name',
         'full_name',
         'specialization',
+        'specialization_other',
         'contact_email',
         'contact_number',
         'organization',
@@ -28,6 +29,18 @@ class Mentor extends Model
         return collect([$this->honorific, $this->last_name])
             ->filter()
             ->implode(' ');
+    }
+
+    /**
+     * Mirrors Roadblock::getDisplayCategoryAttribute() — resolves the
+     * literal "Others" placeholder in `specialization` to the admin's
+     * actual typed value, wherever the expertise is shown.
+     */
+    public function getDisplaySpecializationAttribute(): ?string
+    {
+        return $this->specialization === 'Others' && $this->specialization_other
+            ? $this->specialization_other
+            : $this->specialization;
     }
 
     public function roadblocks()
@@ -46,7 +59,7 @@ class Mentor extends Model
      */
     public function getActiveCasesCountAttribute(): int
     {
-        return $this->roadblocks()->whereIn('status', ['Scheduled', 'Pending Review'])->count();
+        return $this->activeRoadblocks->count();
     }
 
     /**
@@ -55,6 +68,27 @@ class Mentor extends Model
      */
     public function getCompletedCasesCountAttribute(): int
     {
-        return $this->roadblocks()->whereIn('status', ['Resolved', 'Failed'])->count();
+        return $this->completedRoadblocks->count();
+    }
+
+    /**
+     * Reads from the already-loaded `roadblocks` relation when available
+     * (see MentorController::index(), which eager-loads it scoped to just
+     * these statuses) instead of running a fresh query per mentor per
+     * card — this is also what backs the "Active Cases" modal listing the
+     * actual startups, so the count and the list can never disagree.
+     */
+    public function getActiveRoadblocksAttribute()
+    {
+        return $this->relationLoaded('roadblocks')
+            ? $this->roadblocks->whereIn('status', Roadblock::ACTIVE_STATUSES)->values()
+            : $this->roadblocks()->whereIn('status', Roadblock::ACTIVE_STATUSES)->with('startup')->get();
+    }
+
+    public function getCompletedRoadblocksAttribute()
+    {
+        return $this->relationLoaded('roadblocks')
+            ? $this->roadblocks->whereIn('status', ['Resolved', 'Failed'])->values()
+            : $this->roadblocks()->whereIn('status', ['Resolved', 'Failed'])->with('startup')->get();
     }
 }

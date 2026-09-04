@@ -98,13 +98,24 @@ $hasSecondAction = in_array($startup->status, ['Assign Coordinator', 'Pending'])
             single full-width column when there's no second action.
         --}}
         <div class="mt-auto grid {{ $hasSecondAction ? 'grid-cols-2' : 'grid-cols-1' }} gap-2 pt-1">
+            @if ($startup->status === 'Onboarding')
+            {{-- Onboarding startups haven't been evaluated yet — the actionable
+                 place for an admin to move them forward is the Awaiting
+                 Schedule table in Assessment Hub, not this read-only profile
+                 page. --}}
+            <a href="{{ route('admin.assessment-hub.index', ['main' => 'information-sheet', 'tab' => 'schedule']) }}"
+                class="flex min-h-[2rem] items-center justify-center rounded-lg border border-rose-800 px-2 text-center text-xs font-semibold leading-tight text-rose-900 transition-colors hover:bg-rose-50">
+                View Status
+            </a>
+            @else
             <a href="{{ route('admin.startups.show', array_merge(['startup' => $startup], request()->only('tab'))) }}"
                 class="flex min-h-[2rem] items-center justify-center rounded-lg border border-rose-800 px-2 text-center text-xs font-semibold leading-tight text-rose-900 transition-colors hover:bg-rose-50">
-                {{ $startup->status === 'Onboarding' ? 'View Status' : 'View' }}
+                View
             </a>
+            @endif
 
             @if ($startup->status === 'Assign Coordinator')
-            <a href="{{ route('admin.startups.show', array_merge(['startup' => $startup], request()->only('tab'))) }}#assign-coordinator"
+            <a href="{{ route('admin.startups.show', array_merge(['startup' => $startup], request()->only('tab'), ['assign_coordinator' => 1])) }}#assign-coordinator"
                 class="flex min-h-[2rem] items-center justify-center rounded-lg bg-gradient-to-r from-[#6D0D23] via-[#43306A] to-[#11386A] px-2 text-center text-xs font-semibold leading-tight text-white shadow-sm transition-all duration-300 hover:brightness-110 hover:shadow-md">
                 Assign Coordinator
             </a>

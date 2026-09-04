@@ -1,92 +1,129 @@
 @php
-    $doc6Data = $activeDocuments->get(6)?->data ?? [];
-    $doc6Seed = [
-        'business_stage' => array_merge(
-            array_fill_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_6_BUSINESS_STAGES, false),
-            $doc6Data['business_stage'] ?? []
-        ),
-    ];
-    $blankRow = array_fill_keys(array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_6_ROW_COLUMNS), '');
-    foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_6_SECTIONS as $sectionKey => $section) {
-        $doc6Seed[$sectionKey] = $doc6Data[$sectionKey] ?? array_fill(0, $section['default_rows'], $blankRow);
-    }
-
-    // Document 6's own signatory block — three "Prepared By" signatories
-    // (each with a fixed default title/position, editable-but-prefilled
-    // like the assessment form's other signatory blocks) plus a single
-    // "Noted By" name with no accompanying title.
-    $doc6PreparedByDefaults = [
-        'Startup Development Chief, TBIDO',
-        'Incubation Management Chief, TBIDO',
-        'Technology Development Chief, TBIDO',
-    ];
-    $doc6Seed['prepared_by'] = [];
-    foreach ($doc6PreparedByDefaults as $i => $defaultPosition) {
-        $doc6Seed['prepared_by'][] = [
-            'name' => $doc6Data['prepared_by'][$i]['name'] ?? '',
-            'position' => $doc6Data['prepared_by'][$i]['position'] ?? $defaultPosition,
+    // Each build*Seed() closure takes the document's stored $data (or [] for
+    // a truly blank template) and returns the exact same shape either way —
+    // called once with the real stored data (for the seed the form opens
+    // with) and once with [] (for clearAll()'s "Clear Form" reset below), so
+    // there is exactly one place that defines what every field defaults to.
+    // Previously "Clear Form" re-derived blank values by hand in JS and drifted
+    // out of sync with several fields (doc6's prepared_by/noted_by, doc6's own
+    // section tables, doc7's signatories, doc8's validated_by/noted_by/
+    // approved_by) — those were left untouched by Clear Form, so a document
+    // that was never saved could still read as "dirty" (and wrongly warn on
+    // navigating away) even right after clicking Clear Form.
+    $buildDoc6Seed = function (array $doc6Data) {
+        $seed = [
+            'business_stage' => array_merge(
+                array_fill_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_6_BUSINESS_STAGES, false),
+                $doc6Data['business_stage'] ?? []
+            ),
         ];
-    }
-    $doc6Seed['noted_by'] = $doc6Data['noted_by'] ?? '';
-    $doc6Seed['noted_by_position'] = $doc6Data['noted_by_position'] ?? 'Director, TBIDO';
-
-    $doc7Data = $activeDocuments->get(7)?->data ?? [];
-    $blankCheckInRow = array_fill_keys(array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_7_ROW_COLUMNS), '');
-    $doc7Seed = [
-        'check_ins' => $doc7Data['check_ins'] ?? array_fill(0, \App\Support\ActiveAssessmentForms::DOCUMENT_7_DEFAULT_ROWS, $blankCheckInRow),
-        'performance_matrix' => [],
-    ];
-    $blankMetricRow = array_fill_keys(array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_7_PERFORMANCE_COLUMNS), '');
-    foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_7_PERFORMANCE_METRICS as $metric) {
-        $doc7Seed['performance_matrix'][$metric] = $doc7Data['performance_matrix'][$metric] ?? $blankMetricRow;
-    }
-
-    // Document 7's own signatory block — one Prepared By, one Noted By,
-    // both editable-but-prefilled like the assessment form's other
-    // signatory blocks.
-    $doc7Seed['prepared_by_name'] = $doc7Data['prepared_by_name'] ?? '';
-    $doc7Seed['prepared_by_position'] = $doc7Data['prepared_by_position'] ?? 'Portfolio Coordinator, TBIDO';
-    $doc7Seed['noted_by_name'] = $doc7Data['noted_by_name'] ?? '';
-    $doc7Seed['noted_by_position'] = $doc7Data['noted_by_position'] ?? 'Assigned Chief, TBIDO';
-
-    $doc8Data = $activeDocuments->get(8)?->data ?? [];
-    $checklistSeed = fn (array $options, array $stored) => array_merge(
-        array_fill_keys($options, false),
-        ['others_checked' => false, 'others_text' => ''],
-        $stored
-    );
-    $doc8Seed = [
-        'prototype_name' => $doc8Data['prototype_name'] ?? '',
-        'prototype_description' => $doc8Data['prototype_description'] ?? '',
-        'platform_compatibility' => $checklistSeed(\App\Support\ActiveAssessmentForms::DOCUMENT_8_PLATFORM_COMPATIBILITY, $doc8Data['platform_compatibility'] ?? []),
-        'development_status' => $checklistSeed(\App\Support\ActiveAssessmentForms::DOCUMENT_8_DEVELOPMENT_STATUS, $doc8Data['development_status'] ?? []),
-        'ip_status' => $checklistSeed(\App\Support\ActiveAssessmentForms::DOCUMENT_8_IP_STATUS, $doc8Data['ip_status'] ?? []),
-        'ratings' => [],
-        'recommendations' => $doc8Data['recommendations'] ?? '',
-    ];
-    foreach (\App\Support\ActiveAssessmentForms::document8RatingCategories() as $catKey => $cat) {
-        $storedRatings = $doc8Data['ratings'][$catKey] ?? [];
-        $doc8Seed['ratings'][$catKey] = [];
-        foreach ($cat['criteria'] as $i => $criterion) {
-            $doc8Seed['ratings'][$catKey][] = $storedRatings[$i] ?? null;
+        $blankRow = array_fill_keys(array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_6_ROW_COLUMNS), '');
+        foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_6_SECTIONS as $sectionKey => $section) {
+            $seed[$sectionKey] = $doc6Data[$sectionKey] ?? array_fill(0, $section['default_rows'], $blankRow);
         }
-    }
 
-    // Document 8's own signatory block. "Validated By" captures whoever
-    // actually ran this validation (no sensible default — starts blank).
-    // "Noted By" / "Approved By" are editable-but-prefilled with TBIDO's
-    // fixed reviewers, same treatment as the assessment form's own blocks.
-    $doc8Seed['validated_by_name'] = $doc8Data['validated_by_name'] ?? '';
-    $doc8Seed['validated_by_position'] = $doc8Data['validated_by_position'] ?? '';
-    $doc8Seed['validated_by_contact'] = $doc8Data['validated_by_contact'] ?? '';
-    $doc8Seed['validated_by_date'] = $doc8Data['validated_by_date'] ?? '';
-    $doc8Seed['noted_by_name'] = $doc8Data['noted_by_name'] ?? 'DR. JUANCHO D. ESPINELI';
-    $doc8Seed['noted_by_position'] = $doc8Data['noted_by_position'] ?? 'Chief, Technology Development Section, PUP';
-    $doc8Seed['approved_by_name'] = $doc8Data['approved_by_name'] ?? 'DR. PHILIP P. ERMITA, PIE, PDQM, ASEAN ENG.';
-    $doc8Seed['approved_by_position'] = $doc8Data['approved_by_position']
-        ?? "Director, Technology Business Incubation and Development Office, PUP\nProject Leader, DOST-HEIRIT";
+        // Document 6's own signatory block — three "Prepared By" signatories
+        // (each with a fixed default title/position, editable-but-prefilled
+        // like the assessment form's other signatory blocks) plus a single
+        // "Noted By" name with no accompanying title.
+        $doc6PreparedByDefaults = [
+            'Startup Development Chief, TBIDO',
+            'Incubation Management Chief, TBIDO',
+            'Technology Development Chief, TBIDO',
+        ];
+        $seed['prepared_by'] = [];
+        foreach ($doc6PreparedByDefaults as $i => $defaultPosition) {
+            $seed['prepared_by'][] = [
+                'name' => $doc6Data['prepared_by'][$i]['name'] ?? '',
+                'position' => $doc6Data['prepared_by'][$i]['position'] ?? $defaultPosition,
+            ];
+        }
+        $seed['noted_by'] = $doc6Data['noted_by'] ?? '';
+        $seed['noted_by_position'] = $doc6Data['noted_by_position'] ?? 'Director, TBIDO';
 
-    $docHasData = [6 => $activeDocuments->has(6), 7 => $activeDocuments->has(7), 8 => $activeDocuments->has(8)];
+        return $seed;
+    };
+    $doc6Data = $activeDocuments->get(6)?->data ?? [];
+    $doc6Seed = $buildDoc6Seed($doc6Data);
+    $doc6Blank = $buildDoc6Seed([]);
+
+    $buildDoc7Seed = function (array $doc7Data) {
+        $blankCheckInRow = array_fill_keys(array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_7_ROW_COLUMNS), '');
+        $seed = [
+            'check_ins' => $doc7Data['check_ins'] ?? array_fill(0, \App\Support\ActiveAssessmentForms::DOCUMENT_7_DEFAULT_ROWS, $blankCheckInRow),
+            'performance_matrix' => [],
+        ];
+        $blankMetricRow = array_fill_keys(array_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_7_PERFORMANCE_COLUMNS), '');
+        foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_7_PERFORMANCE_METRICS as $metric) {
+            $seed['performance_matrix'][$metric] = $doc7Data['performance_matrix'][$metric] ?? $blankMetricRow;
+        }
+
+        // Document 7's own signatory block — one Prepared By, one Noted By,
+        // both editable-but-prefilled like the assessment form's other
+        // signatory blocks.
+        $seed['prepared_by_name'] = $doc7Data['prepared_by_name'] ?? '';
+        $seed['prepared_by_position'] = $doc7Data['prepared_by_position'] ?? 'Portfolio Coordinator, TBIDO';
+        $seed['noted_by_name'] = $doc7Data['noted_by_name'] ?? '';
+        $seed['noted_by_position'] = $doc7Data['noted_by_position'] ?? 'Assigned Chief, TBIDO';
+
+        return $seed;
+    };
+    $doc7Data = $activeDocuments->get(7)?->data ?? [];
+    $doc7Seed = $buildDoc7Seed($doc7Data);
+    $doc7Blank = $buildDoc7Seed([]);
+
+    $buildDoc8Seed = function (array $doc8Data) {
+        $checklistSeed = fn (array $options, array $stored) => array_merge(
+            array_fill_keys($options, false),
+            ['others_checked' => false, 'others_text' => ''],
+            $stored
+        );
+        $seed = [
+            'prototype_name' => $doc8Data['prototype_name'] ?? '',
+            'prototype_description' => $doc8Data['prototype_description'] ?? '',
+            'platform_compatibility' => $checklistSeed(\App\Support\ActiveAssessmentForms::DOCUMENT_8_PLATFORM_COMPATIBILITY, $doc8Data['platform_compatibility'] ?? []),
+            'development_status' => $checklistSeed(\App\Support\ActiveAssessmentForms::DOCUMENT_8_DEVELOPMENT_STATUS, $doc8Data['development_status'] ?? []),
+            'ip_status' => $checklistSeed(\App\Support\ActiveAssessmentForms::DOCUMENT_8_IP_STATUS, $doc8Data['ip_status'] ?? []),
+            'ratings' => [],
+            'recommendations' => $doc8Data['recommendations'] ?? '',
+        ];
+        foreach (\App\Support\ActiveAssessmentForms::document8RatingCategories() as $catKey => $cat) {
+            $storedRatings = $doc8Data['ratings'][$catKey] ?? [];
+            $seed['ratings'][$catKey] = [];
+            foreach ($cat['criteria'] as $i => $criterion) {
+                $seed['ratings'][$catKey][] = $storedRatings[$i] ?? null;
+            }
+        }
+
+        // Document 8's own signatory block. "Validated By" captures whoever
+        // actually ran this validation (no sensible default — starts blank).
+        // "Noted By" / "Approved By" are editable-but-prefilled with TBIDO's
+        // fixed reviewers, same treatment as the assessment form's other blocks.
+        $seed['validated_by_name'] = $doc8Data['validated_by_name'] ?? '';
+        $seed['validated_by_position'] = $doc8Data['validated_by_position'] ?? '';
+        $seed['validated_by_contact'] = $doc8Data['validated_by_contact'] ?? '';
+        $seed['validated_by_date'] = $doc8Data['validated_by_date'] ?? '';
+        $seed['noted_by_name'] = $doc8Data['noted_by_name'] ?? 'DR. JUANCHO D. ESPINELI';
+        $seed['noted_by_position'] = $doc8Data['noted_by_position'] ?? 'Chief, Technology Development Section, PUP';
+        $seed['approved_by_name'] = $doc8Data['approved_by_name'] ?? 'DR. PHILIP P. ERMITA, PIE, PDQM, ASEAN ENG.';
+        $seed['approved_by_position'] = $doc8Data['approved_by_position']
+            ?? "Director, Technology Business Incubation and Development Office, PUP\nProject Leader, DOST-HEIRIT";
+
+        return $seed;
+    };
+    $doc8Data = $activeDocuments->get(8)?->data ?? [];
+    $doc8Seed = $buildDoc8Seed($doc8Data);
+    $doc8Blank = $buildDoc8Seed([]);
+
+    // "Started" reflects real saved content, not just row-existence — a row
+    // gets created the moment the admin first hits Save even with every
+    // field left blank, and stays around afterward even if everything is
+    // later cleared and re-saved (see ActiveAssessmentForms::isDocumentFilled()).
+    $docHasData = [
+        6 => \App\Support\ActiveAssessmentForms::isDocumentFilled(6, $doc6Data),
+        7 => \App\Support\ActiveAssessmentForms::isDocumentFilled(7, $doc7Data),
+        8 => \App\Support\ActiveAssessmentForms::isDocumentFilled(8, $doc8Data),
+    ];
     $tableInput = 'w-full min-h-[30px] rounded border border-gray-400 px-2 py-1 text-sm leading-normal focus:outline-none focus:ring-1 focus:ring-rose-900';
 @endphp
 
@@ -99,8 +136,10 @@
         initialDoc6: @js($doc6Seed),
         initialDoc7: @js($doc7Seed),
         initialDoc8: @js($doc8Seed),
+        blankDoc6: @js($doc6Blank),
+        blankDoc7: @js($doc7Blank),
+        blankDoc8: @js($doc8Blank),
         showClearConfirm: false,
-        showSaved: @js($justSaved ?? false),
         // Document 8's rating tables aren't required by anything server-side
         // (AssessmentController::updateDocuments() stores whatever JSON it is
         // given), so per direct testing feedback this is enforced client-side
@@ -222,20 +261,18 @@
             if (! avgs.length) return null;
             return Math.round((avgs.reduce((a, b) => a + b, 0) / avgs.length) * 100) / 100;
         },
+        // Resets to the exact same blank template a never-saved document
+        // would open with (blankDoc6/7/8, seeded server-side from the
+        // identical build*Seed() logic with empty data — see the @php block
+        // above) rather than re-deriving blank values field-by-field here,
+        // so nothing gets missed and a document that was never saved always
+        // ends up byte-for-byte equal to its initialDocN after clearing —
+        // i.e. no longer "dirty", so navigating away afterward doesn't warn.
         clearAll() {
             document.getElementById('active-assessment-form').reset();
-            this.doc6.business_stage = @js(array_fill_keys(\App\Support\ActiveAssessmentForms::DOCUMENT_6_BUSINESS_STAGES, false));
-            this.doc7.check_ins.forEach(r => Object.keys(r).forEach(k => r[k] = ''));
-            Object.values(this.doc7.performance_matrix).forEach(r => Object.keys(r).forEach(k => r[k] = ''));
-            this.doc8.prototype_name = '';
-            this.doc8.prototype_description = '';
-            this.doc8.recommendations = '';
-            ['platform_compatibility', 'development_status', 'ip_status'].forEach(group => {
-                Object.keys(this.doc8[group]).forEach(k => this.doc8[group][k] = (k === 'others_text' ? '' : false));
-            });
-            Object.keys(this.doc8.ratings).forEach(cat => {
-                this.doc8.ratings[cat] = this.doc8.ratings[cat].map(() => null);
-            });
+            this.doc6 = JSON.parse(JSON.stringify(this.blankDoc6));
+            this.doc7 = JSON.parse(JSON.stringify(this.blankDoc7));
+            this.doc8 = JSON.parse(JSON.stringify(this.blankDoc8));
             this.doc8ValidationAttempted = false;
             this.doc8InvalidCategory = null;
             this.showClearConfirm = false;
@@ -764,24 +801,4 @@
         </div>
     </div>
 
-    {{-- ============ Save success ============ --}}
-    <div x-show="showSaved" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" style="display:none;">
-        <div class="relative w-full max-w-lg overflow-hidden rounded-xl bg-white">
-            <div class="flex items-center justify-center bg-gradient-to-r from-rose-950 to-blue-950 py-8">
-                <div class="flex h-16 w-16 items-center justify-center rounded-full bg-white">
-                    <svg class="h-8 w-8 text-[#11386A]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                </div>
-            </div>
-            <div class="p-8 text-center">
-                <h3 class="mb-2 text-2xl font-bold text-gray-900">Great!</h3>
-                <p class="mb-6 text-gray-500">Changes saved successfully.</p>
-                <button type="button" @click="showSaved = false"
-                    class="w-full rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-3 font-semibold text-white transition hover:opacity-90">
-                    Continue
-                </button>
-            </div>
-        </div>
-    </div>
 </div>

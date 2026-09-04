@@ -1,7 +1,15 @@
-@props(['mode', 'action', 'roadblock', 'mentors', 'coordinators' => null])
+@props(['mode', 'action', 'roadblock', 'mentors', 'coordinators' => null, 'formSuffix' => null])
 @php $coordinators = $coordinators ?? collect(); @endphp
 @php
-$formId = 'roadblock-assign-form-'.$roadblock->roadblock_id;
+// A "Scheduled" roadblock whose meeting is today renders in BOTH the
+// "Upcoming Mentorship" and "Scheduled Today" tables on the same page, each
+// including this component for the very same $roadblock — without a
+// distinguishing suffix that produces two elements sharing the exact same
+// id. document.getElementById()/form="..." always resolve to the FIRST
+// match in the DOM, so Clear Form / Save Changes clicked from the SECOND
+// instance silently acted on the FIRST (possibly still showing stale,
+// un-cleared values) instead of the modal actually on screen.
+$formId = 'roadblock-assign-form-'.$roadblock->roadblock_id.($formSuffix ? '-'.$formSuffix : '');
 
 
 $isErroredRoadblock = $errors->any() && (int) old('roadblock_id') === $roadblock->roadblock_id;
@@ -30,25 +38,6 @@ $linkDefault = $prefillExisting ? $roadblock->meeting_link : '';
 $notesDefault = $prefillExisting ? $roadblock->notes : '';
 
 $selectedAssignee = $oldFor('assignee', $assigneeDefault);
-
-
-$resetFormJs = "
-    const f = document.getElementById('{$formId}');
-    f.querySelectorAll('input, select, textarea').forEach(el => {
-        if (el.type === 'hidden') return;
-        el.value = '';
-    });
-    window.dispatchEvent(new CustomEvent('form-cleared', { detail: '{$formId}' }));
-    showFailedState = false;
-";
-
-$revertFormJs = "
-    const f = document.getElementById('{$formId}');
-    f.querySelectorAll('[data-original]').forEach(el => { el.value = el.dataset.original; });
-    const dateEl = f.querySelector('[name=meeting_date]');
-    window.dispatchEvent(new CustomEvent('form-reverted', { detail: { id: '{$formId}', date: dateEl ? dateEl.dataset.original : '' } }));
-    showFailedState = false;
-";
 
 // Same helper as the layout — component scope doesn't inherit it.
 $icon = function (string $name, string $class = 'w-4 h-4') {
@@ -95,7 +84,95 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         $lblCls = 'block text-xs text-gray-500 mb-1';
         @endphp
 
-        <div class="contents" x-data="{ deleteAssignmentOpen: false, showFailedState: @js($isErroredRoadblock) }">
+        <div class="contents" x-data="{
+            deleteAssignmentOpen: false,
+            showFailedState: @js($isErroredRoadblock),
+
+            // Reactive mirror of every field this form submits — every one of
+            // them is x-model-bound below. Having them all live in ONE scope
+            // (rather than split across separate nested x-data blocks per
+            // panel, bridged by raw DOM writes + custom events) is what lets
+            // Clear Form / Cancel just reassign these variables directly and
+            // have every field update in lockstep, with nothing left able to
+            // silently fall out of sync.
+            assignee: @js($selectedAssignee),
+            meetingDate: @js($oldFor('meeting_date', $meetingDateDefault)),
+            meetingStartTime: @js($oldFor('meeting_start_time', $meetingStartDefault)),
+            meetingEndTime: @js($oldFor('meeting_end_time', $meetingEndDefault)),
+            platform: @js($oldFor('meeting_platform', $platformDefault)),
+            meetingLink: @js($oldFor('meeting_link', $linkDefault)),
+            notes: @js($oldFor('notes', $notesDefault)),
+
+            // The record's actual current values — what Cancel/× reverts to,
+            // and what Save Changes compares against to know whether anything
+            // has actually changed.
+            initialAssignee: @js($assigneeDefault),
+            initialMeetingDate: @js($meetingDateDefault),
+            initialMeetingStartTime: @js($meetingStartDefault),
+            initialMeetingEndTime: @js($meetingEndDefault),
+            initialPlatform: @js($platformDefault),
+            initialMeetingLink: @js($linkDefault),
+            initialNotes: @js($notesDefault),
+
+            isDirty() {
+                return this.assignee !== this.initialAssignee
+                    || this.meetingDate !== this.initialMeetingDate
+                    || this.meetingStartTime !== this.initialMeetingStartTime
+                    || this.meetingEndTime !== this.initialMeetingEndTime
+                    || this.platform !== this.initialPlatform
+                    || (this.meetingLink || '') !== (this.initialMeetingLink || '')
+                    || (this.notes || '') !== (this.initialNotes || '');
+            },
+
+            clearForm() {
+                this.assignee = '';
+                this.meetingDate = '';
+                this.meetingStartTime = '';
+                this.meetingEndTime = '';
+                this.platform = '';
+                this.meetingLink = '';
+                this.notes = '';
+                this.showFailedState = false;
+            },
+
+            revertForm() {
+                this.assignee = this.initialAssignee;
+                this.meetingDate = this.initialMeetingDate;
+                this.meetingStartTime = this.initialMeetingStartTime;
+                this.meetingEndTime = this.initialMeetingEndTime;
+                this.platform = this.initialPlatform;
+                this.meetingLink = this.initialMeetingLink;
+                this.notes = this.initialNotes;
+                this.showFailedState = false;
+            },
+
+            // The browser's native scroll-to-change behavior on a focused
+            // <input type=time> moves by however many wheel 'ticks' the
+            // trackpad/mouse happens to report for one scroll gesture — often
+            // more than one, and inconsistently between scrolling up and
+            // down — so it visibly skips over minutes instead of moving one
+            // at a time. Taking over the wheel event and always stepping by
+            // exactly one minute per gesture (regardless of the raw delta)
+            // makes scrolling land on every number smoothly in both
+            // directions.
+            stepTime(value, direction) {
+                const [h, m] = (value || '00:00').split(':').map(Number);
+                const base = (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+                const total = (base + direction + 1440) % 1440;
+
+                return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+            },
+
+            todayStr: @js(now()->format('Y-m-d')),
+            nowTime: @js(now()->format('H:i')),
+            linkPlaceholders: {
+                'Google Meet': 'e.g., https://google.com',
+                'Zoom': 'e.g., https://zoom.us',
+                'Microsoft Teams': 'e.g., Paste Microsoft Teams invitation link here',
+                'Location': 'e.g., 123 Main Street, Suite 400, New York, NY',
+                'Custom Link': 'e.g., https://your-conferencing-app.com',
+            },
+        }">
 
             <div class="relative flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-5 py-4 text-white sm:px-8 sm:py-5">
                 <div class="flex min-w-0 items-center gap-2.5 sm:gap-3">
@@ -112,7 +189,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                 </div>
 
                 <button type="button"
-                    @click="{{ $mode === 'edit' ? $revertFormJs.' editOpen = false;' : ($mode === 'reschedule' ? $revertFormJs.' rescheduleOpen = false;' : $resetFormJs.' assignOpen = false;') }}"
+                    @click="{{ $mode === 'edit' ? 'revertForm(); editOpen = false;' : ($mode === 'reschedule' ? 'revertForm(); rescheduleOpen = false;' : 'clearForm(); assignOpen = false;') }}"
                     class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                     aria-label="Close">
                     <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -131,7 +208,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
                         <div class="relative rounded-xl border p-3 sm:p-4" x-data="{ previewId: null }">
                             <p class="mb-3 text-sm font-medium sm:text-base">1. Assign Mentor or Coordinator</p>
-                            <select name="assignee" autocomplete="off" data-original="{{ $assigneeDefault }}" class="{{ $fieldCls }} mb-4">
+                            <select name="assignee" autocomplete="off" x-model="assignee" data-original="{{ $assigneeDefault }}" class="{{ $fieldCls }} mb-4">
                                 <option value="" disabled hidden @selected($selectedAssignee === '')>Select Mentor or Coordinator</option>
                                 @if ($mentors->isNotEmpty())
                                 <option disabled>── Mentors ──</option>
@@ -206,7 +283,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     {{-- Text overlays ON TOP of the photo, anchored to the bottom --}}
                                     <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent p-3 pt-12 text-white sm:p-4 sm:pt-16">
                                         <p class="truncate text-sm font-bold sm:text-base">{{ $m->display_name }}</p>
-                                        <p class="mb-1.5 truncate text-[10px] text-white/70 sm:mb-2 sm:text-xs">{{ $m->specialization }} Mentor</p>
+                                        <p class="mb-1.5 truncate text-[10px] text-white/70 sm:mb-2 sm:text-xs">{{ $m->display_specialization }} Mentor</p>
 
                                         <div class="space-y-1 border-t border-white/20 pt-1.5 text-[10px] text-white/80 sm:space-y-1.5 sm:pt-2 sm:text-xs">
                                             <p class="{{ $previewRow }}">
@@ -295,22 +372,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         // fresh assignment, not the edit-mode exemption.
                         $enforceFutureOnly = $mode === 'assign' || $mode === 'reschedule';
                         @endphp
-                        <div class="rounded-xl border p-3 sm:p-4"
-                            @form-cleared.window="if ($event.detail === '{{ $formId }}') { meetingDate = ''; platform = $el.querySelector('[name=meeting_platform]').value; }"
-                            @form-reverted.window="if ($event.detail.id === '{{ $formId }}') { meetingDate = $event.detail.date; platform = $el.querySelector('[name=meeting_platform]').value; }"
-                            x-data="{
-                    meetingDate: @js($oldFor('meeting_date', $meetingDateDefault)),
-                    todayStr: @js(now()->format('Y-m-d')),
-                    nowTime: @js(now()->format('H:i')),
-                    platform: @js($oldFor('meeting_platform', $platformDefault)),
-                    linkPlaceholders: {
-                        'Google Meet': 'e.g., https://google.com',
-                        'Zoom': 'e.g., https://zoom.us',
-                        'Microsoft Teams': 'e.g., Paste Microsoft Teams invitation link here',
-                        'Location': 'e.g., 123 Main Street, Suite 400, New York, NY',
-                        'Custom Link': 'e.g., https://your-conferencing-app.com',
-                    },
-                }">
+                        <div class="rounded-xl border p-3 sm:p-4">
                             <p class="mb-3 text-sm font-medium sm:text-base">2. Set a Meeting</p>
 
                             <label class="{{ $lblCls }}">Date</label>
@@ -324,7 +386,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             <div class="mb-3 grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="{{ $lblCls }}">Start Time</label>
-                                    <input type="time" name="meeting_start_time" autocomplete="off"
+                                    <input type="time" name="meeting_start_time" autocomplete="off" x-model="meetingStartTime"
+                                        @wheel.prevent="meetingStartTime = stepTime(meetingStartTime, $event.deltaY < 0 ? 1 : -1)"
                                         @if ($enforceFutureOnly) :min="meetingDate === todayStr ? nowTime : null" @endif
                                         value="{{ $oldFor('meeting_start_time', $meetingStartDefault) }}"
                                         data-original="{{ $meetingStartDefault }}"
@@ -333,7 +396,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 </div>
                                 <div>
                                     <label class="{{ $lblCls }}">End Time</label>
-                                    <input type="time" name="meeting_end_time" autocomplete="off"
+                                    <input type="time" name="meeting_end_time" autocomplete="off" x-model="meetingEndTime"
+                                        @wheel.prevent="meetingEndTime = stepTime(meetingEndTime, $event.deltaY < 0 ? 1 : -1)"
                                         value="{{ $oldFor('meeting_end_time', $meetingEndDefault) }}"
                                         data-original="{{ $meetingEndDefault }}"
                                         class="{{ $fieldCls }}">
@@ -344,21 +408,21 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             <label class="{{ $lblCls }}">Platform</label>
                             <select name="meeting_platform" autocomplete="off" x-model="platform" data-original="{{ $platformDefault }}" class="{{ $fieldCls }} mb-3">
                                 <option value="" disabled hidden @selected(! $oldFor('meeting_platform', $platformDefault))>Select Platform</option>
-                                @foreach (['Google Meet', 'Zoom', 'Microsoft Teams', 'Location', 'Custom Link'] as $platform)
-                                <option value="{{ $platform }}" @selected($oldFor('meeting_platform', $platformDefault) === $platform)>{{ $platform }}</option>
+                                @foreach (['Google Meet', 'Zoom', 'Microsoft Teams', 'Location', 'Custom Link'] as $platformOption)
+                                <option value="{{ $platformOption }}" @selected($oldFor('meeting_platform', $platformDefault) === $platformOption)>{{ $platformOption }}</option>
                                 @endforeach
                             </select>
                             @if ($isErroredRoadblock) @error('meeting_platform') <p class="mb-3 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
 
                             <label class="{{ $lblCls }}">Meeting Link / Location</label>
-                            <textarea name="meeting_link" autocomplete="off" rows="3"
+                            <textarea name="meeting_link" autocomplete="off" rows="3" x-model="meetingLink"
                                 :placeholder="linkPlaceholders[platform] || 'Input Meeting Link / Address'"
                                 data-original="{{ $linkDefault }}"
                                 class="{{ $fieldCls }}">{{ $oldFor('meeting_link', $linkDefault) }}</textarea>
                             @if ($isErroredRoadblock) @error('meeting_link') <p class="mt-1 text-xs text-red-600" x-show="showFailedState">{{ $message }}</p> @enderror @endif
 
                             <label class="{{ $lblCls }} mt-3">Notes</label>
-                            <textarea name="notes" autocomplete="off" rows="3"
+                            <textarea name="notes" autocomplete="off" rows="3" x-model="notes"
                                 placeholder="Optional note for the founder (e.g. what to prepare, what to expect)"
                                 data-original="{{ $notesDefault }}"
                                 class="{{ $fieldCls }}">{{ $oldFor('notes', $notesDefault) }}</textarea>
@@ -371,33 +435,12 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                      the primary action isn't buried under two secondary ones. --}}
                 <div class="flex flex-col gap-3 pt-5 sm:flex-row sm:pt-6">
                     @if ($mode === 'reschedule')
-                    <button type="button" @click="{{ $revertFormJs }} rescheduleOpen = false;"
+                    <button type="button" @click="revertForm(); rescheduleOpen = false;"
                         class="order-2 h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:order-none sm:flex-1">
                         Cancel
                     </button>
                     @else
-                    <button type="button"
-                        @click="
-        const f = document.getElementById('{{ $formId }}');
-        f.querySelectorAll('input, select, textarea').forEach(el => {
-            if (el.type === 'hidden') return;
-            // .value = '' (rather than .selectedIndex = 0) so this reliably
-            // lands on each select's empty placeholder option even now that
-            // it's marked disabled — script-driven value changes aren't
-            // blocked by disabled, only user clicks are, but selectedIndex
-            // is less consistent across browsers for that case.
-            el.value = '';
-        });
-        // meeting_date is bound via x-model, so the direct DOM writes above
-        // don't reach Alpine's own copy of the value — without this, Alpine
-        // would silently write its still-stale meetingDate right back into
-        // the date field on its next reactive tick, undoing the clear.
-        window.dispatchEvent(new CustomEvent('form-cleared', { detail: '{{ $formId }}' }));
-        // Also hide any leftover error messages from a previous failed
-        // submission — otherwise Clear Form wiped the values but left the
-        // old validation errors sitting there looking unresolved.
-        showFailedState = false;
-    "
+                    <button type="button" @click="clearForm()"
                         class="order-2 h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:order-none sm:flex-1">
                         Clear Form
                     </button>
@@ -416,7 +459,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     @endif
 
                     <button type="submit" form="{{ $formId }}"
-                        class="order-1 h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:order-none sm:flex-1">
+                        @if ($mode === 'edit') :disabled="!isDirty()" @endif
+                        class="order-1 h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:order-none sm:flex-1 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:opacity-40">
                         @if ($mode === 'edit') Save Changes
                         @elseif ($mode === 'reschedule') Save
                         @else Assign Mentor

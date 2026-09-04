@@ -258,9 +258,11 @@ class AssessmentHubController extends Controller
 
                 $pills = collect($pillDefinitions)->map(function ($def) use ($byStage, $byDocument) {
                     if (! empty($def['document'])) {
+                        $document = $byDocument->get($def['document']);
+
                         return [
                             'label' => $def['label'],
-                            'completed' => $byDocument->has($def['document']),
+                            'completed' => $document && \App\Support\ActiveAssessmentForms::isDocumentFilled($def['document'], $document->data ?? []),
                             'nav_stage' => $def['nav_stage'],
                             'nav_document' => $def['document'],
                             'nav_type' => null,
@@ -304,7 +306,9 @@ class AssessmentHubController extends Controller
                 ->reject(fn ($def) => ($def['document'] ?? null) === \App\Support\VentureExitForm::DOCUMENT_NUMBER)
                 ->reject(function ($def) use ($byStage, $byDocument) {
                     if (! empty($def['document'])) {
-                        return $byDocument->has($def['document']);
+                        $document = $byDocument->get($def['document']);
+
+                        return $document && \App\Support\ActiveAssessmentForms::isDocumentFilled($def['document'], $document->data ?? []);
                     }
 
                     $row = $byStage->get($def['stage']);

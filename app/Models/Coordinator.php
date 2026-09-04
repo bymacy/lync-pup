@@ -56,4 +56,26 @@ class Coordinator extends Model
     {
         return $this->roadblocks()->whereIn('status', ['Resolved', 'Failed'])->count();
     }
+
+    /**
+     * Reads from the already-loaded `assignments` relation when available
+     * (see CoordinatorProfileController::index(), which eager-loads it
+     * scoped to Active assignments) instead of running a fresh query per
+     * coordinator per card — this also backs the "X Startup" modal listing
+     * the actual startups, so the count and the list can never disagree.
+     * Deliberately not the stored assigned_startups_count column, which is
+     * only ever incremented (see CoordinatorAssignmentController::store())
+     * and drifts once an assignment is completed/reassigned.
+     */
+    public function getActiveStartupAssignmentsAttribute()
+    {
+        return $this->relationLoaded('assignments')
+            ? $this->assignments->where('assignment_status', 'Active')->values()
+            : $this->assignments()->where('assignment_status', 'Active')->with('startup')->get();
+    }
+
+    public function getActiveStartupsCountAttribute(): int
+    {
+        return $this->active_startup_assignments->count();
+    }
 }

@@ -112,7 +112,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             data-ts="{{ $roadblock->meeting_date?->timestamp ?? 0 }}"
                             x-show="matchesUpcoming(@js(['name' => $roadblock->startup->company_name, 'category' => $roadblock->display_category]))"
                             @endif
-                            x-data="{ viewOpen: false, editOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
+                            x-data="{ viewOpen: false, editOpen: @js($erroredRoadblockId === $roadblock->roadblock_id), previewImage: null }">
 
                             <td class="px-3 py-3 align-middle sm:px-4">
                                 <div class="mx-auto flex w-[13rem] items-center gap-2.5 sm:gap-3">
@@ -303,7 +303,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                                             <div>
                                                                 <label class="{{ $lbl }}">{{ $isCoordinatorAssignee ? 'Role' : 'Expertise' }}</label>
                                                                 <p class="{{ $pill }} truncate">
-                                                                    {{ ($isCoordinatorAssignee ? $assignee?->role_title : $assignee?->specialization) ?? '—' }}
+                                                                    {{ ($isCoordinatorAssignee ? $assignee?->role_title : $assignee?->display_specialization) ?? '—' }}
                                                                 </p>
                                                             </div>
 
@@ -375,11 +375,67 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                                                 {{ $roadblock->description }}
                                                             </p>
                                                         </div>
+
+                                                        @if ($roadblock->files->isNotEmpty())
+                                                        <div>
+                                                            <label class="{{ $lbl }}">Supporting Files</label>
+
+                                                            <div class="space-y-2 md:w-1/2">
+                                                                @foreach ($roadblock->files as $file)
+                                                                <div class="flex items-center justify-between gap-3 rounded-md border border-gray-300 px-3 py-2">
+                                                                    <span class="truncate text-sm text-[#9F1239]">{{ $file->original_filename }}</span>
+
+                                                                    <div class="flex flex-shrink-0 items-center gap-2.5 text-[#9F1239]">
+                                                                        @if ($file->is_image)
+                                                                        <button type="button" @click="previewImage = '{{ $file->url }}'"
+                                                                            aria-label="Preview {{ $file->original_filename }}"
+                                                                            class="transition hover:opacity-70">
+                                                                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                            </svg>
+                                                                        </button>
+                                                                        @else
+                                                                        <a href="{{ $file->url }}" target="_blank" rel="noopener"
+                                                                            aria-label="Open {{ $file->original_filename }}"
+                                                                            class="transition hover:opacity-70">
+                                                                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5A3.375 3.375 0 0010.125 2.25H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                                                            </svg>
+                                                                        </a>
+                                                                        @endif
+
+                                                                        <a href="{{ $file->url }}" download="{{ $file->original_filename }}"
+                                                                            aria-label="Download {{ $file->original_filename }}"
+                                                                            class="transition hover:opacity-70">
+                                                                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15.75V3m0 12.75l-3.75-3.75M12 15.75l3.75-3.75M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5" />
+                                                                            </svg>
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                                @endforeach
+                                                            </div>
+                                                        </div>
+                                                        @endif
                                                     </div>
                                                 </section>
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+
+                                {{-- Image preview lightbox: opened by the eye button above. --}}
+                                <div x-show="previewImage" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 sm:p-6" style="display:none;"
+                                    @click.self="previewImage = null" @keydown.escape.window="previewImage = null">
+                                    <button type="button" @click="previewImage = null" aria-label="Close preview"
+                                        class="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-none sm:right-5 sm:top-5">
+                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M18 6L6 18M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                    <img :src="previewImage" class="max-h-full max-w-full rounded-lg object-contain">
                                 </div>
 
                                 {{-- Edit modal --}}
@@ -398,6 +454,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                                 :roadblock="$roadblock"
                                                 :mentors="$mentors"
                                                 :coordinators="$coordinators"
+                                                :form-suffix="$filterKey ?? 'today'"
                                                 :action="route('admin.roadblocks.assign', $roadblock)" />
                                         </div>
                                     </div>

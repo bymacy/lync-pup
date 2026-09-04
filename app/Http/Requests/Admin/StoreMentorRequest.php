@@ -26,7 +26,8 @@ class StoreMentorRequest extends FormRequest
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'honorific' => ['required', 'string', 'in:Mr.,Ms.,Mrs.,Dr.,Prof.,Atty.,Engr.'],
-            'specialization' => ['required', 'string', 'in:Engineering,Business,Marketing,Legal,Finance,Technology'],
+            'specialization' => ['required', 'string', 'in:Engineering,Business,Marketing,Legal,Finance,Technology,Others'],
+            'specialization_other' => ['nullable', 'required_if:specialization,Others', 'string', 'max:150'],
             // 'email' alone (Laravel's default RFC validation) still lets
             // through addresses with no real domain/TLD at all, like
             // "name@host" — the regex enforces the actual baseline shape we
@@ -82,6 +83,7 @@ class StoreMentorRequest extends FormRequest
         return [
             'honorific.required' => 'Please select an honorific.',
             'specialization.required' => 'Please select an expertise.',
+            'specialization_other.required_if' => 'Please type the specific expertise.',
             'contact_email.email' => 'Please enter a valid email address, e.g. example@email.com.',
             'contact_email.regex' => 'Please enter a valid email address, e.g. example@email.com.',
             'contact_number.regex' => 'Please enter a valid mobile number in the format 09XX-XXX-XXXX.',

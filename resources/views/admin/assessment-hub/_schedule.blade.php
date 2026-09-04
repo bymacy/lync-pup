@@ -47,7 +47,12 @@ return $url
                     </thead>
                     <tbody>
                         @forelse ($pendingStartups as $startup)
-                        <tr x-data="{ scheduleOpen: false }" class="border-b border-gray-100 last:border-0">
+                        {{-- Reopens this exact row's modal (instead of just silently
+                             redirecting back with the modal closed) when a failed
+                             submission's schedule_row_key matches this startup —
+                             same idiom as admin/mentors|coordinators|cohorts index
+                             pages seeding editOpen from $errors. --}}
+                        <tr x-data="{ scheduleOpen: @js($errors->any() && (string) old('schedule_row_key') === (string) $startup->startup_id) }" class="border-b border-gray-100 last:border-0">
                             <td class="px-3 py-2 text-center">
                                 <div class="flex justify-center">
                                     <div class="inline-flex max-w-full items-center gap-2 text-left text-xs" style="{{ $pendingCell }}">
@@ -138,10 +143,19 @@ return $url
                         ])>&rsaquo;</a>
                 </div>
 
+                {{-- main/tab are bound to the live Alpine state (:value) instead of a
+                     static request()->except() snapshot — the outer Assessment Hub
+                     tabs are client-side (no reload), so a static snapshot taken at
+                     this partial's initial render would go stale and silently replay
+                     whichever tab was active on page LOAD the moment this form is
+                     submitted, bouncing the admin back to a tab they'd since
+                     navigated away from. --}}
                 <form method="GET" class="flex items-center gap-2">
-                    @foreach (request()->except(['per_page', 'page']) as $k => $v)
+                    @foreach (request()->except(['per_page', 'page', 'main', 'tab']) as $k => $v)
                     <input type="hidden" name="{{ $k }}" value="{{ $v }}">
                     @endforeach
+                    <input type="hidden" name="main" :value="mainTab">
+                    <input type="hidden" name="tab" :value="subTab">
                     <label for="per_page" class="text-[11px] text-gray-500">Items per page</label>
                     <select id="per_page" name="per_page" onchange="this.form.submit()"
                         class="rounded-md border border-gray-300 py-1 pl-2 pr-6 text-[11px] text-gray-700">

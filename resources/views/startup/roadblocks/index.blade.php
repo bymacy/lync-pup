@@ -1,5 +1,5 @@
 @php
-$validArchiveStatuses = ['all', 'Pending', 'Scheduled', 'Pending Review', 'Resolved', 'Failed'];
+$validArchiveStatuses = ['all', 'Pending', 'Scheduled', 'Pending Review', 'Resolved', 'Failed', 'Deleted by Admin'];
 $initialArchiveStatusFilter = in_array(request('status'), $validArchiveStatuses) ? request('status') : 'all';
 
 $validTabs = ['roadblock', 'update', 'archive'];
@@ -65,14 +65,19 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                 'Pending Review': 'bg-amber-500',
                 'Resolved': 'bg-green-500',
                 'Failed': 'bg-rose-600',
+                'Deleted by Admin': 'bg-gray-600',
             }[status] || 'bg-amber-500';
         },
 
-        category: '',
-        categoryOther: '',
+        // Hydrated from old() so a failed submission (e.g. a rejected file)
+        // doesn't wipe out what the founder already typed — only the file
+        // list itself can't survive a redirect (browsers won't let a server
+        // repopulate a <input type=file>), everything else should stick around.
+        category: @js(old('problem_category', '')),
+        categoryOther: @js(old('problem_category_other', '')),
         otherSuggestions: @js($otherCategorySuggestions),
         showOtherSuggestions: false,
-        description: '',
+        description: @js(old('description', '')),
         files: [],
         dt: new DataTransfer(),
         dragOver: false,
@@ -82,8 +87,16 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
         previewImageUrl: null,
 
         /* ---------- validation state ---------- */
-        errors: {},
-        touched: {},
+        errors: {
+            @if ($errors->has('problem_category')) category: @js($errors->first('problem_category')), @endif
+            @if ($errors->has('problem_category_other')) categoryOther: @js($errors->first('problem_category_other')), @endif
+            @if ($errors->has('description')) description: @js($errors->first('description')), @endif
+        },
+        touched: {
+            @if ($errors->has('problem_category')) category: true, @endif
+            @if ($errors->has('problem_category_other')) categoryOther: true, @endif
+            @if ($errors->has('description')) description: true, @endif
+        },
         fileError: '',
 
         limits: {
@@ -248,7 +261,14 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
         $watch('archiveStatusFilter', value => setQueryParam('status', value));
         @if(session('roadblock_submitted'))
             tab = 'archive';
-            $store.toast.success('Great!', 'Submission successful.');
+            @if(session('roadblock_skipped_files'))
+                {{-- Submission still went through with whatever files were valid —
+                     this just tells the founder which file(s) didn't make it and why,
+                     it isn't an error blocking anything. --}}
+                $store.toast.warning('Submitted — some files were skipped', @js(implode(' ', session('roadblock_skipped_files'))));
+            @else
+                $store.toast.success('Great!', 'Submission successful.');
+            @endif
         @endif
     ">
         {{-- Header: text between the tags covers the pre-Alpine render, x-text takes over after boot --}}
@@ -490,11 +510,16 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                             <p class="mb-2.5 text-xs text-gray-600">Drag-and-drop</p>
 
                             <button type="button" @click="$refs.fileInput.click()"
-                                class="rounded bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-4 py-1.5 text-xs font-medium text-white transition hover:opacity-95">
-                                Browse Files
+                                :disabled="dt.files.length >= limits.maxFiles"
+                                :class="dt.files.length >= limits.maxFiles
+                                    ? 'cursor-not-allowed bg-gray-300 text-gray-500'
+                                    : 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-95'"
+                                class="rounded px-4 py-1.5 text-xs font-medium transition">
+                                <span x-text="dt.files.length >= limits.maxFiles ? 'Limit Reached' : 'Browse Files'"></span>
                             </button>
 
                             <input type="file" name="supporting_files[]" x-ref="fileInput" multiple class="hidden"
+                                :disabled="dt.files.length >= limits.maxFiles"
                                 accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv"
                                 @change="addFiles($event.target.files)">
                         </div>
@@ -645,7 +670,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                 </div>
 
                 @php
-                $archiveStatuses = ['all' => 'All Statuses', 'Pending' => 'Pending', 'Scheduled' => 'Scheduled', 'Pending Review' => 'Pending Review', 'Resolved' => 'Resolved', 'Failed' => 'Failed'];
+                $archiveStatuses = ['all' => 'All Statuses', 'Pending' => 'Pending', 'Scheduled' => 'Scheduled', 'Pending Review' => 'Pending Review', 'Resolved' => 'Resolved', 'Failed' => 'Failed', 'Deleted by Admin' => 'Deleted by Admin'];
                 @endphp
                 <div class="relative inline-block w-full max-w-[180px] sm:max-w-[200px]" x-data="{ open: false }"
                     @click.outside="open = false" @keydown.escape.window="open = false">
@@ -683,6 +708,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
             'Pending Review' => 'text-amber-600',
             'Resolved' => 'text-green-600',
             'Failed' => 'text-rose-700',
+            'Deleted by Admin' => 'text-gray-600',
             ];
             @endphp
             <div x-show="archiveStatusFilter === 'all' || archiveStatusFilter === '{{ $roadblock->status }}'"

@@ -29,7 +29,16 @@ class CohortController extends Controller
 
     public function update(UpdateCohortRequest $request, Cohort $cohort): RedirectResponse
     {
-        $cohort->update($request->validated());
+        $data = $request->validated();
+
+        // Archived cohorts are historical records — their start/end dates
+        // are locked once archived, even if the request somehow includes
+        // changed values (e.g. a stale form re-submitted after archiving).
+        if ($cohort->isArchived()) {
+            unset($data['start_date'], $data['end_date']);
+        }
+
+        $cohort->update($data);
 
         return redirect()->back()->with('cohortAction', 'updated');
     }
@@ -43,6 +52,12 @@ class CohortController extends Controller
      */
     public function archive(Cohort $cohort): RedirectResponse
     {
+        // A cohort can only go through the archiving process once — no-op
+        // if it's already archived rather than re-processing it.
+        if ($cohort->isArchived()) {
+            return redirect()->back();
+        }
+
         $cohort->update(['status' => 'Inactive']);
 
         return redirect()->back()->with('cohortAction', 'archived');

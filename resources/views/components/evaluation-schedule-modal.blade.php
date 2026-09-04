@@ -43,6 +43,18 @@ $initialStart = $oldMatchesThisRow
     : ($schedule ? substr($schedule->start_time, 0, 5) : null);
 $initialNotes = $oldMatchesThisRow ? old('notes') : $schedule?->notes;
 $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($startup?->startup_id ?? '0');
+
+// The date/time validation error, scoped to THIS row via $oldMatchesThisRow
+// so a failure on one startup's schedule doesn't bleed into every other
+// row's modal rendered in the same page response (each has old() available
+// to the whole request, not just its own row). Read into an Alpine string
+// (rather than left as static Blade @error() output) so it can be cleared
+// reactively the instant the admin picks a different date/time, instead of
+// sitting there — stale and describing whatever the PREVIOUS selection's
+// problem was — until the next full submit.
+$initialServerError = $oldMatchesThisRow
+    ? ($errors->first('start_time') ?: $errors->first('evaluation_date'))
+    : null;
 @endphp
 
 <div
@@ -51,6 +63,20 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
         date: @js($initialDate),
         startTime: @js($initialStart),
         notes: @js($initialNotes),
+        serverError: @js($initialServerError),
+        // Snapshot of what this modal opened with — in edit/reschedule mode
+        // date/startTime always arrive pre-filled from the existing
+        // $schedule, so the required-fields check below (!date || !startTime)
+        // is always satisfied even with zero edits. isDirty() below is what
+        // actually gates Save on a real change having happened.
+        initialDate: @js($initialDate),
+        initialStartTime: @js($initialStart),
+        initialNotes: @js($initialNotes),
+        isDirty() {
+            return this.date !== this.initialDate
+                || this.startTime !== this.initialStartTime
+                || (this.notes || '') !== (this.initialNotes || '');
+        },
         viewMonth: new Date(@js($initialDate) + 'T00:00:00').getMonth(),
         viewYear: new Date(@js($initialDate) + 'T00:00:00').getFullYear(),
         booked: @js($bookedSlots),
@@ -79,6 +105,10 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
             // different date — a slot valid on one day may be booked/past on
             // another, so don't carry it over silently.
             this.startTime = null;
+            // A leftover error from a previous submit describes THAT old
+            // date/time combo, not this new one — leaving it up would
+            // misdescribe (or just plain lie about) the newly-picked slot.
+            this.serverError = null;
         },
         isSelected(day) { return (this.viewYear + '-' + this.pad(this.viewMonth + 1) + '-' + this.pad(day)) === this.date; },
         isPastDay(day) {
@@ -108,7 +138,7 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
             <img src="{{ asset('images/icons/cal.svg') }}" alt="" class="h-6 w-6 brightness-0 invert" aria-hidden="true">
             <span>{{ $title }}</span>
         </h3>
-        <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); notes = @js($initialNotes); {{ $close }}"
+        <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); notes = @js($initialNotes); serverError = @js($initialServerError); {{ $close }}"
             class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             aria-label="Close">
             <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -146,7 +176,7 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
                     <option value="" disabled>No startups awaiting a schedule</option>
                     @endforelse
                 </select>
-                @error('startup_id') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                @if ($oldMatchesThisRow) @error('startup_id') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
             </div>
             @endif
 
@@ -193,7 +223,7 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
                         @foreach ($timeSlots as [$start, $end])
                         @if (! $isReadOnly || $start === $initialStart)
                         <button type="button"
-                            @click="{{ $isReadOnly ? '' : "if (!isSlotBooked('{$start}') && !isPastSlot('{$start}')) startTime = '{$start}'" }}"
+                            @click="{{ $isReadOnly ? '' : "if (!isSlotBooked('{$start}') && !isPastSlot('{$start}')) { startTime = '{$start}'; serverError = null; }" }}"
                             :disabled="{{ $isReadOnly ? 'true' : "isSlotBooked('{$start}') || isPastSlot('{$start}')" }}"
                             :class="{
                                     'bg-[#6C0E24] text-white border-[#6C0E24]': startTime === '{{ $start }}',
@@ -216,7 +246,7 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
                 <textarea name="notes" rows="3" placeholder="Enter any notes for this schedule..."
                     x-model="notes"
                     class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
-                @error('notes') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                @if ($oldMatchesThisRow) @error('notes') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
             </div>
             @elseif ($schedule?->notes)
             <div class="mt-6">
@@ -225,8 +255,10 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
             </div>
             @endif
 
-            @error('evaluation_date') <p class="text-xs text-red-600 mt-3">{{ $message }}</p> @enderror
-            @error('start_time') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+            {{-- Reactive, not a static @error() — see serverError in x-data
+                 above. Clears the instant a different date/time is picked
+                 instead of describing a stale, no-longer-relevant failure. --}}
+            <p x-show="serverError" x-cloak class="text-xs text-red-600 mt-3" x-text="serverError"></p>
 
             <div class="border-t mt-6 pt-4 text-center text-sm text-gray-600">
                 You have selected: <span x-text="friendlyDate() + ' @ ' + friendlyTime(startTime)"></span>
@@ -241,7 +273,7 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
     <div class="shrink-0 border-t border-gray-200 bg-white px-6 py-4">
         <div class="flex gap-3">
             @if ($mode !== 'edit')
-            <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); notes = @js($initialNotes); {{ $close }}" class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition hover:bg-gray-50">
+            <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); notes = @js($initialNotes); serverError = @js($initialServerError); {{ $close }}" class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition hover:bg-gray-50">
                 {{ $isReadOnly ? 'Close' : 'Cancel' }}
             </button>
             @endif
@@ -254,8 +286,13 @@ $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($s
             @endif
 
             @if (! $isReadOnly)
-            <button type="submit" form="{{ $formId }}"
-                class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-sm font-medium text-white transition hover:opacity-90">
+            {{-- Date and time are always required (see Store/UpdateEvaluationScheduleRequest).
+                 !isDirty() additionally keeps Save/Save Changes/Save Reschedule disabled
+                 until something actually changes — edit/reschedule always open pre-filled
+                 from the existing $schedule, so without this the required-fields check
+                 alone is always satisfied and the button was enabled even with zero edits. --}}
+            <button type="submit" form="{{ $formId }}" :disabled="!date || !startTime || !isDirty()"
+                class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:opacity-40">
                 @if ($mode === 'add') Save Schedule
                 @elseif ($mode === 'edit') Save Changes
                 @elseif ($mode === 'reschedule') Save Reschedule

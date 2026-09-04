@@ -73,7 +73,7 @@
                     @endphp
 
                     <div class="relative aspect-[3/4] overflow-hidden rounded-xl border"
-                        x-data="{ menuOpen: false, editOpen: @js($errors->any() && old('_coordinator_id') == $coordinator->coordinator_id), deleteOpen: false }">
+                        x-data="{ menuOpen: false, editOpen: @js($errors->any() && old('_coordinator_id') == $coordinator->coordinator_id), deleteOpen: false, startupsOpen: false }">
 
                         {{-- Menu wrapper. z-index lifts while the dropdown is open so it clears
                      neighbouring cards, which all sit at z-20 too. --}}
@@ -159,7 +159,10 @@
                                     <span class="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-white/15 sm:h-5 sm:w-5">
                                         {!! $icon('3person.svg', 'w-2 h-2 sm:w-2.5 sm:h-2.5') !!}
                                     </span>
-                                    <span class="truncate">{{ $coordinator->assigned_startups_count }} Startup</span>
+                                    <span class="truncate">
+                                        <button type="button" @click.stop="startupsOpen = true"
+                                            class="underline decoration-dotted underline-offset-2 hover:text-white">{{ $coordinator->active_startups_count }} {{ Str::plural('Startup', $coordinator->active_startups_count) }}</button>
+                                    </span>
                                 </p>
                             </div>
                         </div>
@@ -237,6 +240,55 @@
                                             mode="edit"
                                             :coordinator="$coordinator"
                                             :action="route('admin.coordinators.update', $coordinator)" />
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        {{-- Startup list modal — lists the actual startups
+                             behind the "X Startup" count. Rendered server-side
+                             up front (cheap: eager-loaded in
+                             CoordinatorProfileController::index()) and just
+                             toggled with x-show. Mirrors the Mentor Profile
+                             page's Active Cases / Completed modal. --}}
+                        <template x-teleport="body">
+                            <div
+                                x-show="startupsOpen"
+                                x-cloak
+                                x-transition.opacity
+                                @keydown.escape.window="startupsOpen = false"
+                                class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+                                style="display:none;">
+
+                                <div @click.outside="startupsOpen = false"
+                                    class="relative flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+
+                                    <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 text-white">
+                                        <h3 class="font-bold">Assigned Startups</h3>
+                                        <button type="button" @click="startupsOpen = false"
+                                            class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                                            aria-label="Close">
+                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    <div class="flex-1 space-y-2 overflow-y-auto p-4">
+                                        @forelse ($coordinator->active_startup_assignments as $assignment)
+                                            @if ($assignment->startup)
+                                            <a href="{{ route('admin.startups.show', $assignment->startup) }}"
+                                                class="block rounded-lg border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
+                                                <p class="truncate text-sm font-semibold text-gray-900">{{ $assignment->startup->company_name }}</p>
+                                                <p class="mt-0.5 text-xs text-gray-500">
+                                                    Cohort {{ $assignment->startup->cohort_number ?? '—' }}
+                                                    &middot; Assigned {{ optional($assignment->assigned_date)->format('M j, Y') ?? '—' }}
+                                                </p>
+                                            </a>
+                                            @endif
+                                        @empty
+                                            <p class="py-6 text-center text-sm text-gray-500">No startups assigned yet.</p>
+                                        @endforelse
                                     </div>
                                 </div>
                             </div>

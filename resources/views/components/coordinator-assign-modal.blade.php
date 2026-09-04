@@ -69,10 +69,14 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         'photo' => $photoUrl($c),
         ]);
 
-        $assignUrl = route('admin.startups.coordinator.store', $startup);
-        $updateUrl = Route::has('admin.startups.coordinator.update')
-        ? route('admin.startups.coordinator.update', $startup)
-        : $assignUrl;
+        // One endpoint handles both a brand-new assignment and changing an
+        // existing one — CoordinatorAssignmentController::store() already
+        // completes any current Active assignment before creating the new
+        // one. There's never been a separate "update" route registered, so
+        // the old $updateUrl fallback silently pointed right back at this
+        // same POST-only URL while the form below still spoofed a PATCH
+        // onto it — which 405'd, since only POST is registered for this URI.
+        $actionUrl = route('admin.startups.coordinator.store', $startup);
 
         // Shared shapes so the three step footers stay identical.
         $ghostBtn = 'h-10 flex-1 rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50';
@@ -117,8 +121,23 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             this.selected = {{ $current ? Illuminate\Support\Js::from($current->coordinator_id) : 'null' }};
             this.open = true;
         },
+
+        // Auto-open when arriving from the Startup Profile list's Assign
+        // Coordinator button, instead of landing on this page and making
+        // the admin click the button a second time. The query param is
+        // stripped right after so a page refresh doesn't reopen it again.
+        maybeAutoOpen() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('assign_coordinator') !== '1') return;
+            this.show();
+            params.delete('assign_coordinator');
+            const url = new URL(window.location);
+            url.search = params.toString();
+            window.history.replaceState({}, '', url);
+        },
     }"
-            @keydown.escape.window="open = false">
+            x-init="maybeAutoOpen()"
+            @keydown.escape.window="open = false"
 
             @if ($current)
             <div class="mt-3 flex items-center gap-2">
@@ -316,9 +335,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             </div>
                         </div>
 
-                        <form method="POST" action="{{ $current ? $updateUrl : $assignUrl }}">
+                        <form method="POST" action="{{ $actionUrl }}">
                             @csrf
-                            @if ($current) @method('PATCH') @endif
                             <input type="hidden" name="coordinator_id" :value="selected">
 
                             <div class="flex gap-4">

@@ -19,7 +19,16 @@ class CoordinatorProfileController extends Controller
 
     public function index(): View
     {
-        $coordinators = Coordinator::latest()->get();
+        // Eager-loaded (with their startup) so the "X Startup" stat on each
+        // coordinator card can list the actual startups behind that count
+        // without an extra query per click — see
+        // Coordinator::getActiveStartupsCountAttribute(), which reads from
+        // this loaded collection instead of the stale assigned_startups_count
+        // column (only ever incremented, never decremented — see
+        // CoordinatorAssignmentController::store()).
+        $coordinators = Coordinator::with(['assignments' => function ($query) {
+            $query->where('assignment_status', 'Active')->with('startup')->latest();
+        }])->latest()->get();
 
         return view('admin.coordinators.index', compact('coordinators'));
     }
@@ -98,7 +107,7 @@ class CoordinatorProfileController extends Controller
         // onto closed-out roadblocks before the FK nulls coordinator_id out
         // from under them, so Archive can still say who it was.
         $coordinator->roadblocks()
-            ->whereIn('status', ['Resolved', 'Failed'])
+            ->whereIn('status', ['Resolved', 'Failed', 'Deleted by Admin'])
             ->update(['assignee_name_snapshot' => $coordinator->display_name]);
 
         if ($coordinator->coordinator_photo_path) {

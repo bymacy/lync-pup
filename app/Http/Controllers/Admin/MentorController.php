@@ -20,9 +20,29 @@ class MentorController extends Controller
 
     public function index(): View
     {
-        $mentors = Mentor::latest()->get();
+        // Eager-loaded (with their startup) so the Active Cases / Completed
+        // stat on each mentor card can list the actual startups behind those
+        // counts without an extra query per click — see
+        // Mentor::getActiveCasesCountAttribute()/getCompletedCasesCountAttribute(),
+        // which read from this loaded collection instead of re-querying.
+        $mentors = Mentor::with(['roadblocks' => function ($query) {
+            $query->whereIn('status', array_merge(Roadblock::ACTIVE_STATUSES, ['Resolved', 'Failed']))
+                ->with('startup')
+                ->latest();
+        }])->latest()->get();
 
-        return view('admin.mentors.index', compact('mentors'));
+        // "Others" expertise suggestions — pulled from every mentor's past
+        // free-text entries (not just whoever's being added/edited right
+        // now), same idea as Roadblock's problem_category_other suggestions.
+        $otherSpecializationSuggestions = Mentor::where('specialization', 'Others')
+            ->whereNotNull('specialization_other')
+            ->where('specialization_other', '!=', '')
+            ->distinct()
+            ->orderBy('specialization_other')
+            ->pluck('specialization_other')
+            ->values();
+
+        return view('admin.mentors.index', compact('mentors', 'otherSpecializationSuggestions'));
     }
 
     public function store(StoreMentorRequest $request): RedirectResponse
@@ -98,9 +118,12 @@ class MentorController extends Controller
         // Those closed-out roadblocks keep their status, but the FK is
         // about to null mentor_id out from under them regardless — capture
         // the name now so Archive can still say who it was, tagged as
-        // deleted, instead of showing a blank Mentor column.
+        // deleted, instead of showing a blank Mentor column. Includes
+        // "Deleted by Admin" too, for the same reason — it's just as closed
+        // out as Resolved/Failed, and losing the mentor's name there would
+        // blank out that historical record as well.
         $mentor->roadblocks()
-            ->whereIn('status', ['Resolved', 'Failed'])
+            ->whereIn('status', ['Resolved', 'Failed', 'Deleted by Admin'])
             ->update(['assignee_name_snapshot' => $mentor->display_name]);
 
         if ($mentor->mentor_photo_path) {

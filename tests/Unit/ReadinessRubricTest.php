@@ -20,29 +20,31 @@ class ReadinessRubricTest extends TestCase
         $this->assertNull(ReadinessRubric::scoreFromProgress('TRL', []));
     }
 
-    public function test_score_is_the_highest_level_with_every_criterion_checked(): void
+    public function test_score_is_the_weighted_sum_of_checked_criteria_per_level(): void
     {
         $progress = [
-            1 => [true, true, true],
-            2 => [true, true, true],
-            3 => [true, false, true], // not fully checked — should cap the score at 2
+            1 => [true, true, true],  // 3/3 = 1.0
+            2 => [true, true, true],  // 3/3 = 1.0
+            3 => [true, false, true], // 2/3 ≈ 0.667 — a partial level contributes its
+                                      // fraction, not a flat 0 or a rounded-up full point.
         ];
 
-        $this->assertSame(2, ReadinessRubric::scoreFromProgress('TRL', $progress));
+        $this->assertSame(2.7, ReadinessRubric::scoreFromProgress('TRL', $progress));
     }
 
-    public function test_a_gap_does_not_prevent_a_higher_fully_checked_level_from_counting(): void
+    public function test_an_untouched_level_contributes_nothing_even_between_checked_levels(): void
     {
-        // Level 2 left incomplete, but level 3 is fully checked anyway —
-        // the score reflects the highest fully-met level, not a
-        // contiguous streak from level 1.
+        // Level 2 left entirely unchecked, but level 1 and level 3 are each
+        // fully checked — every level's fraction is summed independently,
+        // so a gap doesn't zero out or cap what the surrounding levels
+        // already contribute.
         $progress = [
             1 => [true, true, true],
             2 => [false, false, false],
             3 => [true, true, true],
         ];
 
-        $this->assertSame(3, ReadinessRubric::scoreFromProgress('TRL', $progress));
+        $this->assertSame(2.0, ReadinessRubric::scoreFromProgress('TRL', $progress));
     }
 
     public function test_srl_levels_include_a_target_description(): void

@@ -130,7 +130,7 @@
 @else
     <div class="field-row"><span class="field-label">Startup Name:</span> {!! $v($startup->company_name) !!}
         &nbsp;&nbsp;&nbsp;<span class="field-label">Date:</span> {!! $d($assessment?->assessment_date) !!}
-        &nbsp;&nbsp;&nbsp;<span class="field-label">Score:</span> {!! $score !== null ? $score.'/9' : '&nbsp;' !!}
+        &nbsp;&nbsp;&nbsp;<span class="field-label">Score:</span> {!! $score !== null ? number_format($score, 1).'/9' : '&nbsp;' !!}
     </div>
 @endif
 

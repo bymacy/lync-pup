@@ -10,11 +10,12 @@ namespace App\Support;
  * database table.
  *
  * ReadinessLevelAssessment stores which of these criteria are checked (per
- * level, per RL type) as JSON; the actual 1-9 score for each RL type is
- * derived from that via scoreFromProgress() — the COUNT of levels (out of
- * 9) that have at least one criterion checked. Skipping level 1 and
- * checking level 2 counts as 1/9, not 2/9 — order doesn't matter, only how
- * many levels have any progress on them.
+ * level, per RL type) as JSON; the actual 0-9 score for each RL type is
+ * derived from that via scoreFromProgress() — the SUM, across all 9 levels,
+ * of (checked criteria ÷ total criteria) for that level. A level with 3 of
+ * its 4 criteria checked contributes 0.75, not a flat 1 or 0 — so the score
+ * is a decimal (rounded to 1 place) that reflects exactly how much of each
+ * level is actually done, the same math the progress bar's fill uses.
  */
 class ReadinessRubric
 {
@@ -73,38 +74,43 @@ class ReadinessRubric
     }
 
     /**
-     * The COUNT (1-9) of levels in $progress (shape: [level => [bool,
-     * bool, ...]]) that have at least one checked criterion — not the
-     * highest level reached. Checking only level 2 (skipping level 1)
-     * counts as 1, not 2; a level needs just one checked criterion to
-     * count, not all of them. Returns null when nothing qualifies
+     * The weighted 0-9 decimal score for $progress (shape: [level => [bool,
+     * bool, ...]]) — the sum, across every level in the rubric, of that
+     * level's (checked criteria ÷ total criteria), rounded to 1 decimal
+     * place. A level only reaches its full 1.0 when every one of its
+     * criteria is checked; partial progress within a level contributes a
+     * proportional fraction instead of being rounded up to a whole point or
+     * ignored entirely. Returns null when nothing is checked anywhere
      * (including when $progress is empty/null) so callers can distinguish
-     * "Not Started" from a real score.
+     * "Not Started" from a real (possibly 0-adjacent) score.
      */
-    public static function scoreFromProgress(string $type, ?array $progress): ?int
+    public static function scoreFromProgress(string $type, ?array $progress): ?float
     {
         if (! $progress) {
             return null;
         }
 
         $levels = self::levels($type);
-        $count = 0;
+        $total = 0.0;
+        $anyChecked = false;
 
         foreach ($levels as $level => $definition) {
             $checked = $progress[$level] ?? $progress[(string) $level] ?? null;
 
-            if (! is_array($checked)) {
+            if (! is_array($checked) || ! count($checked)) {
                 continue;
             }
 
-            $anyChecked = collect($checked)->contains(fn ($v) => (bool) $v);
+            $checkedCount = collect($checked)->filter(fn ($v) => (bool) $v)->count();
 
-            if ($anyChecked) {
-                $count++;
+            if ($checkedCount > 0) {
+                $anyChecked = true;
             }
+
+            $total += $checkedCount / count($checked);
         }
 
-        return $count ?: null;
+        return $anyChecked ? round($total, 1) : null;
     }
 
     /**

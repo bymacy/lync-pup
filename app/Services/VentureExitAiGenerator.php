@@ -168,14 +168,16 @@ class VentureExitAiGenerator
           "readiness_levels": {
         {$typeList}
             // one object per type above, each shaped:
-            // {"highest_level": "X/9", "remarks": "one or two sentences explaining that score"}
+            // {"highest_level": "X.X/9", "remarks": "one or two sentences explaining that score"}
             // For highest_level: if the startup data includes an actual
-            // Post-Assessment score for that type, use it as-is. If there is
-            // no Post-Assessment score, give your own best-estimate score
-            // (0-9) based on the Pre-Assessment score (if any) and everything
-            // else in the data, formatted as "X/9". If there truly isn't
-            // enough evidence to estimate anything, leave it as an empty
-            // string rather than guessing blindly.
+            // Post-Assessment score for that type, copy that exact number
+            // (it is a real decimal like "6.3/9", not a whole number — do
+            // not round it to the nearest whole level). If there is no
+            // Post-Assessment score, give your own best-estimate score (0-9,
+            // one decimal place) based on the Pre-Assessment score (if any)
+            // and everything else in the data, formatted as "X.X/9". If
+            // there truly isn't enough evidence to estimate anything, leave
+            // it as an empty string rather than guessing blindly.
           }
         }
         PROMPT;
@@ -234,7 +236,7 @@ class VentureExitAiGenerator
 
             foreach (ReadinessRubric::TYPES as $type) {
                 $score = $assessment->scoreFor($type);
-                $lines[] = "{$type}: ".($score !== null ? "{$score}/9" : 'Not assessed');
+                $lines[] = "{$type}: ".($score !== null ? number_format($score, 1).'/9' : 'Not assessed');
             }
 
             if (filled($assessment->remarks)) {

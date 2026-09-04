@@ -29,7 +29,7 @@
     foreach (\App\Support\ReadinessRubric::TYPES as $type) {
         $storedRow = $veData['readiness_levels'][$type] ?? null;
         $postScore = $postAssessmentSummary?->scoreFor($type);
-        $defaultHighest = $postScore !== null ? $postScore.'/9' : '';
+        $defaultHighest = $postScore !== null ? number_format($postScore, 1).'/9' : '';
 
         $veSeed['readiness_levels'][$type] = [
             'highest_level' => $storedRow['highest_level'] ?? $defaultHighest,
@@ -53,7 +53,6 @@
         ve: @js($veSeed),
         initialVe: @js($veSeed),
         showClearConfirm: false,
-        showSaved: @js($justSaved ?? false),
         incompleteAssessments: @js($incompleteAssessments ?? []),
         showIncompleteConfirm: false,
         confirmedIncomplete: false,
@@ -122,6 +121,29 @@
         },
         isDirty() {
             return JSON.stringify(this.ve) !== JSON.stringify(this.initialVe);
+        },
+        // "Highest Level" stays stored as the same "X/9" (or "X.X/9")
+        // string VentureExitAiGenerator.php and the saved Post-Assessment
+        // prefill already rely on — only the admin-facing input is
+        // constrained to just the level number, with "/9" shown as a
+        // fixed, non-editable suffix instead of free text.
+        highestLevelNumber(type) {
+            const raw = this.ve.readiness_levels[type].highest_level || '';
+            return raw.split('/')[0];
+        },
+        setHighestLevel(type, raw) {
+            let cleaned = raw.replace(/[^0-9.]/g, '');
+            const firstDot = cleaned.indexOf('.');
+            if (firstDot !== -1) {
+                cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
+            }
+            if (cleaned !== '' && cleaned !== '.') {
+                const n = parseFloat(cleaned);
+                if (! isNaN(n) && n > 9) {
+                    cleaned = '9';
+                }
+            }
+            this.ve.readiness_levels[type].highest_level = cleaned === '' ? '' : cleaned + '/9';
         },
         // Gate the actual submit: if this startup still has other
         // assessments/documents that were never started, ask once before
@@ -304,8 +326,13 @@
                                 <tr>
                                     <td class="border px-3 py-2 font-semibold">{{ $rubricMeta[$type]['label'] }} ({{ $type }})</td>
                                     <td class="border p-1">
-                                        <input type="text" x-model="ve.readiness_levels.{{ $type }}.highest_level"
-                                            class="w-full rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-rose-900">
+                                        <div class="flex items-center gap-1">
+                                            <input type="text" inputmode="decimal" placeholder="0-9"
+                                                :value="highestLevelNumber('{{ $type }}')"
+                                                @input="setHighestLevel('{{ $type }}', $event.target.value)"
+                                                class="w-14 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-rose-900">
+                                            <span class="text-sm text-gray-500">/ 9</span>
+                                        </div>
                                     </td>
                                     <td class="border p-1">
                                         <textarea x-model="ve.readiness_levels.{{ $type }}.remarks" rows="2"
@@ -432,24 +459,4 @@
         </div>
     </div>
 
-    {{-- ============ Save success ============ --}}
-    <div x-show="showSaved" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" style="display:none;">
-        <div class="relative w-full max-w-lg overflow-hidden rounded-xl bg-white">
-            <div class="flex items-center justify-center bg-gradient-to-r from-rose-950 to-blue-950 py-8">
-                <div class="flex h-16 w-16 items-center justify-center rounded-full bg-white">
-                    <svg class="h-8 w-8 text-[#11386A]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                </div>
-            </div>
-            <div class="p-8 text-center">
-                <h3 class="mb-2 text-2xl font-bold text-gray-900">Great!</h3>
-                <p class="mb-6 text-gray-500">Changes saved successfully.</p>
-                <button type="button" @click="showSaved = false"
-                    class="w-full rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-3 font-semibold text-white transition hover:opacity-90">
-                    Continue
-                </button>
-            </div>
-        </div>
-    </div>
 </div>

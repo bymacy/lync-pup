@@ -73,6 +73,43 @@ class MentorTest extends TestCase
         $response->assertSessionHasErrors('specialization');
     }
 
+    public function test_others_expertise_requires_the_free_text_field(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+
+        $response = $this->actingAs($admin)->post(route('admin.mentors.store'), [
+            'honorific' => 'Mr.',
+            'first_name' => 'John',
+            'last_name' => 'Perez',
+            'specialization' => 'Others',
+        ]);
+
+        $response->assertSessionHasErrors('specialization_other');
+    }
+
+    public function test_others_expertise_is_stored_and_displayed_as_typed(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+
+        $response = $this->actingAs($admin)->post(route('admin.mentors.store'), [
+            'honorific' => 'Mr.',
+            'first_name' => 'John',
+            'last_name' => 'Perez',
+            'specialization' => 'Others',
+            'specialization_other' => 'UX Research',
+        ]);
+
+        $response->assertRedirect(route('admin.mentors.index'));
+        $this->assertDatabaseHas('mentors', [
+            'first_name' => 'John',
+            'specialization' => 'Others',
+            'specialization_other' => 'UX Research',
+        ]);
+
+        $mentor = Mentor::where('first_name', 'John')->first();
+        $this->assertSame('UX Research', $mentor->display_specialization);
+    }
+
     /**
      * Regression test: when every field is blank, the validator (and the
      * shared toast banner in admin.blade.php, which surfaces

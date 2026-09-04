@@ -17,10 +17,6 @@ for ($i = 0; $i < $count; $i++) {
     }
 
     $allStages = array_merge(['Overview'], $stages, ['Reports']);
-    $justSaved=session('status')==='assessment-saved'
-    && $selectedStartup
-    && (int) session('assessed_startup')===$selectedStartup->startup_id
-    && session('assessed_stage') === $selectedStage;
 
     // TRL's "Section 1: Startup & Technology Overview" only appears on
     // Pre-Assessment — Post-Assessment reuses the exact same TRL/MRL/TMRL/SRL
@@ -301,12 +297,16 @@ for ($i = 0; $i < $count; $i++) {
             initialSrlNotedBy: @js($overviewSrlNotedBy),
             initialSrlNotedByPosition: @js($overviewSrlNotedByPosition),
             showClearConfirm: false,
-            showSaved: @js($justSaved),
             pendingType: null,
             showTypeSwitchConfirm: false,
             switchType(type) {
                 if (this.activeType === type) return;
-                if (this.isDirty()) {
+                // Scoped to the tab actually being left (not the whole form) —
+                // otherwise a draft sitting untouched on TRL keeps re-triggering
+                // this confirmation every time you navigate BACK to TRL from a
+                // completely clean MRL/TMRL/SRL tab, even though nothing on the
+                // tab you're leaving would be lost.
+                if (this.isDirtyFor(this.activeType)) {
                     this.pendingType = type;
                     this.showTypeSwitchConfirm = true;
                 } else {
@@ -314,7 +314,10 @@ for ($i = 0; $i < $count; $i++) {
                 }
             },
             confirmSwitchType() {
-                this.discardChanges();
+                // Only the tab being left is discarded — a draft on another
+                // type you haven't touched yet, or already switched away
+                // from cleanly, is never affected by this.
+                this.discardChangesFor(this.activeType);
                 this.activeType = this.pendingType;
                 this.pendingType = null;
                 this.showTypeSwitchConfirm = false;
@@ -323,35 +326,83 @@ for ($i = 0; $i < $count; $i++) {
                 this.pendingType = null;
                 this.showTypeSwitchConfirm = false;
             },
-            // Leave has to actually discard back to the last-saved values,
-            // not just move to the other tab while quietly keeping the draft
-            // in memory — otherwise the whole form stays dirty even though
-            // nothing is unsaved on whichever type you actually switched to,
-            // so switching again later (even back to a type you never
-            // touched) wrongly re-triggers this same confirmation.
-            discardChanges() {
-                this.progress = JSON.parse(JSON.stringify(this.initialProgress));
-                this.trlOverview = JSON.parse(JSON.stringify(this.initialTrlOverview));
+            // Which fields belong to a given RL type — MRL and TMRL
+            // deliberately share one signatory block (evaluatedBy/reviewedBy/
+            // notedBy and their positions), same as the read/edit form above;
+            // assessmentDate is shared by all four types' own "Date of
+            // Assessment" field, so it's included everywhere.
+            discardChangesFor(type) {
+                this.progress[type] = JSON.parse(JSON.stringify(this.initialProgress[type]));
                 this.assessmentDate = this.initialAssessmentDate;
-                this.evaluatedBy = this.initialEvaluatedBy;
-                this.reviewedBy = this.initialReviewedBy;
-                this.notedBy = this.initialNotedBy;
-                this.preparedBy = this.initialPreparedBy;
-                this.preparedByPosition = this.initialPreparedByPosition;
-                this.trlNotedBy = this.initialTrlNotedBy;
-                this.trlNotedByPosition = this.initialTrlNotedByPosition;
-                this.approvedBy = this.initialApprovedBy;
-                this.approvedByPosition = this.initialApprovedByPosition;
-                this.evaluatedByPosition = this.initialEvaluatedByPosition;
-                this.reviewedByPosition = this.initialReviewedByPosition;
-                this.notedByPosition = this.initialNotedByPosition;
-                this.srlEvaluatedBy = this.initialSrlEvaluatedBy;
-                this.srlEvaluatedByPosition = this.initialSrlEvaluatedByPosition;
-                this.srlReviewedBy = this.initialSrlReviewedBy;
-                this.srlReviewedByPosition = this.initialSrlReviewedByPosition;
-                this.srlNotedBy = this.initialSrlNotedBy;
-                this.srlNotedByPosition = this.initialSrlNotedByPosition;
+
+                if (type === 'TRL') {
+                    this.trlOverview = JSON.parse(JSON.stringify(this.initialTrlOverview));
+                    this.preparedBy = this.initialPreparedBy;
+                    this.preparedByPosition = this.initialPreparedByPosition;
+                    this.trlNotedBy = this.initialTrlNotedBy;
+                    this.trlNotedByPosition = this.initialTrlNotedByPosition;
+                    this.approvedBy = this.initialApprovedBy;
+                    this.approvedByPosition = this.initialApprovedByPosition;
+                } else if (type === 'MRL' || type === 'TMRL') {
+                    this.evaluatedBy = this.initialEvaluatedBy;
+                    this.reviewedBy = this.initialReviewedBy;
+                    this.notedBy = this.initialNotedBy;
+                    this.evaluatedByPosition = this.initialEvaluatedByPosition;
+                    this.reviewedByPosition = this.initialReviewedByPosition;
+                    this.notedByPosition = this.initialNotedByPosition;
+                } else if (type === 'SRL') {
+                    this.srlEvaluatedBy = this.initialSrlEvaluatedBy;
+                    this.srlEvaluatedByPosition = this.initialSrlEvaluatedByPosition;
+                    this.srlReviewedBy = this.initialSrlReviewedBy;
+                    this.srlReviewedByPosition = this.initialSrlReviewedByPosition;
+                    this.srlNotedBy = this.initialSrlNotedBy;
+                    this.srlNotedByPosition = this.initialSrlNotedByPosition;
+                }
             },
+            // Same per-type field ownership as discardChangesFor() above —
+            // used only for the tab-switch confirmation. isDirty() below
+            // (the whole-form check) stays separate and untouched: it still
+            // gates the Save/Clear Form buttons and the page-navigation-away
+            // guard, both of which genuinely care about ANY unsaved type,
+            // since Save persists all four types together in one request.
+            isDirtyFor(type) {
+                const progressDirty = JSON.stringify(this.progress[type]) !== JSON.stringify(this.initialProgress[type]);
+                const dateDirty = this.assessmentDate !== this.initialAssessmentDate;
+
+                if (type === 'TRL') {
+                    return progressDirty || dateDirty
+                        || JSON.stringify(this.trlOverview) !== JSON.stringify(this.initialTrlOverview)
+                        || this.preparedBy !== this.initialPreparedBy
+                        || this.preparedByPosition !== this.initialPreparedByPosition
+                        || this.trlNotedBy !== this.initialTrlNotedBy
+                        || this.trlNotedByPosition !== this.initialTrlNotedByPosition
+                        || this.approvedBy !== this.initialApprovedBy
+                        || this.approvedByPosition !== this.initialApprovedByPosition;
+                }
+
+                if (type === 'MRL' || type === 'TMRL') {
+                    return progressDirty || dateDirty
+                        || this.evaluatedBy !== this.initialEvaluatedBy
+                        || this.reviewedBy !== this.initialReviewedBy
+                        || this.notedBy !== this.initialNotedBy
+                        || this.evaluatedByPosition !== this.initialEvaluatedByPosition
+                        || this.reviewedByPosition !== this.initialReviewedByPosition
+                        || this.notedByPosition !== this.initialNotedByPosition;
+                }
+
+                // SRL
+                return progressDirty || dateDirty
+                    || this.srlEvaluatedBy !== this.initialSrlEvaluatedBy
+                    || this.srlEvaluatedByPosition !== this.initialSrlEvaluatedByPosition
+                    || this.srlReviewedBy !== this.initialSrlReviewedBy
+                    || this.srlReviewedByPosition !== this.initialSrlReviewedByPosition
+                    || this.srlNotedBy !== this.initialSrlNotedBy
+                    || this.srlNotedByPosition !== this.initialSrlNotedByPosition;
+            },
+            // Whole-form check — deliberately NOT scoped to activeType, since
+            // this gates Save/Clear Form (which act on all four types at
+            // once) and the page-navigation-away guard (leaving the page
+            // loses every type's draft, not just the visible one).
             isDirty() {
                 return JSON.stringify(this.progress) !== JSON.stringify(this.initialProgress)
                     || JSON.stringify(this.trlOverview) !== JSON.stringify(this.initialTrlOverview)
@@ -375,20 +426,19 @@ for ($i = 0; $i < $count; $i++) {
                     || this.srlNotedBy !== this.initialSrlNotedBy
                     || this.srlNotedByPosition !== this.initialSrlNotedByPosition;
             },
+            // The official 0-9 score (matches ReadinessRubric::scoreFromProgress()
+            // server-side): the weighted fraction-per-level sum, rounded to 1
+            // decimal, or null when nothing anywhere in this type is checked yet
+            // (so the badge can show "Not Started" instead of "0.0/9").
             scoreFor(type) {
-                let count = 0;
-                for (const level of Object.keys(this.progress[type])) {
-                    const checks = this.progress[type][level];
-                    if (checks.length && checks.some(v => v)) count++;
-                }
-                return count || null;
+                const total = this.weightedProgress(type);
+                return total > 0 ? Math.round(total * 10) / 10 : null;
             },
-            // Live progress-bar fill only — NOT the official score. Each of the
-            // 9 levels caps at a full 1.0 (100%) of its own weight regardless
-            // of how many sub-items it has, so checking any one sub-item inside
-            // a level immediately nudges the bar, instead of only jumping once
-            // an entire level's first box gets checked (that's what scoreFor()
-            // above is still for — the X/9 badge and everything persisted).
+            // Each of the 9 levels caps at a full 1.0 (100%) of its own weight
+            // regardless of how many sub-items it has, so checking any one
+            // sub-item inside a level immediately nudges both this and the
+            // score above, instead of only jumping once an entire level's
+            // first box gets checked. Also drives the progress bar's fill.
             weightedProgress(type) {
                 let total = 0;
                 for (const level of Object.keys(this.progress[type])) {
@@ -430,7 +480,10 @@ for ($i = 0; $i < $count; $i++) {
                 {{-- ============ RL type header (tab strip) ============ --}}
                 <div class="mb-4 grid grid-cols-4 overflow-hidden rounded-lg border border-gray-200">
                     @foreach ($rubricMeta as $type => $meta)
-                        @php $isSavedComplete = $currentAssessment?->scoreFor($type) === 9; @endphp
+                        {{-- scoreFor() is now a decimal (weighted-fraction) score, so a
+                             strict === 9 would miss a fully-checked level whose stored
+                             value is 9.0 but not identical-typed to the int 9. --}}
+                        @php $isSavedComplete = $currentAssessment?->scoreFor($type) >= 9; @endphp
                         <button type="button" @click="switchType('{{ $type }}')"
                             class="border-t-2 border-r border-gray-200 px-1.5 py-2 text-center transition last:border-r-0 sm:px-3"
                             :class="activeType === '{{ $type }}' ? 'border-t-[#6C0E24] bg-[#6C0E24]/5' : 'border-t-transparent bg-white hover:bg-[#6C0E24]/5'">
@@ -440,7 +493,7 @@ for ($i = 0; $i < $count; $i++) {
                             <p class="mt-0.5 flex items-center justify-center gap-1 whitespace-nowrap text-[11px] font-bold leading-tight sm:text-sm sm:gap-1.5"
                                 :class="{{ $isSavedComplete ? 'true' : 'false' }} ? 'text-green-600' : (scoreFor('{{ $type }}') ? 'text-[#6C0E24]' : 'text-gray-400')">
                                 <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="{{ $isSavedComplete ? 'true' : 'false' }} ? 'bg-green-500' : (scoreFor('{{ $type }}') ? 'bg-[#6C0E24]' : 'bg-gray-300')"></span>
-                                <span x-text="scoreFor('{{ $type }}') ? scoreFor('{{ $type }}') + '/9' : 'Not Started'"></span>
+                                <span x-text="scoreFor('{{ $type }}') !== null ? scoreFor('{{ $type }}').toFixed(1) + '/9' : 'Not Started'"></span>
                             </p>
                         </button>
                     @endforeach
@@ -936,27 +989,6 @@ for ($i = 0; $i < $count; $i++) {
                     </div>
                 </div>
 
-                {{-- ============ Save success ============ --}}
-                <div x-show="showSaved" x-cloak
-                    class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" style="display:none;">
-                    <div class="relative w-full max-w-lg overflow-hidden rounded-xl bg-white">
-                        <div class="flex items-center justify-center bg-gradient-to-r from-rose-950 to-blue-950 py-8">
-                            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-white">
-                                <svg class="h-8 w-8 text-[#11386A]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="p-8 text-center">
-                            <h3 class="mb-2 text-2xl font-bold text-gray-900">Great!</h3>
-                            <p class="mb-6 text-gray-500">Changes saved successfully.</p>
-                            <button type="button" @click="showSaved = false"
-                                class="w-full rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-3 font-semibold text-white transition hover:opacity-90">
-                                Continue
-                            </button>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             {{-- ============ Sidebar summary (tracks the active stage tab) ============ --}}
@@ -990,7 +1022,7 @@ for ($i = 0; $i < $count; $i++) {
                         <div class="h-1.5 flex-1 rounded-full bg-gray-100">
                             <div class="h-1.5 rounded-full bg-rose-900" @style(["width: {$pct}%"])></div>
                         </div>
-                        <span class="w-10 text-right text-gray-500">{{ $score ?? '—' }}/9</span>
+                        <span class="w-10 text-right text-gray-500">{{ $score !== null ? number_format($score, 1) : '—' }}/9</span>
                     </div>
                     @endforeach
                 </div>

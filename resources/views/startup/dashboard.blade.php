@@ -124,7 +124,7 @@
                         <div class="flex min-w-0 flex-col items-center justify-center rounded-xl bg-white/15 px-2 py-2 text-center sm:min-w-[118px] sm:px-4 sm:py-2.5">
                             <p class="text-[10px] font-semibold uppercase tracking-wide text-white/70 sm:text-xs">{{ $type }}</p>
                             <p class="mt-0.5 text-[26px] font-bold leading-none sm:text-[40px]">
-                                {{ $assessment?->scoreFor($type) ?? '—' }}
+                                {{ $assessment && $assessment->scoreFor($type) !== null ? number_format($assessment->scoreFor($type), 1) : '—' }}
                             </p>
                         </div>
                     @endforeach

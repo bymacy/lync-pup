@@ -16,6 +16,10 @@
     [$leftX, $leftY] = $point($srl, 270);
 
     $ink = '#7f1d3a';
+
+    // Scores are now decimals (e.g. 6.3) — format to exactly 1 decimal
+    // place for display, independent of the raw arithmetic above.
+    $fmt = fn ($value) => $value !== null ? number_format($value, 1) : '—';
 @endphp
 
 {{--
@@ -45,14 +49,14 @@
 
     {{-- Axis labels: name on top, score underneath --}}
     <text x="{{ $cx }}" y="{{ $cy - $r - 24 }}" text-anchor="middle" class="fill-gray-800 text-[14px] font-bold">TRL</text>
-    <text x="{{ $cx }}" y="{{ $cy - $r - 10 }}" text-anchor="middle" class="fill-gray-400 text-[12px]">{{ $trl }}/9</text>
+    <text x="{{ $cx }}" y="{{ $cy - $r - 10 }}" text-anchor="middle" class="fill-gray-400 text-[12px]">{{ $fmt($trl) }}/9</text>
 
     <text x="{{ $cx + $r + 14 }}" y="{{ $cy - 2 }}" text-anchor="start" class="fill-gray-800 text-[14px] font-bold">MRL</text>
-    <text x="{{ $cx + $r + 14 }}" y="{{ $cy + 12 }}" text-anchor="start" class="fill-gray-400 text-[12px]">{{ $mrl }}/9</text>
+    <text x="{{ $cx + $r + 14 }}" y="{{ $cy + 12 }}" text-anchor="start" class="fill-gray-400 text-[12px]">{{ $fmt($mrl) }}/9</text>
 
     <text x="{{ $cx }}" y="{{ $cy + $r + 24 }}" text-anchor="middle" class="fill-gray-800 text-[14px] font-bold">TMRL</text>
-    <text x="{{ $cx }}" y="{{ $cy + $r + 38 }}" text-anchor="middle" class="fill-gray-400 text-[12px]">{{ $tmrl }}/9</text>
+    <text x="{{ $cx }}" y="{{ $cy + $r + 38 }}" text-anchor="middle" class="fill-gray-400 text-[12px]">{{ $fmt($tmrl) }}/9</text>
 
     <text x="{{ $cx - $r - 14 }}" y="{{ $cy - 2 }}" text-anchor="end" class="fill-gray-800 text-[14px] font-bold">SRL</text>
-    <text x="{{ $cx - $r - 14 }}" y="{{ $cy + 12 }}" text-anchor="end" class="fill-gray-400 text-[12px]">{{ $srl }}/9</text>
+    <text x="{{ $cx - $r - 14 }}" y="{{ $cy + 12 }}" text-anchor="end" class="fill-gray-400 text-[12px]">{{ $fmt($srl) }}/9</text>
 </svg>

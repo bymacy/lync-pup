@@ -42,9 +42,66 @@
         ];
     @endphp
 
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-900">Founder Application</h1>
-        <p class="text-gray-500 mt-1">Review and manage founder account applications.</p>
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Founder Application</h1>
+            <p class="text-gray-500 mt-1">Review and manage founder account applications.</p>
+        </div>
+
+        {{-- Cohort filter dropdown — same pattern as the Dashboard's cohort
+             selector, so admins can filter applicants by cohort right here
+             instead of switching the Dashboard's globally-selected cohort. --}}
+        <div class="relative ml-auto" x-data="{ cohortMenuOpen: false }" @click.outside="cohortMenuOpen = false">
+            <button type="button" @click="cohortMenuOpen = !cohortMenuOpen"
+                class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-sm">
+                @if ($selectedCohortId)
+                    {{ $filterCohorts->firstWhere('cohort_id', $selectedCohortId)?->display_label ?? 'All Cohort' }}
+                @else
+                    All Cohort
+                @endif
+                <svg class="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.293l3.71-4.06a.75.75 0 111.08 1.04l-4.25 4.65a.75.75 0 01-1.08 0l-4.25-4.65a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                </svg>
+            </button>
+
+            <div x-show="cohortMenuOpen" x-cloak
+                class="absolute right-0 z-20 mt-2 rounded-xl border border-gray-100 bg-white shadow-xl"
+                style="width: 260px;">
+                <div class="py-2">
+                    <p class="px-4 pb-1 text-xs font-semibold uppercase tracking-widest text-gray-400">Active</p>
+                    <a href="{{ request()->fullUrlWithQuery(['cohort' => null, 'page' => null]) }}"
+                        class="flex items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white {{ ! $selectedCohortId ? 'bg-blue-50 text-[#11386A] font-medium' : 'text-gray-700' }}">
+                        All Cohort
+                        @if (! $selectedCohortId)
+                            <svg class="h-4 w-4 text-[#11386A]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
+                        @endif
+                    </a>
+                    @foreach ($filterCohorts->where('status', 'Active') as $c)
+                        <a href="{{ request()->fullUrlWithQuery(['cohort' => $c->cohort_id, 'page' => null]) }}"
+                            class="flex items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white {{ $selectedCohortId === $c->cohort_id ? 'bg-blue-50 text-[#11386A] font-medium' : 'text-gray-700' }}">
+                            {{ $c->display_label }}
+                            @if ($selectedCohortId === $c->cohort_id)
+                                <svg class="h-4 w-4 text-[#11386A]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
+                            @endif
+                        </a>
+                    @endforeach
+
+                    @if ($filterCohorts->where('status', 'Inactive')->count())
+                        <div class="my-2 border-t border-gray-100"></div>
+                        <p class="px-4 pb-1 text-xs font-semibold uppercase tracking-widest text-gray-400">Archived</p>
+                        @foreach ($filterCohorts->where('status', 'Inactive') as $c)
+                            <a href="{{ request()->fullUrlWithQuery(['cohort' => $c->cohort_id, 'page' => null]) }}"
+                                class="flex items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white {{ $selectedCohortId === $c->cohort_id ? 'bg-blue-50 text-[#11386A] font-medium' : 'text-gray-500' }}">
+                                {{ $c->display_label }}
+                                @if ($selectedCohortId === $c->cohort_id)
+                                    <svg class="h-4 w-4 text-[#11386A]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z" clip-rule="evenodd" /></svg>
+                                @endif
+                            </a>
+                        @endforeach
+                    @endif
+                </div>
+            </div>
+        </div>
     </div>
 
     {{--
@@ -114,7 +171,7 @@
     <div class="border-b border-gray-300 mb-6">
         <nav class="flex overflow-x-auto overflow-y-hidden whitespace-nowrap">
             @foreach (['all' => 'All', 'pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $key => $label)
-                <a href="{{ route('admin.founder-applications.index', ['tab' => $key, 'per_page' => $perPage]) }}"
+                <a href="{{ route('admin.founder-applications.index', ['tab' => $key, 'per_page' => $perPage, 'cohort' => $selectedCohortId]) }}"
                     class="px-6 sm:px-10 lg:px-16 py-3 text-sm font-medium border-b-2 -mb-px transition-colors duration-200
                         {{ $activeTab === $key ? 'border-[#6D0D23] text-[#6D0D23]' : 'border-transparent text-gray-700 hover:text-[#6D0D23]' }}">
                     {{ $label }}
@@ -311,6 +368,7 @@
                                         @csrf
                                         <input type="hidden" name="tab" value="{{ $activeTab }}">
                                         <input type="hidden" name="per_page" value="{{ $perPage }}">
+                                        <input type="hidden" name="cohort" value="{{ $selectedCohortId }}">
                                         <input type="hidden" name="admin_remarks" x-bind:value="remarks">
 
                                         <div class="flex justify-center">
@@ -369,6 +427,7 @@
                                         @csrf
                                         <input type="hidden" name="tab" value="{{ $activeTab }}">
                                         <input type="hidden" name="per_page" value="{{ $perPage }}">
+                                        <input type="hidden" name="cohort" value="{{ $selectedCohortId }}">
 
                                         <div class="flex justify-center">
                                             <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
@@ -419,6 +478,7 @@
                                         @method('DELETE')
                                         <input type="hidden" name="tab" value="{{ $activeTab }}">
                                         <input type="hidden" name="per_page" value="{{ $perPage }}">
+                                        <input type="hidden" name="cohort" value="{{ $selectedCohortId }}">
 
                                         <div class="flex justify-center">
                                             <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
@@ -612,6 +672,7 @@
 
                 <form method="GET" class="flex items-center gap-2">
                     <input type="hidden" name="tab" value="{{ $activeTab }}">
+                    <input type="hidden" name="cohort" value="{{ $selectedCohortId }}">
                     <label for="per_page" class="text-xs text-gray-500">Items per page</label>
                     <select id="per_page" name="per_page" onchange="this.form.submit()"
                         class="rounded-md border border-gray-300 py-1 pl-2 pr-6 text-xs text-gray-700">

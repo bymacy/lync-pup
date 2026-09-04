@@ -24,6 +24,7 @@ class FounderApplicationController extends Controller
     {
         $tab = $request->query('tab', 'all');
         $perPage = (int) $request->query('per_page', 10);
+        $cohortId = $request->query('cohort');
 
         if (! in_array($perPage, self::PER_PAGE_OPTIONS, true)) {
             $perPage = 10;
@@ -39,6 +40,11 @@ class FounderApplicationController extends Controller
             'rejected' => $query->applicationRejected(),
             default => $query,
         };
+
+        // Pending/rejected applicants have no cohort_id yet (only set once
+        // approve() runs below), so filtering by a specific cohort here
+        // naturally narrows down to that cohort's approved founders.
+        $query = $query->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId));
 
         $applications = $query->latest()->paginate($perPage)->withQueryString();
 
@@ -56,6 +62,14 @@ class FounderApplicationController extends Controller
             'activeTab' => $tab,
             'perPage' => $perPage,
             'perPageOptions' => self::PER_PAGE_OPTIONS,
+            'selectedCohortId' => $cohortId ? (int) $cohortId : null,
+            // All cohorts (Active + Archived) for the page-level filter
+            // dropdown — separate from the Active-only $cohorts below,
+            // which is deliberately kept Active-only since it feeds the
+            // Approve modal's "assign to cohort" select.
+            'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+                ->orderBy('number')
+                ->get(),
             'totals' => [
                 'total' => $pendingCount + $approvedCount + $rejectedCount,
                 'pending' => $pendingCount,
@@ -92,7 +106,7 @@ class FounderApplicationController extends Controller
         // on it (via the browser back button, another tab, etc).
         if (! $startup->user?->isPendingApproval()) {
             return redirect()
-                ->route('admin.founder-applications.index', $request->only('tab', 'per_page'))
+                ->route('admin.founder-applications.index', $request->only('tab', 'per_page', 'cohort'))
                 ->with('error', 'This application has already been processed.');
         }
 
@@ -122,7 +136,7 @@ class FounderApplicationController extends Controller
         Mail::to($startup->user->email)->send(new FounderApplicationApproved($startup));
 
         return redirect()
-            ->route('admin.founder-applications.index', $request->only('tab', 'per_page'))
+            ->route('admin.founder-applications.index', $request->only('tab', 'per_page', 'cohort'))
             ->with('application_result', ['type' => 'approved', 'startup' => $startup->company_name]);
     }
 
@@ -131,7 +145,7 @@ class FounderApplicationController extends Controller
         // Same graceful-redirect reasoning as approve() above.
         if (! $startup->user?->isPendingApproval()) {
             return redirect()
-                ->route('admin.founder-applications.index', $request->only('tab', 'per_page'))
+                ->route('admin.founder-applications.index', $request->only('tab', 'per_page', 'cohort'))
                 ->with('error', 'This application has already been processed.');
         }
 
@@ -146,7 +160,7 @@ class FounderApplicationController extends Controller
         Mail::to($startup->user->email)->send(new FounderApplicationRejected($startup));
 
         return redirect()
-            ->route('admin.founder-applications.index', $request->only('tab', 'per_page'))
+            ->route('admin.founder-applications.index', $request->only('tab', 'per_page', 'cohort'))
             ->with('application_result', ['type' => 'rejected', 'startup' => $startup->company_name]);
     }
 
@@ -174,7 +188,7 @@ class FounderApplicationController extends Controller
         $user->delete();
 
         return redirect()
-            ->route('admin.founder-applications.index', $request->only('tab', 'per_page'))
+            ->route('admin.founder-applications.index', $request->only('tab', 'per_page', 'cohort'))
             ->with('status', 'Application deleted.');
     }
 }

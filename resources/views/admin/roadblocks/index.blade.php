@@ -611,7 +611,7 @@
                                 <tbody>
                                     @forelse ($assessment as $roadblock)
                                     @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
-                                    <tr class="border-b border-gray-100 last:border-0">
+                                    <tr class="border-b border-gray-100 last:border-0" x-data="{ viewOpen: false, previewImage: null }">
                                         <td class="px-3 py-3 align-middle sm:px-4">
                                             <div class="{{ $archiveNameBox }}">
                                                 @if ($roadblock->startup->startup_photo_url)
@@ -633,6 +633,7 @@
                                         <td class="{{ $archiveCell }}">{{ $roadblock->assignee_display_name }}</td>
                                         <td class="px-3 py-3 align-middle sm:px-4">
                                             <div class="{{ $archiveActions }}">
+                                                <button type="button" @click="viewOpen = true" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">View</button>
                                                 <form method="POST" action="{{ route('admin.roadblocks.fail', $roadblock) }}">
                                                     @csrf
                                                     <button type="submit" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">Failed</button>
@@ -642,6 +643,8 @@
                                                     <button type="submit" class="{{ $archiveBtn }} bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white transition hover:opacity-95">Resolve</button>
                                                 </form>
                                             </div>
+
+                                            @include('admin.roadblocks._details-modal', ['roadblock' => $roadblock])
                                         </td>
                                     </tr>
                                     @empty
@@ -675,7 +678,7 @@
                                 <tbody>
                                     @forelse ($resolved as $roadblock)
                                     @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
-                                    <tr class="border-b border-gray-100 last:border-0">
+                                    <tr class="border-b border-gray-100 last:border-0" x-data="{ viewOpen: false, previewImage: null }">
                                         <td class="px-3 py-3 align-middle sm:px-4">
                                             <div class="{{ $archiveNameBox }}">
                                                 @if ($roadblock->startup->startup_photo_url)
@@ -697,11 +700,14 @@
                                         <td class="{{ $archiveCell }}">{{ $roadblock->assignee_display_name }}</td>
                                         <td class="px-3 py-3 align-middle sm:px-4">
                                             <div class="{{ $archiveActions }}">
+                                                <button type="button" @click="viewOpen = true" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">View</button>
                                                 <form method="POST" action="{{ route('admin.roadblocks.recover', $roadblock) }}">
                                                     @csrf
                                                     <button type="submit" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">Recover</button>
                                                 </form>
                                             </div>
+
+                                            @include('admin.roadblocks._details-modal', ['roadblock' => $roadblock])
                                         </td>
                                     </tr>
                                     @empty
@@ -735,7 +741,7 @@
                                 <tbody>
                                     @forelse ($failed as $roadblock)
                                     @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
-                                    <tr class="border-b border-gray-100 last:border-0" data-highlight-id="startup-{{ $roadblock->startup_id }}" x-data="{ deleteOpen: false, rescheduleOpen: @js($erroredRoadblockId === $roadblock->roadblock_id) }">
+                                    <tr class="border-b border-gray-100 last:border-0" data-highlight-id="startup-{{ $roadblock->startup_id }}" x-data="{ deleteOpen: false, rescheduleOpen: @js($erroredRoadblockId === $roadblock->roadblock_id), viewOpen: false, previewImage: null }">
                                         <td class="px-3 py-3 align-middle sm:px-4">
                                             <div class="{{ $archiveNameBox }}">
                                                 @if ($roadblock->startup->startup_photo_url)
@@ -757,9 +763,12 @@
                                         <td class="{{ $archiveCell }}">{{ $roadblock->assignee_display_name }}</td>
                                         <td class="px-3 py-3 align-middle sm:px-4">
                                             <div class="{{ $archiveActions }}">
+                                                <button type="button" @click="viewOpen = true" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">View</button>
                                                 <button type="button" @click="deleteOpen = true" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">Delete</button>
                                                 <button type="button" @click="rescheduleOpen = true" class="{{ $archiveBtn }} bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white transition hover:opacity-95">Reschedule</button>
                                             </div>
+
+                                            @include('admin.roadblocks._details-modal', ['roadblock' => $roadblock])
 
                                             {{-- STANDARD delete confirmation --}}
                                             <div x-show="deleteOpen" x-cloak x-transition.opacity

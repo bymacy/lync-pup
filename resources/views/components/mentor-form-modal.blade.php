@@ -1,4 +1,4 @@
-@props(['mode', 'action', 'mentor' => null])
+@props(['mode', 'action', 'mentor' => null, 'otherSuggestions' => []])
 
 @php
 $photoInputId = 'mentor_photo_input_'.($mentor?->mentor_id ?? 'new');
@@ -54,7 +54,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             $oldFor = fn (string $field, $default = null) => $isErroredRecord ? old($field, $default) : $default;
 
             $honorifics = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Atty.', 'Engr.'];
-            $expertises = ['Engineering', 'Business', 'Marketing', 'Legal', 'Finance', 'Technology'];
+            $expertises = ['Engineering', 'Business', 'Marketing', 'Legal', 'Finance', 'Technology', 'Others'];
 
             // Closing the modal has to wipe the fields. After a failed submit the
             // markup carries old() values, and hiding the modal doesn't unrender
@@ -231,12 +231,18 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     <div>
                         <label class="{{ $label }}">Expertise</label>
 
-                        {{-- Same listbox as Honorifics. "Select Expertise" is the
-                         trigger's placeholder text now, not a selectable row. --}}
-                        <div class="{{ $groupOpen }} relative"
+                        {{-- x-data lives on this outer wrapper (not just the listbox
+                         below) so the "Others" free-text field — a normal-flow
+                         sibling, not part of the dropdown popup — can share the
+                         same reactive state and push the rest of the form down
+                         when it appears, instead of floating over it. --}}
+                        <div
                             x-data="{
                             open: false,
                             selected: @js((string) ($oldFor('specialization', $mentor?->specialization) ?? '')),
+                            otherText: @js((string) ($oldFor('specialization_other', $mentor?->specialization_other) ?? '')),
+                            showOtherSuggestions: false,
+                            otherSuggestions: @js($otherSuggestions ?? []),
                             highlighted: -1,
                             options: @js($expertises),
 
@@ -256,58 +262,116 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 const count = this.options.length;
                                 this.highlighted = (this.highlighted + step + count) % count;
                             },
+
+                            // Predictive suggestions from every other mentor's past
+                            // 'Others' entries — filtered here as the admin types, so
+                            // an existing free-text expertise can be reused instead of
+                            // creating a near-duplicate (e.g. 'UX Design' vs 'UX/UI
+                            // Design').
+                            get filteredOtherSuggestions() {
+                                const val = this.otherText.trim().toLowerCase();
+                                const pool = val
+                                    ? this.otherSuggestions.filter(s => s.toLowerCase().includes(val) && s.toLowerCase() !== val)
+                                    : this.otherSuggestions;
+                                return pool.slice(0, 6);
+                            },
+
+                            pickOtherSuggestion(value) {
+                                this.otherText = value;
+                                this.showOtherSuggestions = false;
+                            },
                         }"
-                            @click.outside="open = false"
-                            @keydown.escape="open = false"
-                            x-on:{{ $resetEvent }}.window="selected = @js((string) ($mentor?->specialization ?? '')); open = false">
+                            x-on:{{ $resetEvent }}.window="selected = @js((string) ($mentor?->specialization ?? '')); otherText = @js((string) ($mentor?->specialization_other ?? '')); showOtherSuggestions = false; open = false">
 
-                            <span class="{{ $slotOpen }}">
-                                {!! $icon('price-tag.svg', 'w-4 h-4') !!}
-                            </span>
+                            {{-- Same listbox as Honorifics. "Select Expertise" is the
+                             trigger's placeholder text now, not a selectable row. --}}
+                            <div class="{{ $groupOpen }} relative"
+                                @click.outside="open = false"
+                                @keydown.escape="open = false">
 
-                            <input type="hidden" name="specialization" :value="selected">
+                                <span class="{{ $slotOpen }}">
+                                    {!! $icon('price-tag.svg', 'w-4 h-4') !!}
+                                </span>
 
-                            <button type="button"
-                                x-ref="trigger"
-                                @click="toggle()"
-                                @keydown.arrow-down.prevent="move(1)"
-                                @keydown.arrow-up.prevent="move(-1)"
-                                @keydown.enter.prevent="open && highlighted > -1 ? choose(options[highlighted]) : toggle()"
-                                :aria-expanded="open"
-                                aria-haspopup="listbox"
-                                class="flex min-w-0 flex-1 items-center px-3 pr-9 text-left text-sm focus:outline-none">
-                                <span class="truncate" :class="selected ? 'text-gray-800' : 'text-gray-400'"
-                                    x-text="selected || 'Select Expertise'"></span>
-                            </button>
+                                <input type="hidden" name="specialization" :value="selected">
 
-                            <svg class="{{ $chevron }} transition-transform" :class="open && 'rotate-180'"
-                                fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                            </svg>
+                                <button type="button"
+                                    x-ref="trigger"
+                                    @click="toggle()"
+                                    @keydown.arrow-down.prevent="move(1)"
+                                    @keydown.arrow-up.prevent="move(-1)"
+                                    @keydown.enter.prevent="open && highlighted > -1 ? choose(options[highlighted]) : toggle()"
+                                    :aria-expanded="open"
+                                    aria-haspopup="listbox"
+                                    class="flex min-w-0 flex-1 items-center px-3 pr-9 text-left text-sm focus:outline-none">
+                                    <span class="truncate" :class="selected ? 'text-gray-800' : 'text-gray-400'"
+                                        x-text="selected || 'Select Expertise'"></span>
+                                </button>
 
-                            <div x-show="open" x-cloak
-                                x-transition:enter="transition ease-out duration-100"
-                                x-transition:enter-start="opacity-0 -translate-y-1"
-                                x-transition:enter-end="opacity-100 translate-y-0"
-                                role="listbox"
-                                class="{{ $listPopup }}">
+                                <svg class="{{ $chevron }} transition-transform" :class="open && 'rotate-180'"
+                                    fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
 
-                                <template x-for="(option, index) in options" :key="option">
-                                    <button type="button"
-                                        role="option"
-                                        :aria-selected="selected === option"
-                                        @click="choose(option)"
-                                        @mouseenter="highlighted = index"
-                                        class="{{ $listOption }}"
-                                        :class="highlighted === index
-                                        ? 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white'
-                                        : (selected === option ? 'bg-[#FDF2F5] font-medium text-[#9F1239]' : 'text-gray-700')"
-                                        x-text="option"></button>
-                                </template>
+                                <div x-show="open" x-cloak
+                                    x-transition:enter="transition ease-out duration-100"
+                                    x-transition:enter-start="opacity-0 -translate-y-1"
+                                    x-transition:enter-end="opacity-100 translate-y-0"
+                                    role="listbox"
+                                    class="{{ $listPopup }}">
+
+                                    <template x-for="(option, index) in options" :key="option">
+                                        <button type="button"
+                                            role="option"
+                                            :aria-selected="selected === option"
+                                            @click="choose(option)"
+                                            @mouseenter="highlighted = index"
+                                            class="{{ $listOption }}"
+                                            :class="highlighted === index
+                                            ? 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white'
+                                            : (selected === option ? 'bg-[#FDF2F5] font-medium text-[#9F1239]' : 'text-gray-700')"
+                                            x-text="option"></button>
+                                    </template>
+                                </div>
+                            </div>
+
+                            @if ($isErroredRecord) @error('specialization') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
+
+                            {{-- "Others" free-text, with predictive suggestions pulled
+                             from every mentor's past "Others" entries. Normal flow
+                             (not absolutely positioned) so it pushes the Email/Phone
+                             row below it down instead of overlapping it. --}}
+                            <div x-show="selected === 'Others'" x-cloak class="mt-3">
+                                <div class="relative">
+                                    <input type="text" name="specialization_other" x-model="otherText"
+                                        maxlength="150"
+                                        autocomplete="off"
+                                        @focus="showOtherSuggestions = true"
+                                        @input="showOtherSuggestions = true"
+                                        @blur="setTimeout(() => showOtherSuggestions = false, 150)"
+                                        placeholder="Type the specific expertise..."
+                                        class="{{ $plain }}">
+
+                                    <div x-show="showOtherSuggestions && filteredOtherSuggestions.length" x-cloak
+                                        x-transition:enter="transition ease-out duration-100"
+                                        x-transition:enter-start="opacity-0 -translate-y-1"
+                                        x-transition:enter-end="opacity-100 translate-y-0"
+                                        role="listbox"
+                                        class="{{ $listPopup }} absolute z-30 mt-1 max-h-48 overflow-y-auto">
+
+                                        <template x-for="suggestion in filteredOtherSuggestions" :key="suggestion">
+                                            <button type="button"
+                                                role="option"
+                                                @mousedown.prevent="pickOtherSuggestion(suggestion)"
+                                                class="{{ $listOption }} truncate text-gray-700 hover:bg-[#FDF2F5] hover:text-[#9F1239]"
+                                                x-text="suggestion"></button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                @if ($isErroredRecord) @error('specialization_other') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
                             </div>
                         </div>
-
-                        @if ($isErroredRecord) @error('specialization') <p data-error class="{{ $err }}">{{ $message }}</p> @enderror @endif
                     </div>
                 </div>
 

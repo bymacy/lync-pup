@@ -66,7 +66,7 @@
 
             @forelse ($mentors as $mentor)
             <div class="relative aspect-[3/4] overflow-hidden rounded-xl border"
-                x-data="{ menuOpen: false, editOpen: @js($errors->any() && old('_mentor_id') == $mentor->mentor_id), deleteOpen: false }">
+                x-data="{ menuOpen: false, editOpen: @js($errors->any() && old('_mentor_id') == $mentor->mentor_id), deleteOpen: false, casesOpen: null }">
 
                 {{-- Menu wrapper. z-index lifts while the dropdown is open so it clears
                      neighbouring cards, which all sit at z-20 too. --}}
@@ -131,7 +131,7 @@
                 {{-- Text overlay, anchored bottom, gradient fading up into the photo --}}
                 <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent p-3 pt-10 text-white sm:p-4 sm:pt-16">
                     <p class="truncate text-sm font-bold sm:text-base">{{ $mentor->display_name }}</p>
-                    <p class="mb-1.5 truncate text-[10px] text-white/70 sm:mb-2 sm:text-xs">{{ $mentor->specialization }} Mentor</p>
+                    <p class="mb-1.5 truncate text-[10px] text-white/70 sm:mb-2 sm:text-xs">{{ $mentor->display_specialization }} Mentor</p>
 
                     <div class="space-y-1 border-t border-white/20 pt-1.5 text-[10px] text-white/80 sm:space-y-1.5 sm:pt-2 sm:text-xs">
                         <p class="flex items-center gap-1.5 sm:gap-2">
@@ -153,8 +153,11 @@
                                 {!! $icon('3person.svg', 'w-2 h-2 sm:w-2.5 sm:h-2.5') !!}
                             </span>
                             <span class="truncate">
-                                {{ $mentor->active_cases_count }} {{ Str::plural('Active Case', $mentor->active_cases_count) }}
-                                &middot; {{ $mentor->completed_cases_count }} Completed
+                                <button type="button" @click.stop="casesOpen = 'active'"
+                                    class="underline decoration-dotted underline-offset-2 hover:text-white">{{ $mentor->active_cases_count }} {{ Str::plural('Active Case', $mentor->active_cases_count) }}</button>
+                                &middot;
+                                <button type="button" @click.stop="casesOpen = 'completed'"
+                                    class="underline decoration-dotted underline-offset-2 hover:text-white">{{ $mentor->completed_cases_count }} Completed</button>
                             </span>
                         </p>
                     </div>
@@ -231,7 +234,69 @@
                                 <x-mentor-form-modal
                                     mode="edit"
                                     :mentor="$mentor"
+                                    :other-suggestions="$otherSpecializationSuggestions"
                                     :action="route('admin.mentors.update', $mentor)" />
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                {{-- Active Cases / Completed modal — lists the actual startups
+                     behind whichever count was clicked. Both lists are
+                     rendered server-side up front (cheap: eager-loaded in
+                     MentorController::index()) and just toggled with
+                     x-show, rather than re-fetching on each click. --}}
+                <template x-teleport="body">
+                    <div
+                        x-show="casesOpen !== null"
+                        x-cloak
+                        x-transition.opacity
+                        @keydown.escape.window="casesOpen = null"
+                        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+                        style="display:none;">
+
+                        <div @click.outside="casesOpen = null"
+                            class="relative flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+
+                            <div class="flex flex-shrink-0 items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 text-white">
+                                <h3 class="font-bold" x-text="casesOpen === 'active' ? 'Active Cases' : 'Completed Cases'"></h3>
+                                <button type="button" @click="casesOpen = null"
+                                    class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                                    aria-label="Close">
+                                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div class="flex-1 space-y-2 overflow-y-auto p-4">
+                                <div x-show="casesOpen === 'active'" class="space-y-2">
+                                    @forelse ($mentor->active_roadblocks as $roadblock)
+                                        @if ($roadblock->startup)
+                                        <a href="{{ route('admin.startups.show', $roadblock->startup) }}"
+                                            class="block rounded-lg border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
+                                            <p class="truncate text-sm font-semibold text-gray-900">{{ $roadblock->startup->company_name }}</p>
+                                            <p class="mt-0.5 text-xs text-gray-500">{{ $roadblock->display_category }} &middot; {{ $roadblock->status }}</p>
+                                        </a>
+                                        @endif
+                                    @empty
+                                        <p class="py-6 text-center text-sm text-gray-500">No active cases.</p>
+                                    @endforelse
+                                </div>
+
+                                <div x-show="casesOpen === 'completed'" class="space-y-2">
+                                    @forelse ($mentor->completed_roadblocks as $roadblock)
+                                        @if ($roadblock->startup)
+                                        <a href="{{ route('admin.startups.show', $roadblock->startup) }}"
+                                            class="block rounded-lg border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
+                                            <p class="truncate text-sm font-semibold text-gray-900">{{ $roadblock->startup->company_name }}</p>
+                                            <p class="mt-0.5 text-xs text-gray-500">{{ $roadblock->display_category }} &middot; {{ $roadblock->status }}</p>
+                                        </a>
+                                        @endif
+                                    @empty
+                                        <p class="py-6 text-center text-sm text-gray-500">No completed cases.</p>
+                                    @endforelse
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -257,6 +322,7 @@
 
                         <x-mentor-form-modal
                             mode="add"
+                            :other-suggestions="$otherSpecializationSuggestions"
                             :action="route('admin.mentors.store')" />
                     </div>
                 </div>

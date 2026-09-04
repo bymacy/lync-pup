@@ -100,15 +100,26 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
             {{-- Watching the parent's open flag catches every way out — the X, Escape,
              clicking the backdrop — instead of only the close button. --}}
+            {{--
+                Edit mode only: Save Changes (below) starts disabled and only
+                lights up once the admin actually touches a field — guards
+                against a no-op submit right after opening the modal. Add
+                mode has no "unchanged" concept to compare against, so its
+                submit button is untouched by `dirty`.
+            --}}
             <form method="POST" action="{{ $action }}" enctype="multipart/form-data"
                 class="flex flex-1 flex-col space-y-3 px-8 pb-6 pt-1"
+                x-data="{ dirty: false }"
                 x-init="$watch('{{ $openVar }}', value => { if (! value) $dispatch('{{ $resetEvent }}') })"
+                @input="dirty = true"
+                @change="dirty = true"
                 x-on:{{ $resetEvent }}.window="
                 Object.entries(@js($textDefaults)).forEach(([name, value]) => {
                     const control = $el.elements[name];
                     if (control) control.value = value ?? '';
                 });
                 $el.querySelectorAll('[data-error]').forEach(node => node.remove());
+                dirty = false;
             ">
                 @csrf
                 @if ($mode === 'edit')
@@ -211,7 +222,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <button type="button"
                                         role="option"
                                         :aria-selected="selected === option"
-                                        @click="choose(option)"
+                                        @click="choose(option); dirty = true"
                                         @mouseenter="highlighted = index"
                                         class="{{ $listOption }}"
                                         :class="highlighted === index
@@ -443,7 +454,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <img :src="photoPreview" class="h-28 w-full object-cover">
 
                                     <button type="button"
-                                        @click="clearPhoto()"
+                                        @click="clearPhoto(); dirty = true"
                                         class="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80"
                                         aria-label="Remove photo">
                                         <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -524,7 +535,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                             Cancel
                                         </button>
 
-                                        <button type="button" @click="applyCrop()"
+                                        <button type="button" @click="applyCrop(); dirty = true"
                                             class="h-9 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95">
                                             Apply
                                         </button>
@@ -543,8 +554,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         Cancel
                     </button>
 
-                    <button type="submit"
-                        class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:flex-1">
+                    <button type="submit" :disabled="!dirty"
+                        class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:opacity-40 sm:flex-1">
                         Save Changes
                     </button>
                     @else

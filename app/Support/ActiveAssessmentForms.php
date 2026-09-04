@@ -163,4 +163,111 @@ class ActiveAssessmentForms
             default => null,
         };
     }
+
+    /**
+     * Whether Document 6/7/8's saved data has any real admin-entered
+     * content — as opposed to merely having an AssessmentDocument row at
+     * all. A row gets created the moment the admin hits Save even with
+     * every field left blank, and stays around afterward even if the admin
+     * later clears everything and re-saves, so "row exists" alone isn't a
+     * safe stand-in for "Started" (see isDocument6Filled/7/8Filled below,
+     * used wherever a "Started"/"Not Started" or pill-completion status is
+     * shown for these documents).
+     */
+    public static function isDocumentFilled(int $documentNumber, array $data): bool
+    {
+        return match ($documentNumber) {
+            6 => self::isDocument6Filled($data),
+            7 => self::isDocument7Filled($data),
+            8 => self::isDocument8Filled($data),
+            default => ! empty($data),
+        };
+    }
+
+    public static function isDocument6Filled(array $data): bool
+    {
+        if (self::hasAnyValue($data['business_stage'] ?? [])) {
+            return true;
+        }
+
+        foreach (array_keys(self::DOCUMENT_6_SECTIONS) as $sectionKey) {
+            if (self::hasAnyValue($data[$sectionKey] ?? [])) {
+                return true;
+            }
+        }
+
+        foreach ($data['prepared_by'] ?? [] as $entry) {
+            if (filled($entry['name'] ?? null)) {
+                return true;
+            }
+        }
+
+        return filled($data['noted_by'] ?? null);
+    }
+
+    public static function isDocument7Filled(array $data): bool
+    {
+        return self::hasAnyValue($data['check_ins'] ?? [])
+            || self::hasAnyValue($data['performance_matrix'] ?? [])
+            || filled($data['prepared_by_name'] ?? null)
+            || filled($data['noted_by_name'] ?? null);
+    }
+
+    public static function isDocument8Filled(array $data): bool
+    {
+        if (filled($data['prototype_name'] ?? null)
+            || filled($data['prototype_description'] ?? null)
+            || filled($data['recommendations'] ?? null)) {
+            return true;
+        }
+
+        foreach (['platform_compatibility', 'development_status', 'ip_status'] as $group) {
+            if (self::hasAnyValue($data[$group] ?? [])) {
+                return true;
+            }
+        }
+
+        foreach ($data['ratings'] ?? [] as $categoryRatings) {
+            foreach ((array) $categoryRatings as $rating) {
+                if ($rating !== null && $rating !== '') {
+                    return true;
+                }
+            }
+        }
+
+        // noted_by_name/position and approved_by_name/position are fixed
+        // institutional defaults (see the seed in _active-assessment.blade.php),
+        // not admin-entered content — deliberately excluded here, otherwise
+        // every saved Document 8 would read as "filled" regardless of
+        // whether the admin actually entered anything.
+        return filled($data['validated_by_name'] ?? null)
+            || filled($data['validated_by_position'] ?? null)
+            || filled($data['validated_by_contact'] ?? null)
+            || filled($data['validated_by_date'] ?? null);
+    }
+
+    /**
+     * Recursively true if $value (scalar or nested array) contains any
+     * non-blank string, a true boolean, or a non-null/non-blank number —
+     * i.e. anything an admin would have had to actually type or check,
+     * as opposed to an empty string, false checkbox, or empty array.
+     */
+    private static function hasAnyValue($value): bool
+    {
+        if (is_array($value)) {
+            foreach ($value as $v) {
+                if (self::hasAnyValue($v)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        if (is_bool($value)) {
+            return $value === true;
+        }
+
+        return $value !== null && $value !== '';
+    }
 }

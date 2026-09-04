@@ -115,19 +115,19 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="rounded-xl border border-gray-200 p-4 shadow-sm">
                                     <p class="text-xs text-gray-500">TECHNOLOGY</p>
-                                    <p class="text-xl font-bold">TRL {{ $startup->latestReadinessAssessment->trl_score }}<span class="text-sm text-gray-400">/9</span></p>
+                                    <p class="text-xl font-bold">TRL {{ $startup->latestReadinessAssessment->trl_score !== null ? number_format($startup->latestReadinessAssessment->trl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
                                 </div>
                                 <div class="rounded-xl border border-gray-200 p-4 shadow-sm">
                                     <p class="text-xs text-gray-500">MANUFACTURING</p>
-                                    <p class="text-xl font-bold">MRL {{ $startup->latestReadinessAssessment->mrl_score }}<span class="text-sm text-gray-400">/9</span></p>
+                                    <p class="text-xl font-bold">MRL {{ $startup->latestReadinessAssessment->mrl_score !== null ? number_format($startup->latestReadinessAssessment->mrl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
                                 </div>
                                 <div class="rounded-xl border border-gray-200 p-4 shadow-sm">
                                     <p class="text-xs text-gray-500">TEAM & MGMT</p>
-                                    <p class="text-xl font-bold">TMRL {{ $startup->latestReadinessAssessment->tmrl_score }}<span class="text-sm text-gray-400">/9</span></p>
+                                    <p class="text-xl font-bold">TMRL {{ $startup->latestReadinessAssessment->tmrl_score !== null ? number_format($startup->latestReadinessAssessment->tmrl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
                                 </div>
                                 <div class="rounded-xl border border-gray-200 p-4 shadow-sm">
                                     <p class="text-xs text-gray-500">SYSTEM / MARKET</p>
-                                    <p class="text-xl font-bold">SRL {{ $startup->latestReadinessAssessment->srl_score }}<span class="text-sm text-gray-400">/9</span></p>
+                                    <p class="text-xl font-bold">SRL {{ $startup->latestReadinessAssessment->srl_score !== null ? number_format($startup->latestReadinessAssessment->srl_score, 1) : '—' }}<span class="text-sm text-gray-400">/9</span></p>
                                 </div>
                             </div>
                         </div>
@@ -145,7 +145,7 @@
                         <div class="grid grid-cols-2 gap-3">
                             @forelse ($startup->teamMembers as $member)
                             <div class="bg-gray-100 rounded-lg px-4 py-2 text-sm">
-                                {{ $member->full_name }} @if($member->role) <span class="text-gray-500">({{ $member->role }})</span> @endif
+                                {{ $member->full_name }}
                             </div>
                             @empty
                             <p class="text-sm text-gray-500 col-span-2">No team members listed yet.</p>

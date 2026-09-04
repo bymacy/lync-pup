@@ -25,7 +25,7 @@ class RoadblockController extends Controller
         // (upcoming) plus anything already promoted to Pending Review. The
         // isInAssessment() split below still catches the rare in-between row
         // whose meeting just ended but hasn't been swept yet.
-        $scheduled = Roadblock::with(['startup', 'mentor', 'coordinator'])
+        $scheduled = Roadblock::with(['startup', 'mentor', 'coordinator', 'files'])
             ->whereIn('status', ['Scheduled', 'Pending Review'])
             ->get();
 
@@ -106,12 +106,16 @@ class RoadblockController extends Controller
             return back()->with('error', 'Only a scheduled roadblock can be deleted this way.');
         }
 
-        // "Delete Assignment" on an already-scheduled roadblock permanently
-        // deletes the roadblock/submission itself — it does NOT send it back
-        // to the Pending list. (It used to reset it back to Pending, but
-        // testers found that confusing: a deleted mentorship reappearing in
-        // Pending looked like it hadn't actually been deleted.)
-        $roadblock->delete();
+        // "Delete Assignment" on an already-scheduled roadblock removes it
+        // from every admin list — it does NOT send it back to the Pending
+        // list. (It used to reset it back to Pending, but testers found
+        // that confusing: a deleted mentorship reappearing in Pending
+        // looked like it hadn't actually been deleted.) It used to hard-
+        // delete the row outright, but that also erased it from the
+        // founder's own Archive with no trace of what happened — moving it
+        // to a dedicated status instead keeps it visible there (and
+        // filterable) as "Deleted by Admin".
+        $roadblock->update(['status' => 'Deleted by Admin']);
 
         return back()->with('status', 'Roadblock deleted.');
     }
@@ -165,7 +169,10 @@ class RoadblockController extends Controller
 
     public function destroy(Roadblock $roadblock)
     {
-        $roadblock->delete();
+        // Was a hard delete — switched to a status change (same reasoning as
+        // unassign() above) so the founder's Archive still shows what
+        // happened to their submission instead of it just disappearing.
+        $roadblock->update(['status' => 'Deleted by Admin']);
 
         return back()->with('status', 'Roadblock deleted.');
     }

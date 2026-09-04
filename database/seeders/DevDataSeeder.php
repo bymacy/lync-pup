@@ -144,12 +144,16 @@ class DevDataSeeder extends Seeder
         }
 
         if (ReadinessLevelAssessment::where('startup_id', $needsCoordinator->startup_id)->count() === 0) {
-            ReadinessLevelAssessment::create(array_merge([
+            // Scores are derived from the seeded checkboxes via recomputeScores()
+            // (below) rather than hardcoded, so they can never drift out of sync
+            // with the progress JSON — and land on realistic decimals (partial
+            // levels), not just round numbers.
+            $assessment = new ReadinessLevelAssessment(array_merge([
                 'startup_id' => $needsCoordinator->startup_id,
                 'stage' => 'Pre-Assessment',
-                'trl_score' => 6, 'mrl_score' => 4, 'tmrl_score' => 5, 'srl_score' => 3,
-                'overall_score' => 4.5, 'assessment_date' => now(),
-            ], $this->rubricProgress(['TRL' => 6, 'MRL' => 4, 'TMRL' => 5, 'SRL' => 3])));
+                'assessment_date' => now(),
+            ], $this->rubricProgress(['TRL' => 6.3, 'MRL' => 4.0, 'TMRL' => 5.7, 'SRL' => 3.2])));
+            $assessment->recomputeScores()->save();
         }
 
         // GreenLoop Energy - Pending sheet with an UPCOMING evaluation.
@@ -239,12 +243,12 @@ class DevDataSeeder extends Seeder
         }
 
         if (ReadinessLevelAssessment::where('startup_id', $greenloop->startup_id)->count() === 0) {
-            ReadinessLevelAssessment::create(array_merge([
+            $assessment = new ReadinessLevelAssessment(array_merge([
                 'startup_id' => $greenloop->startup_id,
                 'stage' => 'Pre-Assessment',
-                'trl_score' => 6, 'mrl_score' => 5, 'tmrl_score' => 4, 'srl_score' => 4,
-                'overall_score' => 4.75, 'assessment_date' => now(),
-            ], $this->rubricProgress(['TRL' => 6, 'MRL' => 5, 'TMRL' => 4, 'SRL' => 4])));
+                'assessment_date' => now(),
+            ], $this->rubricProgress(['TRL' => 6.0, 'MRL' => 5.4, 'TMRL' => 4.6, 'SRL' => 4.1])));
+            $assessment->recomputeScores()->save();
         }
 
         // The upcoming evaluation itself — always pushed to a future date so
@@ -289,13 +293,20 @@ class DevDataSeeder extends Seeder
     }
 
     /**
-     * Builds the *_progress JSON that matches a seeded score, so the rubric
-     * checkboxes agree with the badge instead of showing "6/9" over an
-     * untouched form. A score is the COUNT of levels with any criterion
-     * checked (see ReadinessRubric::scoreFromProgress), so levels 1..score
-     * get all of their criteria ticked and the rest stay false.
+     * Builds the *_progress JSON that matches a seeded (decimal) score, so
+     * the rubric checkboxes agree with the badge instead of showing "6.3/9"
+     * over an untouched form. A score is the SUM, across all 9 levels, of
+     * (checked criteria ÷ total criteria) per level (see
+     * ReadinessRubric::scoreFromProgress) — so levels below the whole part
+     * get every criterion ticked, the next level gets just enough criteria
+     * ticked to contribute its fractional remainder, and the rest stay
+     * untouched. The resulting score (recomputed via recomputeScores() by
+     * the caller) may land a little off the requested value where the
+     * fraction can't be hit exactly with a whole number of criteria — fine
+     * for seed/test data, which only needs to look like a real partially
+     * filled-in assessment, not reproduce an exact number.
      *
-     * @param  array<string,int>  $scores  e.g. ['TRL' => 6, 'MRL' => 4, ...]
+     * @param  array<string,float>  $scores  e.g. ['TRL' => 6.3, 'MRL' => 4.0, ...]
      * @return array<string,array<int,array<int,bool>>>
      */
     private function rubricProgress(array $scores): array
@@ -304,10 +315,23 @@ class DevDataSeeder extends Seeder
 
         foreach ($scores as $type => $score) {
             $levels = [];
+            $whole = (int) floor($score);
+            $remainder = $score - $whole;
 
             foreach (ReadinessRubric::levels($type) as $level => $definition) {
-                $checked = $level <= $score;
-                $levels[$level] = array_fill(0, count($definition['criteria']), $checked);
+                $criteriaCount = count($definition['criteria']);
+
+                if ($level <= $whole) {
+                    $levels[$level] = array_fill(0, $criteriaCount, true);
+                } elseif ($level === $whole + 1 && $remainder > 0) {
+                    $toCheck = max(1, min($criteriaCount, (int) round($remainder * $criteriaCount)));
+                    $levels[$level] = array_merge(
+                        array_fill(0, $toCheck, true),
+                        array_fill(0, $criteriaCount - $toCheck, false)
+                    );
+                } else {
+                    $levels[$level] = array_fill(0, $criteriaCount, false);
+                }
             }
 
             $progress[strtolower($type).'_progress'] = $levels;

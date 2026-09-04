@@ -23,17 +23,22 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-            <input type="date" name="start_date" value="{{ old('start_date', optional($cohort?->start_date)->format('Y-m-d')) }}"
-                   class="w-full border rounded-lg px-3 py-2 text-sm">
+            <input type="date" name="start_date" required value="{{ old('start_date', optional($cohort?->start_date)->format('Y-m-d')) }}"
+                   @disabled($cohort?->isArchived())
+                   class="w-full border rounded-lg px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500">
             @error('start_date') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-            <input type="date" name="end_date" value="{{ old('end_date', optional($cohort?->end_date)->format('Y-m-d')) }}"
-                   class="w-full border rounded-lg px-3 py-2 text-sm">
+            <input type="date" name="end_date" required value="{{ old('end_date', optional($cohort?->end_date)->format('Y-m-d')) }}"
+                   @disabled($cohort?->isArchived())
+                   class="w-full border rounded-lg px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500">
             @error('end_date') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
         </div>
     </div>
+    @if ($cohort?->isArchived())
+        <p class="text-xs text-gray-500 -mt-2">This cohort is archived — its start and end dates can no longer be changed.</p>
+    @endif
 
     <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>

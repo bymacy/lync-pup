@@ -130,7 +130,11 @@
                     <div x-show="actionsMenuOpen" x-cloak
                         class="absolute right-0 z-20 mt-2 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl"
                         style="width: 240px;">
-                        @php $hasCohort = (bool) $selectedCohort; @endphp
+                        @php
+                            $hasCohort = (bool) $selectedCohort;
+                            $isArchivedCohort = $selectedCohort?->isArchived() ?? false;
+                            $canArchive = $hasCohort && ! $isArchivedCohort;
+                        @endphp
                         <div class="py-1">
                             <button type="button" @click="modal = 'create'; actionsMenuOpen = false"
                                 class="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
@@ -149,9 +153,9 @@
                                 <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3.5c-4.14 0-7.5 3.5-8.5 6.5 1 3 4.36 6.5 8.5 6.5s7.5-3.5 8.5-6.5c-1-3-4.36-6.5-8.5-6.5zm0 10.5a4 4 0 110-8 4 4 0 010 8z" /><circle cx="10" cy="10" r="1.8" /></svg>
                                 View Cohort Details
                             </button>
-                            <button type="button" @click="if (({{ $hasCohort ? 'true' : 'false' }})) { modal = 'archive'; actionsMenuOpen = false }"
-                                {{ $hasCohort ? '' : 'disabled' }}
-                                class="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium transition-colors {{ $hasCohort ? 'text-gray-700 hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white' : 'text-gray-300 cursor-not-allowed' }}">
+                            <button type="button" @click="if (({{ $canArchive ? 'true' : 'false' }})) { modal = 'archive'; actionsMenuOpen = false }"
+                                {{ $canArchive ? '' : 'disabled' }}
+                                class="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium transition-colors {{ $canArchive ? 'text-gray-700 hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white' : 'text-gray-300 cursor-not-allowed' }}">
                                 <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1v7a2 2 0 01-2 2H6a2 2 0 01-2-2V7a1 1 0 01-1-1V4zm3 4v6h8V8H6zm2 2h4v1H8v-1z" /></svg>
                                 Archive / End Cohort
                             </button>
@@ -424,7 +428,7 @@
                                     <div class="readiness-box rounded-xl p-5" style="border: 2px solid {{ $box['color'] }}; min-width: 0;">
                                         <p class="text-sm font-semibold uppercase tracking-wide text-gray-400 truncate">{{ $box['label'] }}</p>
                                         <p class="mt-1.5 whitespace-nowrap">
-                                            <span class="readiness-score text-3xl font-bold text-gray-900">{{ $box['key'] }} {{ $score }}</span><span class="readiness-score-suffix text-base text-gray-400">/9</span>
+                                            <span class="readiness-score text-3xl font-bold text-gray-900">{{ $box['key'] }} {{ number_format($score, 1) }}</span><span class="readiness-score-suffix text-base text-gray-400">/9</span>
                                         </p>
                                         <div class="mt-3 rounded-full bg-rose-100 overflow-hidden" style="height: 10px;">
                                             <div class="h-full rounded-full" style="width: {{ min(100, ($score / 9) * 100) }}%; background: #6D0D23;"></div>
@@ -435,7 +439,7 @@
                         </div>
                         <p class="text-xs text-gray-400 mt-4">
                             Average across all {{ $averageReadiness['startup_count'] }} startups ({{ $averageReadiness['assessed_count'] }} assessed, {{ $averageReadiness['pending_count'] }} pending) &middot;
-                            Overall: {{ $averageReadiness['overall_score'] }}/9 ({{ $averageReadiness['overall_label'] }})
+                            Overall: {{ number_format($averageReadiness['overall_score'], 1) }}/9 ({{ $averageReadiness['overall_label'] }})
                         </p>
                     @else
                         <p class="text-sm text-gray-400 py-16 text-center">No {{ $readinessStage }} scores recorded yet.</p>
@@ -556,18 +560,23 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                                <input type="date" name="start_date"
+                                <input type="date" name="start_date" required
                                     value="{{ $reopenModal === 'edit' ? old('start_date', optional($selectedCohort->start_date)->format('Y-m-d')) : optional($selectedCohort->start_date)->format('Y-m-d') }}"
-                                    class="w-full border rounded-lg px-3 py-2 text-sm">
+                                    @disabled($selectedCohort->isArchived())
+                                    class="w-full border rounded-lg px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                                <input type="date" name="end_date"
+                                <input type="date" name="end_date" required
                                     value="{{ $reopenModal === 'edit' ? old('end_date', optional($selectedCohort->end_date)->format('Y-m-d')) : optional($selectedCohort->end_date)->format('Y-m-d') }}"
-                                    class="w-full border rounded-lg px-3 py-2 text-sm">
+                                    @disabled($selectedCohort->isArchived())
+                                    class="w-full border rounded-lg px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500">
                                 @if ($reopenModal === 'edit') @error('end_date') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
                             </div>
                         </div>
+                        @if ($selectedCohort->isArchived())
+                            <p class="text-xs text-gray-500 -mt-2">This cohort is archived — its start and end dates can no longer be changed.</p>
+                        @endif
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
                             <textarea name="description" rows="3" maxlength="1000" class="w-full border rounded-lg px-3 py-2 text-sm">{{ $reopenModal === 'edit' ? old('description', $selectedCohort->description) : $selectedCohort->description }}</textarea>

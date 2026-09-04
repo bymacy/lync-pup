@@ -126,7 +126,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                         $outcome = $item->outcome();   // null while the booked time is still running
                         $missed = $outcome === 'missed';
                         @endphp
-                        <tr x-data="{ rescheduleOpen: false }"
+                        <tr x-data="{ rescheduleOpen: @js($errors->any() && (string) old('schedule_row_key') === (string) $item->evaluation_schedule_id) }"
                             class="border-b last:border-0 {{ $missed ? 'border-rose-200 bg-rose-50' : 'border-gray-100 hover:bg-gray-50/70' }}">
                             <td class="relative px-4 py-3 whitespace-nowrap text-center {{ $missed ? 'text-rose-800' : 'text-gray-600' }}">
                                 @if ($missed)
@@ -251,7 +251,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                     </thead>
                     <tbody>
                         @forelse ($upcomingEvaluations as $item)
-                        <tr x-data="{ editOpen: false, deleteConfirmOpen: false }"
+                        <tr x-data="{ editOpen: @js($errors->any() && (string) old('schedule_row_key') === (string) $item->evaluation_schedule_id), deleteConfirmOpen: false }"
                             x-show="month === 'all' || month === '{{ $item->evaluation_date->format('Y-m') }}'"
                             class="border-b border-gray-100 last:border-0 hover:bg-gray-50/70">
 
@@ -340,7 +340,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                     </thead>
                     <tbody>
                         @forelse ($missedEvaluations as $item)
-                        <tr x-data="{ rescheduleOpen: false }" class="border-b border-gray-100 last:border-0 hover:bg-gray-50/70">
+                        <tr x-data="{ rescheduleOpen: @js($errors->any() && (string) old('schedule_row_key') === (string) $item->evaluation_schedule_id) }" class="border-b border-gray-100 last:border-0 hover:bg-gray-50/70">
                             <td class="px-4 py-3 text-center font-medium text-gray-900">
                                 {{-- The cell stays centered, but the logo + name sit in a
                                      fixed-width block so every row's avatar lines up on the

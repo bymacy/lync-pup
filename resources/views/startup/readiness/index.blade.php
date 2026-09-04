@@ -85,7 +85,7 @@
                             <div class="h-2.5 rounded-full bg-[#6D0D23]" style="width: {{ $pct }}%"></div>
                         </div>
                         <p class="shrink-0 font-bold text-[#6D0D23] whitespace-nowrap" style="font-size: 24px; line-height: 1;">
-                            {{ $score ?? '—' }}<span class="text-sm font-medium text-gray-400">/9</span>
+                            {{ $score !== null ? number_format($score, 1) : '—' }}<span class="text-sm font-medium text-gray-400">/9</span>
                         </p>
                     </div>
                 </div>

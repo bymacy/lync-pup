@@ -207,14 +207,15 @@ class AssessmentTest extends TestCase
         $this->assertFalse($assessable->contains('startup_id', $pending->startup_id));
     }
 
-    public function test_saving_an_assessment_computes_the_score_as_the_highest_fully_checked_level(): void
+    public function test_saving_an_assessment_computes_the_weighted_decimal_score(): void
     {
         $admin = User::factory()->create(['role' => 'Admin']);
         $startup = $this->approvedStartup();
 
-        // TRL: levels 1-3 fully checked, level 4 only partially checked —
-        // the score must land on 3, not 4, and not on the total count of
-        // checked boxes.
+        // TRL: levels 1-3 fully checked (3.0), level 4 only partially
+        // checked (1 of its 3 criteria — see ReadinessRubric::all(), which
+        // contributes 1/3 ≈ 0.333, not a flat 0 or a rounded-up whole
+        // point) — the score must land on 3.3, not 3 or 4.
         $trlProgress = $this->progressThroughLevel('TRL', 3);
         $trlProgress[4][0] = true; // one box checked in level 4, not all
 
@@ -233,11 +234,11 @@ class AssessmentTest extends TestCase
             ->first();
 
         $this->assertNotNull($assessment);
-        $this->assertSame(3, $assessment->trl_score);
-        $this->assertSame(5, $assessment->mrl_score);
-        $this->assertSame(2, $assessment->tmrl_score);
-        $this->assertSame(1, $assessment->srl_score);
-        // (3 + 5 + 2 + 1) / 4 = 2.75, rounded to 1 decimal.
+        $this->assertSame(3.3, $assessment->trl_score);
+        $this->assertSame(5.0, $assessment->mrl_score);
+        $this->assertSame(2.0, $assessment->tmrl_score);
+        $this->assertSame(1.0, $assessment->srl_score);
+        // (3.3 + 5 + 2 + 1) / 4 = 2.825, rounded to 1 decimal.
         $this->assertSame(2.8, $assessment->overall_score);
     }
 
@@ -263,7 +264,7 @@ class AssessmentTest extends TestCase
             ->where('stage', 'Pre-Assessment')
             ->count());
 
-        $this->assertSame(4, ReadinessLevelAssessment::where('startup_id', $startup->startup_id)
+        $this->assertSame(4.0, ReadinessLevelAssessment::where('startup_id', $startup->startup_id)
             ->where('stage', 'Pre-Assessment')
             ->first()->trl_score);
     }
@@ -348,9 +349,12 @@ class AssessmentTest extends TestCase
         $admin = User::factory()->create(['role' => 'Admin']);
         $startup = $this->approvedStartup();
 
+        // Real content (a checked business stage), not just an empty
+        // structure — a saved-but-blank document should NOT count as
+        // completed (see the dedicated blank-content test below).
         $this->actingAs($admin)->put(route('admin.assessment-hub.assessments.update-documents', $startup), [
             'stage' => 'Active-Assessment',
-            'document_6' => json_encode(['business_stage' => []]),
+            'document_6' => json_encode(['business_stage' => ['Ideation' => true]]),
         ]);
 
         $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', ['main' => 'assessment']));
@@ -360,6 +364,30 @@ class AssessmentTest extends TestCase
         $this->assertTrue($pillsByLabel['DOCUMENT 6']['completed']);
         $this->assertFalse($pillsByLabel['DOCUMENT 7']['completed']);
         $this->assertFalse($pillsByLabel['DOCUMENT 8']['completed']);
+    }
+
+    public function test_a_document_saved_with_no_real_content_is_not_marked_completed(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $startup = $this->approvedStartup();
+
+        // The row exists (the admin hit Save) but every field is still
+        // blank — this must NOT count as "completed"/"Started", unlike
+        // mere row-existence which it used to be judged on.
+        $this->actingAs($admin)->put(route('admin.assessment-hub.assessments.update-documents', $startup), [
+            'stage' => 'Active-Assessment',
+            'document_6' => json_encode(['business_stage' => []]),
+            'document_7' => json_encode(['check_ins' => []]),
+        ]);
+
+        $this->assertSame(2, AssessmentDocument::where('startup_id', $startup->startup_id)->count());
+
+        $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', ['main' => 'assessment']));
+        $row = collect($response->viewData('overviewRows'))->firstWhere('startup.startup_id', $startup->startup_id);
+        $pillsByLabel = collect($row['pills'])->keyBy('label');
+
+        $this->assertFalse($pillsByLabel['DOCUMENT 6']['completed']);
+        $this->assertFalse($pillsByLabel['DOCUMENT 7']['completed']);
     }
 
     public function test_an_rl_type_with_no_criteria_checked_has_a_null_score(): void
@@ -378,7 +406,7 @@ class AssessmentTest extends TestCase
         $assessment = ReadinessLevelAssessment::where('startup_id', $startup->startup_id)->first();
 
         $this->assertNull($assessment->trl_score);
-        $this->assertSame(2, $assessment->mrl_score);
+        $this->assertSame(2.0, $assessment->mrl_score);
     }
 
     public function test_selecting_a_startup_on_post_assessment_shows_the_rl_accordion(): void
@@ -485,14 +513,14 @@ class AssessmentTest extends TestCase
             'assessment_startup' => $startup->startup_id,
             'stage' => 'Pre-Assessment',
         ]));
-        $this->assertSame(3, $preResponse->viewData('stageSummary')->trl_score);
+        $this->assertSame(3.0, $preResponse->viewData('stageSummary')->trl_score);
 
         $postResponse = $this->actingAs($admin)->get(route('admin.assessment-hub.index', [
             'main' => 'assessment',
             'assessment_startup' => $startup->startup_id,
             'stage' => 'Post-Assessment',
         ]));
-        $this->assertSame(7, $postResponse->viewData('stageSummary')->trl_score);
+        $this->assertSame(7.0, $postResponse->viewData('stageSummary')->trl_score);
     }
 
     public function test_admin_can_view_the_venture_exit_startup_exit_form(): void
@@ -538,7 +566,7 @@ class AssessmentTest extends TestCase
         // page text, since the seeded value is embedded inside a JSON
         // x-data attribute (slashes get escaped there) rather than printed
         // as plain Blade output.
-        $this->assertSame(6, $response->viewData('postAssessmentSummary')->trl_score);
+        $this->assertSame(6.0, $response->viewData('postAssessmentSummary')->trl_score);
     }
 
     public function test_saving_the_venture_exit_form_persists_document_13(): void
@@ -661,8 +689,8 @@ class AssessmentTest extends TestCase
 
         $this->actingAs($admin)->put(route('admin.assessment-hub.assessments.update-documents', $startup), [
             'stage' => 'Active-Assessment',
-            'document_6' => json_encode(['business_stage' => []]),
-            'document_7' => json_encode(['check_ins' => []]),
+            'document_6' => json_encode(['business_stage' => ['Ideation' => true]]),
+            'document_7' => json_encode(['check_ins' => [['dates' => '2026-01-01', 'area_discussed' => 'Kickoff']]]),
             'document_8' => json_encode(['prototype_name' => 'Draft']),
         ]);
 

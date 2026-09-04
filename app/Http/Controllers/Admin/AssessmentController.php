@@ -124,9 +124,7 @@ class AssessmentController extends Controller
             'stage' => $validated['stage'],
             'assessment_startup' => $startup->startup_id,
             'rl_type' => $request->input('active_type'),
-        ])->with('status', 'assessment-saved')
-            ->with('assessed_startup', $startup->startup_id)
-            ->with('assessed_stage', $validated['stage']);
+        ])->with('status', 'Assessment saved successfully.');
     }
 
     /**
@@ -198,9 +196,7 @@ class AssessmentController extends Controller
             'stage' => $validated['stage'],
             'assessment_startup' => $startup->startup_id,
             'active_doc' => $validated['stage'] === 'Active-Assessment' ? $request->input('active_document') : null,
-        ]))->with('status', 'assessment-saved')
-            ->with('assessed_startup', $startup->startup_id)
-            ->with('assessed_stage', $validated['stage']);
+        ]))->with('status', 'Changes saved successfully.');
     }
 
     /**

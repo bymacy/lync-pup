@@ -36,10 +36,10 @@ class ReadinessLevelAssessment extends Model
             'mrl_progress' => 'array',
             'tmrl_progress' => 'array',
             'srl_progress' => 'array',
-            'trl_score' => 'integer',
-            'mrl_score' => 'integer',
-            'tmrl_score' => 'integer',
-            'srl_score' => 'integer',
+            'trl_score' => 'float',
+            'mrl_score' => 'float',
+            'tmrl_score' => 'float',
+            'srl_score' => 'float',
             'overall_score' => 'float',
         ];
     }
@@ -60,7 +60,7 @@ class ReadinessLevelAssessment extends Model
         return $this->{strtolower($type).'_progress'} ?? [];
     }
 
-    public function scoreFor(string $type): ?int
+    public function scoreFor(string $type): ?float
     {
         return $this->{strtolower($type).'_score'};
     }

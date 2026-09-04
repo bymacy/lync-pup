@@ -9,7 +9,6 @@ use App\Models\Roadblock;
 use App\Traits\CompressesImages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class RoadblockController extends Controller
 {
@@ -64,11 +63,16 @@ class RoadblockController extends Controller
     {
         $startup = Auth::user()->startup;
 
-        // Wrapped in a transaction so a file that fails to process (an
-        // unreadable image, say) rolls back the Roadblock row along with
-        // it, instead of leaving a half-submitted roadblock with some
-        // files silently missing and no error ever surfaced to the founder.
-        DB::transaction(function () use ($request, $startup) {
+        // Anything already flagged as unsupported/too-large/half-uploaded by
+        // StoreRoadblockRequest before we even got here.
+        $skipped = $request->skippedFiles;
+
+        // Wrapped in a transaction so the roadblock row itself is all-or-
+        // nothing, but a single file that fails to process (an unreadable
+        // image, say) no longer takes the whole submission down with it —
+        // it's skipped (and reported back to the founder) while every other
+        // file, and the roadblock itself, still goes through.
+        DB::transaction(function () use ($request, $startup, &$skipped) {
             $roadblock = Roadblock::create([
                 'startup_id' => $startup->startup_id,
                 'problem_category' => $request->validated('problem_category'),
@@ -85,9 +89,9 @@ class RoadblockController extends Controller
                         ? $this->compressAndStoreImage($file, "roadblocks/{$roadblock->roadblock_id}")
                         : $file->store("roadblocks/{$roadblock->roadblock_id}", 'public');
                 } catch (\RuntimeException $e) {
-                    throw ValidationException::withMessages([
-                        'supporting_files' => "\"{$file->getClientOriginalName()}\" couldn't be processed ({$e->getMessage()}). Please try a different file.",
-                    ]);
+                    $skipped[] = "\"{$file->getClientOriginalName()}\" couldn't be processed ({$e->getMessage()}).";
+
+                    continue;
                 }
 
                 $roadblock->files()->create([
@@ -100,6 +104,7 @@ class RoadblockController extends Controller
 
         return redirect()
             ->route('startup.submissions.index', ['tab' => 'roadblock'])
-            ->with('roadblock_submitted', true);
+            ->with('roadblock_submitted', true)
+            ->when(count($skipped) > 0, fn ($redirect) => $redirect->with('roadblock_skipped_files', $skipped));
     }
 }
