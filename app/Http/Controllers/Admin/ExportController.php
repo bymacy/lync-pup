@@ -7,12 +7,14 @@ use App\Models\AssessmentDocument;
 use App\Models\ReadinessLevelAssessment;
 use App\Models\SavedReport;
 use App\Models\Startup;
+use App\Services\Exports\WordDocumentExporter;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use ZipArchive;
 
 class ExportController extends Controller
@@ -37,6 +39,13 @@ class ExportController extends Controller
         12 => ['label' => 'Post-Assessment SRL', 'form_no' => '012'],
         13 => ['label' => 'Startup Exit Form', 'form_no' => '013'],
     ];
+
+    protected WordDocumentExporter $wordExporter;
+
+    public function __construct(WordDocumentExporter $wordExporter)
+    {
+        $this->wordExporter = $wordExporter;
+    }
 
     /**
      * Returns the checklist (document numbers + labels) for the "Select
@@ -134,15 +143,40 @@ class ExportController extends Controller
         $batch = (string) Str::uuid();
         $dir = "exports/{$startup->startup_id}/{$batch}";
 
-        $sections = [];
-        foreach ($documentNumbers as $num) {
-            $sections[$num] = $this->renderDocumentContent($num, $startup);
+        // "PDF Bundle" merges every selected document into ONE PDF by
+        // concatenating their HTML before a single DomPDF pass. A
+        // document rendered from a real Word master (see
+        // WordDocumentExporter) isn't HTML at all by the time it's a
+        // PDF, so it can't be folded into that same pass - there's no
+        // merge step yet that stitches an already-rendered PDF into
+        // another one. Blocked here rather than silently dropping the
+        // Word-backed document or silently falling back to the old
+        // Blade recreation for it.
+        $wordBacked = array_values(array_filter($documentNumbers, fn ($n) => $this->wordExporter->hasTemplate($n)));
+
+        // A Word-backed document is a filled .docx now, not a PDF at all
+        // (see WordDocumentExporter::renderDocument1() - PDF conversion via
+        // LibreOffice was dropped after it proved unreliable on Macy's
+        // Windows setup). "PDF Bundle" promises one merged PDF, which a
+        // .docx can't be part of, even alone - so it's blocked outright
+        // whenever a Word-backed document is selected, not just when it's
+        // combined with others.
+        if ($format === 'PDF Bundle' && count($wordBacked) > 0) {
+            $label = self::DOCUMENTS[$wordBacked[0]]['label'];
+
+            throw ValidationException::withMessages([
+                'format' => [
+                    "\"PDF Bundle\" can't include \"{$label}\" — it now exports as a real .docx from the "
+                    .'PUP-TBIDO Word master, not a PDF, so it has nothing to merge into a PDF bundle. '
+                    .'Choose "Individual PDFs" or "ZIP Archive" instead.',
+                ],
+            ]);
         }
 
         $files = match ($format) {
-            'PDF Bundle' => [$this->makeBundleFile($dir, $baseName, $sections)],
-            'Individual PDFs' => $this->makeIndividualFiles($dir, $baseName, $sections),
-            'ZIP Archive' => [$this->makeZipFile($dir, $baseName, $sections)],
+            'PDF Bundle' => [$this->makeBundleFile($dir, $baseName, $documentNumbers, $startup)],
+            'Individual PDFs' => $this->makeIndividualFiles($dir, $baseName, $documentNumbers, $startup),
+            'ZIP Archive' => [$this->makeZipFile($dir, $baseName, $documentNumbers, $startup)],
         };
 
         return response()->json([
@@ -228,14 +262,16 @@ class ExportController extends Controller
 
     /**
      * Dev/QA helper: streams a single document's PDF straight into the
-     * browser tab (inline, not a download) so layout tweaks in the Blade
-     * views can be checked with just a page refresh - no need to go
-     * through Generate -> Save -> Download each time.
+     * browser tab (inline, not a download) so layout tweaks can be
+     * checked with just a page refresh - no need to go through
+     * Generate -> Save -> Download each time.
      *
      * Visit /admin/exports/preview to preview document 1 for the first
      * startup in the database, or /admin/exports/preview/{startup} for a
      * specific one. Add ?document=N to preview a different document
-     * number (only document 1 has its pixel-matched template so far).
+     * number. Document 1 renders from the real Word master
+     * (WordDocumentExporter); every other number still goes through the
+     * DomPDF/Blade recreation until real masters exist for them too.
      */
     public function preview(Request $request, ?Startup $startup = null)
     {
@@ -244,13 +280,58 @@ class ExportController extends Controller
         abort_unless($startup, 404, 'No startups found to preview.');
 
         $documentNumber = (int) $request->query('document', 1);
+        $binary = $this->renderDocumentPdf($documentNumber, $startup);
+        $extension = $this->extensionFor($documentNumber);
+        $contentType = $extension === 'docx'
+            ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            : 'application/pdf';
+
+        // A .docx can't render inline in a browser tab the way a PDF does -
+        // "inline" here just means the browser picks its own default (most
+        // will still download it), so Macy opens it in Word herself.
+        return response($binary, 200, [
+            'Content-Type' => $contentType,
+            'Content-Disposition' => "inline; filename=\"preview-doc{$documentNumber}.{$extension}\"",
+        ]);
+    }
+
+    /**
+     * The file extension a document actually renders as: "docx" for a
+     * Word-backed document (see WordDocumentExporter::outputExtension()),
+     * "pdf" for everything still on the DomPDF/Blade pipeline.
+     */
+    protected function extensionFor(int $documentNumber): string
+    {
+        return $this->wordExporter->hasTemplate($documentNumber)
+            ? $this->wordExporter->outputExtension($documentNumber)
+            : 'pdf';
+    }
+
+    // ============ document rendering ============
+
+    /**
+     * Renders one document to a finished PDF binary, picking the real
+     * Word master (WordDocumentExporter) when one exists for this
+     * document number, and falling back to the DomPDF/Blade recreation
+     * otherwise. Every caller that needs a single document's PDF bytes
+     * should go through this rather than DomPDF directly, so document 1
+     * (and any future document that gets a real master) automatically
+     * benefits everywhere: preview, Individual PDFs, ZIP Archive, and a
+     * single-document PDF Bundle.
+     */
+    protected function renderDocumentPdf(int $documentNumber, Startup $startup): string
+    {
+        $wordPdf = $this->wordExporter->render($documentNumber, $startup);
+
+        if ($wordPdf !== null) {
+            return $wordPdf;
+        }
+
         $html = $this->renderDocumentContent($documentNumber, $startup);
         $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => [$html]])->setPaper($this->paperSizeFor($documentNumber));
 
-        return $pdf->stream("preview-doc{$documentNumber}.pdf");
+        return $pdf->output();
     }
-
-    // ============ document content resolution ============
 
     protected function renderDocumentContent(int $documentNumber, Startup $startup): string
     {
@@ -303,27 +384,38 @@ class ExportController extends Controller
     // ============ file builders ============
 
     /**
-     * Document 1 (Startup Information Sheet) is printed on Legal paper
-     * (8.5in x 14in) per Macy's request - every other document keeps the
-     * A4 default. DomPDF renders one paper size per PDF, so a bundle that
-     * mixes document 1 with other documents in a single merged file can't
-     * honor both sizes at once; in that mixed case the whole bundle falls
-     * back to A4 (only a bundle containing document 1 *alone* switches to
-     * Legal). Individual-PDF and ZIP exports are unaffected by this since
-     * each document already gets its own separate PDF there.
+     * Every document prints on Legal paper (8.5in x 14in - DomPDF's
+     * built-in "legal" preset, 612x1008pt) per Macy's spec. Only used by
+     * the DomPDF/Blade fallback path now - a document rendered from a
+     * real Word master takes its page size from that master's own
+     * @page section instead.
      */
     protected function paperSizeFor(int $documentNumber): string
     {
-        return $documentNumber === 1 ? 'legal' : 'a4';
+        return 'legal';
     }
 
     /**
-     * @param  array<int, string>  $sections  document number => rendered content-only HTML
+     * @param  array<int, int>  $documentNumbers
      */
-    protected function makeBundleFile(string $dir, string $baseName, array $sections): array
+    protected function makeBundleFile(string $dir, string $baseName, array $documentNumbers, Startup $startup): array
     {
-        $paper = array_keys($sections) === [1] ? 'legal' : 'a4';
-        $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => array_values($sections)])->setPaper($paper);
+        // generate() already blocks "PDF Bundle" outright whenever any
+        // selected document is Word-backed (it's a .docx now, not a PDF -
+        // nothing to merge into a bundle), so every document reaching this
+        // method is on the DomPDF/Blade pipeline. Defensive check instead
+        // of silently mis-handling it if that guard is ever changed.
+        foreach ($documentNumbers as $num) {
+            if ($this->wordExporter->hasTemplate($num)) {
+                throw new \RuntimeException(
+                    "Document {$num} is Word-backed and can't be part of a PDF Bundle - this should have "
+                    .'been caught by the validation in generate() before reaching here.'
+                );
+            }
+        }
+
+        $sections = array_map(fn ($num) => $this->renderDocumentContent($num, $startup), $documentNumbers);
+        $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => $sections])->setPaper('legal');
         $binary = $pdf->output();
 
         $fileName = "{$baseName}.pdf";
@@ -334,24 +426,27 @@ class ExportController extends Controller
             'file_name' => $fileName,
             'file_path' => $path,
             'format' => 'PDF Bundle',
-            'document_numbers' => array_keys($sections),
-            'page_count' => $this->pageCount($pdf),
+            'document_numbers' => $documentNumbers,
+            'page_count' => $this->pageCount($binary),
             'file_size_bytes' => strlen($binary),
             'file_size_label' => $this->sizeLabel(strlen($binary)),
             'download_url' => Storage::disk('public')->url($path),
         ];
     }
 
-    protected function makeIndividualFiles(string $dir, string $baseName, array $sections): array
+    /**
+     * @param  array<int, int>  $documentNumbers
+     */
+    protected function makeIndividualFiles(string $dir, string $baseName, array $documentNumbers, Startup $startup): array
     {
         $files = [];
 
-        foreach ($sections as $num => $html) {
-            $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => [$html]])->setPaper($this->paperSizeFor($num));
-            $binary = $pdf->output();
+        foreach ($documentNumbers as $num) {
+            $binary = $this->renderDocumentPdf($num, $startup);
+            $extension = $this->extensionFor($num);
 
             $label = self::DOCUMENTS[$num]['label'];
-            $fileName = $this->sanitizeFileName("{$baseName} - {$label}").'.pdf';
+            $fileName = $this->sanitizeFileName("{$baseName} - {$label}").".{$extension}";
             $path = "{$dir}/{$fileName}";
             Storage::disk('public')->put($path, $binary);
 
@@ -360,7 +455,10 @@ class ExportController extends Controller
                 'file_path' => $path,
                 'format' => 'Individual PDFs',
                 'document_numbers' => [$num],
-                'page_count' => $this->pageCount($pdf),
+                // pageCount() looks for PDF page objects in the bytes - not
+                // meaningful for a .docx, so it's skipped there rather than
+                // reporting a wrong number.
+                'page_count' => $extension === 'pdf' ? $this->pageCount($binary) : null,
                 'file_size_bytes' => strlen($binary),
                 'file_size_label' => $this->sizeLabel(strlen($binary)),
                 'download_url' => Storage::disk('public')->url($path),
@@ -370,7 +468,10 @@ class ExportController extends Controller
         return $files;
     }
 
-    protected function makeZipFile(string $dir, string $baseName, array $sections): array
+    /**
+     * @param  array<int, int>  $documentNumbers
+     */
+    protected function makeZipFile(string $dir, string $baseName, array $documentNumbers, Startup $startup): array
     {
         $fileName = "{$baseName}.zip";
         $path = "{$dir}/{$fileName}";
@@ -393,13 +494,13 @@ class ExportController extends Controller
         }
 
         $totalPages = 0;
-        foreach ($sections as $num => $html) {
-            $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => [$html]])->setPaper($this->paperSizeFor($num));
-            $binary = $pdf->output();
-            $totalPages += $this->pageCount($pdf) ?? 0;
+        foreach ($documentNumbers as $num) {
+            $binary = $this->renderDocumentPdf($num, $startup);
+            $extension = $this->extensionFor($num);
+            $totalPages += $extension === 'pdf' ? ($this->pageCount($binary) ?? 0) : 0;
 
             $label = self::DOCUMENTS[$num]['label'];
-            $zip->addFromString($this->sanitizeFileName($label).'.pdf', $binary);
+            $zip->addFromString($this->sanitizeFileName($label).".{$extension}", $binary);
         }
 
         $zip->close();
@@ -414,7 +515,7 @@ class ExportController extends Controller
             'file_name' => $fileName,
             'file_path' => $path,
             'format' => 'ZIP Archive',
-            'document_numbers' => array_keys($sections),
+            'document_numbers' => $documentNumbers,
             'page_count' => $totalPages ?: null,
             'file_size_bytes' => $size,
             'file_size_label' => $this->sizeLabel($size),
@@ -424,13 +525,22 @@ class ExportController extends Controller
 
     // ============ helpers ============
 
-    protected function pageCount($pdf): ?int
+    /**
+     * Counts pages by counting "/Type /Page" object dictionaries in the
+     * raw PDF bytes (excluding "/Type /Pages", the page-tree node, via the
+     * trailing "s"). Works the same way regardless of whether the PDF
+     * came from DomPDF or from LibreOffice's Word-to-PDF conversion, so
+     * this replaced the old DomPDF-canvas-specific pageCount() - there's
+     * no DomPDF object at all for a document rendered from a Word master.
+     * Not bulletproof against every possible PDF producer's internal
+     * structure, but solid for the two producers this app actually uses.
+     */
+    protected function pageCount(string $pdfBinary): ?int
     {
         try {
-            $domPdf = $pdf->getDomPDF();
-            $canvas = method_exists($domPdf, 'getCanvas') ? $domPdf->getCanvas() : $domPdf->get_canvas();
+            $count = preg_match_all('/\/Type\s*\/Page(?!s)/', $pdfBinary);
 
-            return $canvas->get_page_count();
+            return $count > 0 ? $count : null;
         } catch (\Throwable $e) {
             return null;
         }

@@ -55,6 +55,7 @@
                 @foreach (\App\Support\TrlOverviewForm::INDUSTRY_FOCUS as $option)
                     <span class="checkbox">{{ in_array($option, data_get($overview, 'industry_focus', [])) ? 'X' : '' }}</span> {{ $option }}&nbsp;&nbsp;
                 @endforeach
+                <span class="checkbox">{{ data_get($overview, 'industry_focus_other_enabled') ? 'X' : '' }}</span> Others: {!! $v(data_get($overview, 'industry_focus_other_text')) !!}
             </td>
         </tr>
         <tr>
@@ -88,7 +89,7 @@
                 <table class="bordered" style="margin-top: 4px;">
                     <tr><th>Role</th><th>Name</th></tr>
                     @foreach (\App\Support\TrlOverviewForm::TECH_TEAM_ROLES as $role)
-                    <tr><td>{{ $role }}</td><td>{!! $v(data_get($overview, "tech_team.$role")) !!}</td></tr>
+                    <tr><td>{{ $role }}</td><td>{!! $v(data_get($overview, "tech_team_roles.$role")) !!}</td></tr>
                     @endforeach
                 </table>
             </td>
@@ -120,8 +121,9 @@
             <td valign="top">
                 <b>Mode of Communication:</b><br>
                 @foreach (\App\Support\TrlOverviewForm::MODES_OF_COMMUNICATION as $option)
-                    <span class="checkbox">{{ data_get($overview, 'mode_of_communication') === $option ? 'X' : '' }}</span> {{ $option }}&nbsp;&nbsp;
+                    <span class="checkbox">{{ in_array($option, data_get($overview, 'mode_of_communication', [])) ? 'X' : '' }}</span> {{ $option }}&nbsp;&nbsp;
                 @endforeach
+                <span class="checkbox">{{ data_get($overview, 'mode_of_communication_other_enabled') ? 'X' : '' }}</span> Other: {!! $v(data_get($overview, 'mode_of_communication_other_text')) !!}
             </td>
         </tr>
     </table>

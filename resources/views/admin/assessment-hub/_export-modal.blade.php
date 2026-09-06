@@ -42,11 +42,10 @@
         selectedDocs: [],
         availableDocs: [],
         loadingAvailableDocs: false,
-        format: 'PDF Bundle',
+        format: 'Individual PDFs',
         formats: [
-            { value: 'PDF Bundle', label: 'Export as PDF Bundle' },
-            { value: 'Individual PDFs', label: 'Export as Individual PDFs' },
-            { value: 'ZIP Archive', label: 'Export as ZIP' },
+            { value: 'Individual PDFs', label: 'Export Individual DOCX' },
+            { value: 'ZIP Archive', label: 'Export ZIP File' },
         ],
         fileName: '',
         progress: 0,
@@ -72,8 +71,7 @@
         get headerSubtitle() {
             if (this.step === 'generating') {
                 const messages = {
-                    'PDF Bundle': 'Preparing startup records and compiling PDF Bundle.',
-                    'Individual PDFs': 'Preparing startup records and compiling Individual PDF\'s.',
+                    'Individual PDFs': 'Preparing startup records and compiling Individual DOCX files.',
                     'ZIP Archive': 'Preparing startup records and compiling ZIP File.',
                 };
                 return messages[this.format] || 'Preparing startup records and compiling your export.';
@@ -105,12 +103,22 @@
             return this.availableDocs.includes(num);
         },
 
+        // ZIP only makes sense once more than one document is selected -
+        // with just one, it'd just be a zip containing a single file.
+        get zipAvailable() {
+            return this.selectedDocs.length > 1;
+        },
+
+        get availableFormats() {
+            return this.formats.filter(f => f.value !== 'ZIP Archive' || this.zipAvailable);
+        },
+
         openModal() {
             this.step = 'select';
             this.startupId = null;
             this.selectedDocs = [];
             this.availableDocs = [];
-            this.format = 'PDF Bundle';
+            this.format = 'Individual PDFs';
             this.fileName = '';
             this.result = null;
             this.error = null;
@@ -131,6 +139,7 @@
             this.startupId = id;
             this.selectedDocs = [];
             this.availableDocs = [];
+            this.format = 'Individual PDFs';
             this.loadingAvailableDocs = true;
 
             try {
@@ -153,6 +162,12 @@
             this.selectedDocs = this.selectedDocs.includes(num)
                 ? this.selectedDocs.filter(n => n !== num)
                 : [...this.selectedDocs, num];
+
+            // Drop back to Individual automatically once the selection
+            // shrinks to one document and ZIP is no longer offered.
+            if (! this.zipAvailable && this.format === 'ZIP Archive') {
+                this.format = 'Individual PDFs';
+            }
         },
 
         csrfToken() {
@@ -440,7 +455,7 @@
                                 x-transition:enter-end="opacity-100 translate-y-0"
                                 class="absolute bottom-full left-0 z-30 mb-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
 
-                                <template x-for="opt in formats.filter(o => o.value !== format)" :key="opt.value">
+                                <template x-for="opt in availableFormats.filter(o => o.value !== format)" :key="opt.value">
                                     <button type="button" role="option" :aria-selected="format === opt.value"
                                         @click="format = opt.value; open = false"
                                         class="w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white"

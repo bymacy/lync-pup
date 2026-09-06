@@ -38,7 +38,7 @@ class TrlOverviewForm
 
     public const TOPICS_OF_INTEREST_COLUMN_1 = ['Software Engineering', 'Infrastructure and Engineering', 'AI/Machine Learning', 'Product Design', 'Database Management'];
 
-    public const TOPICS_OF_INTEREST_COLUMN_2 = ['Q/A Testing', 'Cybersecurity', 'IT Project Management', 'UI/UX'];
+    public const TOPICS_OF_INTEREST_COLUMN_2 = ['Q/A Testing', 'Cybersecurity', 'IT Project Management', 'UI/UX', 'Operation Support'];
 
     public const MODES_OF_COMMUNICATION = ['Face-to-Face', 'Online', 'Hybrid'];
 }

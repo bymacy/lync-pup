@@ -91,6 +91,8 @@ for ($i = 0; $i < $count; $i++) {
         'tech_lead' => $storedOverview['tech_lead'] ?? ($overviewTechLead ?? ''),
         'contact_info' => $storedOverview['contact_info'] ?? ($overviewContactInfo ?? ''),
         'industry_focus' => $storedOverview['industry_focus'] ?? [],
+        'industry_focus_other_enabled' => (bool) ($storedOverview['industry_focus_other_enabled'] ?? false),
+        'industry_focus_other_text' => $storedOverview['industry_focus_other_text'] ?? '',
         'tech_stack' => array_merge(
         array_fill_keys(array_keys(\App\Support\TrlOverviewForm::TECH_STACK_FIELDS), ''),
         $storedOverview['tech_stack'] ?? []
@@ -645,13 +647,19 @@ for ($i = 0; $i < $count; $i++) {
 
                                         <div>
                                             <p class="mb-2 text-sm font-semibold text-gray-700">Industry Focus</p>
-                                            <div class="flex flex-wrap gap-3">
+                                            <div class="flex flex-wrap items-start gap-3">
                                                 @foreach (\App\Support\TrlOverviewForm::INDUSTRY_FOCUS as $option)
                                                 <label class="flex items-start gap-2 text-sm text-gray-700">
                                                     <input type="checkbox" value="{{ $option }}" x-model="trlOverview.industry_focus" class="mt-0.5 shrink-0">
                                                     {{ $option }}
                                                 </label>
                                                 @endforeach
+                                                <label class="flex items-start gap-2 text-sm text-gray-700">
+                                                    <input type="checkbox" x-model="trlOverview.industry_focus_other_enabled" class="mt-0.5 shrink-0">
+                                                    Others:
+                                                </label>
+                                                <input type="text" x-show="trlOverview.industry_focus_other_enabled" x-model="trlOverview.industry_focus_other_text"
+                                                    class="w-40 rounded-md border border-gray-300 px-2 py-1 text-sm">
                                             </div>
                                         </div>
 
