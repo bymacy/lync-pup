@@ -74,8 +74,8 @@
     confirmingApprove: false,
     lastClickedInput: null,
 
-    // Approve & Lock warning: reuses the exact "warn with specific reasons,
-    // let the admin proceed anyway" pattern Venture Exit's own Save
+    // Approve & Lock warning: reuses the exact 'warn with specific reasons,
+    // let the admin proceed anyway' pattern Venture Exit's own Save
     // Assessment gate already uses (_venture-exit.blade.php's trySubmit /
     // showIncompleteConfirm / proceedAnyway). Only intercepts the actual
     // submit — if nothing is incomplete, it goes straight through.

@@ -40,13 +40,15 @@
             ['route' => 'admin.coordinators.index', 'label' => 'Coordinator Profile', 'icon' => 'coordProfile.svg'],
             ['route' => 'admin.assessment-hub.index', 'label' => 'Assessment Hub', 'icon' => 'assessmentHub.svg'],
             ['route' => 'admin.roadblocks.index', 'label' => 'Roadblock Management', 'icon' => 'roadblock.svg'],
-            [
-            'route' => 'admin.risk-monitoring.index',
-            'label' => 'Risk Monitoring',
-            'icon' => 'riskMon.svg',
-            'hasUnseen' => false,
-            ],
+            ['route' => 'admin.risk-monitoring.index', 'label' => 'Risk Monitoring', 'icon' => 'riskMon.svg'],
             ];
+
+            // "Anything new here since I last looked" per nav item — shared
+            // by a global view composer (AppServiceProvider::boot()) rather
+            // than baked into $navItems above, since it depends on the
+            // logged-in admin and changes without this file re-rendering
+            // any differently.
+            $adminSidebarBadges = $adminSidebarBadges ?? [];
             @endphp
 
             <div
@@ -139,8 +141,8 @@
                                     {{ $item['label'] }}
                                 </span>
 
-                                @if (!empty($item['hasUnseen']))
-                                <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
+                                @if (!empty($adminSidebarBadges[$item['route']] ?? false))
+                                <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="New since your last visit" aria-label="New since your last visit"></span>
                                 @endif
                             </a>
                             @endforeach

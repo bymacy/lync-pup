@@ -164,8 +164,8 @@
         exportSelected() {
             if (! this.canExport) return;
             const today = new Date().toISOString().slice(0, 10);
-            // "Export" used to sit in the middle of the default name — replaced
-            // with the actual document numbers included (e.g. "Doc1,2,3,4,12,13")
+            // 'Export' used to sit in the middle of the default name — replaced
+            // with the actual document numbers included (e.g. Doc1,2,3,4,12,13)
             // so the file name itself says what's inside without opening it.
             const docList = [...this.selectedDocs].sort((a, b) => a - b).join(',');
             this.fileName = `${this.startupName} - Doc${docList} - ${today}`;

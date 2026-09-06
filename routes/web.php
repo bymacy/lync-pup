@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\StorageController;
+use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\Admin\StartupProfileController;
 use App\Http\Controllers\Admin\CoordinatorAssignmentController;
 use App\Http\Controllers\Admin\InformationSheetController;
@@ -28,6 +29,10 @@ use App\Http\Controllers\Startup\FounderReadinessController;
 
 
 require __DIR__.'/auth.php';
+
+// Public marketing landing page — meant to be linked from/embedded in the
+// incubation's own public website, not part of the app's internal nav.
+Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 // Placeholder legal pages linked from the Founder registration form.
 Route::get('/terms-of-service', function () {

@@ -7,6 +7,7 @@ use App\Models\AssessmentDocument;
 use App\Models\Cohort;
 use App\Models\Startup;
 use App\Support\RiskEngine;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class RiskMonitoringController extends Controller
@@ -71,6 +72,40 @@ class RiskMonitoringController extends Controller
             ])
             ->sortByDesc(fn ($row) => $row['assessment']['score'])
             ->values();
+
+        // Sidebar red-dot signature (see AppServiceProvider's admin sidebar
+        // view composer): deliberately NOT scoped to the currently-selected
+        // cohort — "is there anything new anywhere" should read the same
+        // regardless of which cohort filter this admin happens to have
+        // active. Reuses the assessments already computed above when no
+        // filter is applied (the common case); only re-assesses the full
+        // startup set when $cohortId narrowed $startups.
+        $allAssessments = $cohortId
+            ? (function () {
+                $allStartups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])->get();
+                $allDocuments = AssessmentDocument::whereIn('startup_id', $allStartups->pluck('startup_id'))->get()->groupBy('startup_id');
+
+                return $allStartups->mapWithKeys(fn (Startup $s) => [
+                    $s->startup_id => RiskEngine::assess($s, $allDocuments->get($s->startup_id)),
+                ]);
+            })()
+            : $assessments;
+
+        $signature = md5(
+            $allAssessments
+                ->flatMap(fn ($assessment, $startupId) => collect($assessment['indicators'])->map(fn ($i) => $startupId.':'.$i['key']))
+                ->sort()
+                ->values()
+                ->implode(',')
+        );
+
+        // Global "current state" for every admin to compare against, plus
+        // this admin's own "as of my last visit" marker — visiting this
+        // page at all (any cohort filter) counts as having seen the current
+        // overall state, clearing their own dot even if it stays lit for
+        // other admins who haven't looked yet.
+        Cache::forever('risk_monitoring_signature', $signature);
+        auth()->user()->forceFill(['risk_monitoring_seen_signature' => $signature])->save();
 
         return view('admin.risk-monitoring.index', [
             'totalStartups' => $startups->count(),

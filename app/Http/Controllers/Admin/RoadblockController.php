@@ -9,6 +9,7 @@ use App\Models\Coordinator;
 use App\Models\Mentor;
 use App\Models\Roadblock;
 use App\Notifications\MentorshipScheduled;
+use App\Notifications\NewRoadblockSubmitted;
 use App\Notifications\RoadblockStatusUpdated;
 
 class RoadblockController extends Controller
@@ -16,6 +17,14 @@ class RoadblockController extends Controller
     public function index()
     {
         Roadblock::promoteEndedMeetingsToPendingReview();
+
+        // Sidebar red-dot badge (see AppServiceProvider's admin sidebar view
+        // composer): visiting this page at all counts as having seen every
+        // "new roadblock submitted" notification, same "seen on visit"
+        // clearing rule as Risk Monitoring's.
+        auth()->user()->unreadNotifications()
+            ->where('type', NewRoadblockSubmitted::class)
+            ->update(['read_at' => now()]);
 
         // The app-wide selected cohort (see ResolveSelectedCohort) — every
         // stage table below narrows to just this cohort's roadblocks when
