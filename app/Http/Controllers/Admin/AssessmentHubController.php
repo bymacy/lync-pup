@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AssessmentDocument;
 use App\Models\EvaluationSchedule;
 use App\Models\ReadinessLevelAssessment;
+use App\Models\Cohort;
 use App\Models\SavedReport;
 use App\Models\Startup;
 use App\Support\ReadinessRubric;
@@ -16,6 +17,11 @@ class AssessmentHubController extends Controller
 {
     public function index(Request $request): View
     {
+        // The app-wide selected cohort (see ResolveSelectedCohort) — every
+        // startup-scoped list on this page narrows to just this cohort when
+        // one is selected, instead of always mixing every cohort together.
+        $cohortId = session('selected_cohort_id');
+
         // "Awaiting Schedule" / "Unscheduled" — every startup that isn't yet
         // Approved/Rejected and has no active (Scheduled) evaluation, regardless
         // of how far along their Information Sheet is (see
@@ -29,11 +35,32 @@ class AssessmentHubController extends Controller
             $pendingPerPage = 4;
         }
 
-        $pendingStartups = Startup::with(['informationSheet', 'latestEvaluationSchedule'])
+        $pendingQuery = Startup::with(['informationSheet', 'latestEvaluationSchedule'])
             ->pending()
             ->whereDoesntHave('evaluationSchedules', fn ($q) => $q->where('status', 'Scheduled'))
-            ->orderBy('created_at')
-            ->paginate($pendingPerPage)
+            ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
+            ->orderBy('created_at');
+
+        // The Startup Profile "View Status" button (and anything else that
+        // links here with a '?highlight=startup-{id}') needs that row to
+        // actually be rendered for flashHighlightFromQuery() (resources/js/
+        // app.js) to find it — so when no explicit 'page' was requested,
+        // jump straight to whichever page this list's own ordering puts the
+        // highlighted startup on, instead of always defaulting to page 1 and
+        // silently failing to highlight a row that isn't even on it.
+        $pendingPage = (int) $request->query('page', 1);
+        $highlight = (string) $request->query('highlight', '');
+        if (! $request->query('page') && str_starts_with($highlight, 'startup-')) {
+            $highlightedStartupId = (int) substr($highlight, strlen('startup-'));
+            $position = (clone $pendingQuery)->pluck('startup_id')->search($highlightedStartupId);
+
+            if ($position !== false) {
+                $pendingPage = (int) floor($position / $pendingPerPage) + 1;
+            }
+        }
+
+        $pendingStartups = $pendingQuery
+            ->paginate($pendingPerPage, ['*'], 'page', $pendingPage)
             ->withQueryString();
 
         // Once a startup's Information Sheet is approved, they're done with
@@ -44,11 +71,13 @@ class AssessmentHubController extends Controller
             ->where('status', 'Scheduled')
             ->whereDate('evaluation_date', now()->toDateString())
             ->whereDoesntHave('startup.informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
+            ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
             ->orderBy('start_time')
             ->get();
 
         $scheduled = EvaluationSchedule::with('startup.informationSheet')
             ->where('status', 'Scheduled')
+            ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
             ->get();
 
         $activeSchedules = $scheduled->reject(
@@ -70,6 +99,7 @@ class AssessmentHubController extends Controller
 
         $approvedStartups = Startup::with('informationSheet')
             ->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
+            ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
             ->orderBy('company_name')
             ->get();
 
@@ -218,20 +248,11 @@ class AssessmentHubController extends Controller
         // One row per assessable startup, with a completed/not-started pill
         // for each stage/RL-type combo — "Document 6/7/8" pills are
         // "completed" once that document has been saved at least once.
-        $pillDefinitions = [
-            ['label' => 'PRE - TRL', 'stage' => 'Pre-Assessment', 'type' => 'TRL', 'nav_stage' => 'Pre-Assessment'],
-            ['label' => 'PRE - MRL', 'stage' => 'Pre-Assessment', 'type' => 'MRL', 'nav_stage' => 'Pre-Assessment'],
-            ['label' => 'PRE - SRL', 'stage' => 'Pre-Assessment', 'type' => 'SRL', 'nav_stage' => 'Pre-Assessment'],
-            ['label' => 'PRE - TMRL', 'stage' => 'Pre-Assessment', 'type' => 'TMRL', 'nav_stage' => 'Pre-Assessment'],
-            ['label' => 'DOCUMENT 6', 'document' => 6, 'nav_stage' => 'Active-Assessment'],
-            ['label' => 'DOCUMENT 7', 'document' => 7, 'nav_stage' => 'Active-Assessment'],
-            ['label' => 'DOCUMENT 8', 'document' => 8, 'nav_stage' => 'Active-Assessment'],
-            ['label' => 'POST - TRL', 'stage' => 'Post-Assessment', 'type' => 'TRL', 'nav_stage' => 'Post-Assessment'],
-            ['label' => 'POST - MRL', 'stage' => 'Post-Assessment', 'type' => 'MRL', 'nav_stage' => 'Post-Assessment'],
-            ['label' => 'POST - SRL', 'stage' => 'Post-Assessment', 'type' => 'SRL', 'nav_stage' => 'Post-Assessment'],
-            ['label' => 'POST - TMRL', 'stage' => 'Post-Assessment', 'type' => 'TMRL', 'nav_stage' => 'Post-Assessment'],
-            ['label' => 'VENTURE EXIT', 'document' => \App\Support\VentureExitForm::DOCUMENT_NUMBER, 'nav_stage' => 'Venture Exit'],
-        ];
+        // Single source of truth shared with ReadinessRubric::incompleteLabelsFor()
+        // (used by Venture Exit's Save Assessment gate and Information
+        // Sheet's Approve & Lock gate), so every "which pills exist" list
+        // in the app stays in agreement.
+        $pillDefinitions = ReadinessRubric::PILL_DEFINITIONS;
 
         $assessmentsByStartup = ReadinessLevelAssessment::whereIn('startup_id', $assessableStartups->pluck('startup_id'))
             ->get()
@@ -345,6 +366,10 @@ class AssessmentHubController extends Controller
             'overviewRows' => $overviewRows,
             'initialActiveType' => $initialActiveType,
             'initialActiveDoc' => $initialActiveDoc,
+            'selectedCohortId' => $cohortId ? (int) $cohortId : null,
+            'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+                ->orderBy('number')
+                ->get(),
         ]);
     }
 }

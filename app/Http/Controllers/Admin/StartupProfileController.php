@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Cohort;
 use App\Models\Startup;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -14,6 +15,12 @@ class StartupProfileController extends Controller
 {
     public function index(Request $request): View
     {
+        // The app-wide selected cohort (see ResolveSelectedCohort) — picking
+        // a specific cohort anywhere (Dashboard, Founder Applications, etc.)
+        // scopes this page down to just that cohort too, instead of this
+        // page always showing every cohort's startups mixed together.
+        $cohortId = session('selected_cohort_id');
+
         // "Startup Profile" tracks progress AFTER a founder's application has
         // been approved (Founder Application handles the Pending/Rejected
         // vetting stage) — so every tab, every stat, and the "Total Startup"
@@ -21,6 +28,7 @@ class StartupProfileController extends Controller
         // still-pending or rejected applicants.
         $query = Startup::query()
             ->applicationApproved()
+            ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
             ->with(['informationSheet', 'activeCoordinatorAssignment.coordinator', 'evaluationSchedules']);
 
         $query = match ($request->query('tab', 'all')) {
@@ -33,28 +41,38 @@ class StartupProfileController extends Controller
 
         $startups = $query->latest()->paginate(12)->withQueryString();
 
-        $totalStartups = Startup::applicationApproved()->count();
-        $activeStartups = Startup::applicationApproved()->active()->count();
-        $needsCoordinatorStartups = Startup::applicationApproved()->needsCoordinator()->count();
+        $scopedTotal = fn () => Startup::applicationApproved()->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId));
+
+        $totalStartups = $scopedTotal()->count();
+        $activeStartups = $scopedTotal()->active()->count();
+        $needsCoordinatorStartups = $scopedTotal()->needsCoordinator()->count();
 
         return view('admin.startups.index', [
             'startups' => $startups,
             'activeTab' => $request->query('tab', 'all'),
+            'selectedCohortId' => $cohortId ? (int) $cohortId : null,
+            'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+                ->orderBy('number')
+                ->get(),
             'totals' => [
                 'total' => $totalStartups,
                 'active' => $activeStartups,
                 'needsCoordinator' => $needsCoordinatorStartups,
-                'pending' => Startup::applicationApproved()->awaitingEvaluation()->count(),
+                'pending' => $scopedTotal()->awaitingEvaluation()->count(),
             ],
             // cohort_number (not the newer cohort_id -> cohorts table FK) is the
             // field actually populated on existing startups and used everywhere
             // else in the app (see Startup::getBatchLabelAttribute()), so the
             // breakdown groups on that rather than the Cohort relationship.
             // Scoped to applicationApproved() too, so the breakdown's own
-            // total always matches the "Total Startup" card above it.
+            // total always matches the "Total Startup" card above it. When a
+            // specific cohort is selected, this only ever includes that one
+            // cohort's row — it used to always list every cohort at once
+            // regardless of what's actually selected on this page.
             'cohortBreakdown' => Startup::query()
                 ->applicationApproved()
                 ->whereNotNull('cohort_number')
+                ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
                 ->selectRaw('cohort_number, count(*) as total')
                 ->groupBy('cohort_number')
                 ->orderBy('cohort_number')

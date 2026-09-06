@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Startup\StoreRoadblockRequest;
 use App\Models\AssessmentDocument;
 use App\Models\Roadblock;
+use App\Models\User;
+use App\Notifications\NewRoadblockSubmitted;
 use App\Traits\CompressesImages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -72,7 +74,9 @@ class RoadblockController extends Controller
         // image, say) no longer takes the whole submission down with it —
         // it's skipped (and reported back to the founder) while every other
         // file, and the roadblock itself, still goes through.
-        DB::transaction(function () use ($request, $startup, &$skipped) {
+        $roadblock = null;
+
+        DB::transaction(function () use ($request, $startup, &$skipped, &$roadblock) {
             $roadblock = Roadblock::create([
                 'startup_id' => $startup->startup_id,
                 'problem_category' => $request->validated('problem_category'),
@@ -101,6 +105,11 @@ class RoadblockController extends Controller
                 ]);
             }
         });
+
+        // Sent after the transaction commits, so a rolled-back attempt never
+        // fires a notification for a roadblock that doesn't actually exist.
+        User::where('role', 'Admin')->get()
+            ->each(fn (User $admin) => $admin->notify(new NewRoadblockSubmitted($roadblock, $startup)));
 
         return redirect()
             ->route('startup.submissions.index', ['tab' => 'roadblock'])

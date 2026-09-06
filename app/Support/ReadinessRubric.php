@@ -30,6 +30,64 @@ class ReadinessRubric
     public const TYPES = ['TRL', 'MRL', 'TMRL', 'SRL'];
 
     /**
+     * One entry per Assessment Hub "pill" — Pre/Post's 4 RL types plus
+     * Active-Assessment's Documents 6/7/8, plus Venture Exit's own document.
+     * Single source of truth shared by the Overview table
+     * (Admin\AssessmentHubController::index()) and incompleteLabelsFor()
+     * below, so both always agree on what counts as a pill.
+     */
+    public const PILL_DEFINITIONS = [
+        ['label' => 'PRE - TRL', 'stage' => 'Pre-Assessment', 'type' => 'TRL', 'nav_stage' => 'Pre-Assessment'],
+        ['label' => 'PRE - MRL', 'stage' => 'Pre-Assessment', 'type' => 'MRL', 'nav_stage' => 'Pre-Assessment'],
+        ['label' => 'PRE - SRL', 'stage' => 'Pre-Assessment', 'type' => 'SRL', 'nav_stage' => 'Pre-Assessment'],
+        ['label' => 'PRE - TMRL', 'stage' => 'Pre-Assessment', 'type' => 'TMRL', 'nav_stage' => 'Pre-Assessment'],
+        ['label' => 'DOCUMENT 6', 'document' => 6, 'nav_stage' => 'Active-Assessment'],
+        ['label' => 'DOCUMENT 7', 'document' => 7, 'nav_stage' => 'Active-Assessment'],
+        ['label' => 'DOCUMENT 8', 'document' => 8, 'nav_stage' => 'Active-Assessment'],
+        ['label' => 'POST - TRL', 'stage' => 'Post-Assessment', 'type' => 'TRL', 'nav_stage' => 'Post-Assessment'],
+        ['label' => 'POST - MRL', 'stage' => 'Post-Assessment', 'type' => 'MRL', 'nav_stage' => 'Post-Assessment'],
+        ['label' => 'POST - SRL', 'stage' => 'Post-Assessment', 'type' => 'SRL', 'nav_stage' => 'Post-Assessment'],
+        ['label' => 'POST - TMRL', 'stage' => 'Post-Assessment', 'type' => 'TMRL', 'nav_stage' => 'Post-Assessment'],
+        ['label' => 'VENTURE EXIT', 'document' => \App\Support\VentureExitForm::DOCUMENT_NUMBER, 'nav_stage' => 'Venture Exit'],
+    ];
+
+    /**
+     * Labels of every Pre-Assessment/Active-Assessment/Post-Assessment pill
+     * (Venture Exit's own document excluded — same exclusion Venture Exit's
+     * "Save Assessment" gate already used) that isn't complete yet for this
+     * startup. Empty when everything is done. Used to warn an admin who's
+     * about to proceed anyway (Venture Exit's Save Assessment, and
+     * Information Sheet's Approve & Lock) with the specific reasons, rather
+     * than a generic "are you sure".
+     */
+    public static function incompleteLabelsFor(\App\Models\Startup $startup): \Illuminate\Support\Collection
+    {
+        $byStage = \App\Models\ReadinessLevelAssessment::where('startup_id', $startup->startup_id)
+            ->get()
+            ->keyBy('stage');
+
+        $byDocument = \App\Models\AssessmentDocument::where('startup_id', $startup->startup_id)
+            ->get()
+            ->keyBy('document_number');
+
+        return collect(self::PILL_DEFINITIONS)
+            ->reject(fn ($def) => ($def['document'] ?? null) === \App\Support\VentureExitForm::DOCUMENT_NUMBER)
+            ->reject(function ($def) use ($byStage, $byDocument) {
+                if (! empty($def['document'])) {
+                    $document = $byDocument->get($def['document']);
+
+                    return $document && \App\Support\ActiveAssessmentForms::isDocumentFilled($def['document'], $document->data ?? []);
+                }
+
+                $row = $byStage->get($def['stage']);
+
+                return (bool) ($row && $row->scoreFor($def['type']) !== null);
+            })
+            ->pluck('label')
+            ->values();
+    }
+
+    /**
      * PUP-TBIDO form numbers per RL type, PER STAGE — Pre-Assessment uses
      * 002-005, Active-Assessment's own Documents 6/7/8 take 006-008, and
      * Post-Assessment reuses this same rubric under 009-012. Stages beyond

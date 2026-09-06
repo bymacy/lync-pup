@@ -111,4 +111,60 @@ class AssessmentHubTest extends TestCase
             $response->viewData('scheduledToday')->contains('startup_id', $startup->startup_id)
         );
     }
+
+    /**
+     * Regression coverage for the Startup Profile "View Status" button: it
+     * links here with '?highlight=startup-{id}' so flashHighlightFromQuery()
+     * (resources/js/app.js) can scroll to and flash that row — but only if
+     * the row is actually rendered. Awaiting Schedule defaults to 4 per
+     * page, so a 5th (oldest-first ordered) startup would otherwise sit on
+     * page 2 while the highlight link always lands on page 1.
+     */
+    public function test_view_status_highlight_jumps_to_the_startups_actual_page(): void
+    {
+        $admin = $this->adminUser();
+
+        $startups = collect(range(1, 5))->map(fn ($i) => Startup::factory()->create([
+            'created_at' => now()->subDays(5 - $i),
+        ]));
+        // Pending's own default ordering is oldest-created-first, so the
+        // most-recently-created of the five lands last — on page 2 with the
+        // default per_page of 4.
+        $target = $startups->last();
+
+        $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', [
+            'main' => 'information-sheet',
+            'tab' => 'schedule',
+            'highlight' => 'startup-'.$target->startup_id,
+        ]));
+
+        $response->assertOk();
+        $pendingStartups = $response->viewData('pendingStartups');
+        $this->assertSame(2, $pendingStartups->currentPage());
+        $this->assertTrue($pendingStartups->contains('startup_id', $target->startup_id));
+    }
+
+    /**
+     * A real, explicit '?page=' (the admin manually paging through the
+     * table) must always win over the highlight-driven page jump.
+     */
+    public function test_explicit_page_param_overrides_the_highlight_page_jump(): void
+    {
+        $admin = $this->adminUser();
+
+        $startups = collect(range(1, 5))->map(fn ($i) => Startup::factory()->create([
+            'created_at' => now()->subDays(5 - $i),
+        ]));
+        $target = $startups->last();
+
+        $response = $this->actingAs($admin)->get(route('admin.assessment-hub.index', [
+            'main' => 'information-sheet',
+            'tab' => 'schedule',
+            'highlight' => 'startup-'.$target->startup_id,
+            'page' => 1,
+        ]));
+
+        $response->assertOk();
+        $this->assertSame(1, $response->viewData('pendingStartups')->currentPage());
+    }
 }

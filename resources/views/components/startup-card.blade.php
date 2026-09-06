@@ -102,8 +102,12 @@ $hasSecondAction = in_array($startup->status, ['Assign Coordinator', 'Pending'])
             {{-- Onboarding startups haven't been evaluated yet — the actionable
                  place for an admin to move them forward is the Awaiting
                  Schedule table in Assessment Hub, not this read-only profile
-                 page. --}}
-            <a href="{{ route('admin.assessment-hub.index', ['main' => 'information-sheet', 'tab' => 'schedule']) }}"
+                 page. 'highlight' flashes+scrolls to this exact startup's row
+                 there, same "startup-{id}" convention as the Risk Monitoring
+                 pulse links (see RiskEngine::resolveLinks()) — otherwise the
+                 admin lands on Schedule with no indication of which row they
+                 actually clicked. --}}
+            <a href="{{ route('admin.assessment-hub.index', ['main' => 'information-sheet', 'tab' => 'schedule', 'highlight' => 'startup-'.$startup->startup_id]) }}"
                 class="flex min-h-[2rem] items-center justify-center rounded-lg border border-rose-800 px-2 text-center text-xs font-semibold leading-tight text-rose-900 transition-colors hover:bg-rose-50">
                 View Status
             </a>

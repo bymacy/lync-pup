@@ -133,38 +133,58 @@ class EmailVerificationTest extends TestCase
     }
 
     /**
-     * Regression test: clicking the signed verification link while logged
-     * out (e.g. on a different device/browser than where they registered)
-     * must funnel through login and land back on that same signed link —
-     * completing verification — rather than getting stranded on the
-     * generic verify-email prompt with the click never actually applied.
+     * The verification route sits outside the 'auth' middleware group on
+     * purpose (see routes/auth.php) — clicking the emailed link must work
+     * even from a browser with no session at all (a different device, or
+     * one where the post-registration session simply expired), since the
+     * signed URL itself is what proves the link is legitimate. It used to
+     * require an active session that already belonged to this exact user,
+     * which just stranded anyone verifying from a fresh session.
      */
-    public function test_visiting_the_verification_link_while_logged_out_completes_verification_after_login(): void
+    public function test_visiting_the_verification_link_while_logged_out_completes_verification(): void
     {
         $user = User::factory()->unverified()->create([
             'role' => 'Startup',
             'account_status' => 'Pending',
         ]);
+        $user->forceFill(['email_verification_token' => 'test-token'])->save();
 
         $verificationUrl = URL::temporarySignedRoute(
             'verification.verify',
             now()->addMinutes(60),
-            ['id' => $user->id, 'hash' => sha1($user->email)]
+            ['id' => $user->id, 'hash' => sha1($user->email), 'token' => 'test-token']
         );
 
-        // Not authenticated yet — hitting the signed link redirects to
-        // login and Laravel remembers it as the intended destination.
-        $this->get($verificationUrl)->assertRedirect(route('login', absolute: false));
+        $response = $this->get($verificationUrl);
 
-        $response = $this->post('/login', [
-            'email' => $user->email,
-            'password' => 'password',
-            'role' => 'Startup',
-        ]);
-
-        $response->assertRedirect($verificationUrl);
-
-        $this->get($verificationUrl);
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
+        $this->assertGuest();
+        $response->assertRedirect(route('login', absolute: false));
+    }
+
+    /**
+     * Regression test for the reported bug: a browser already authenticated
+     * as a DIFFERENT account (e.g. two founders tested from the same
+     * device) must not 403 ("This action is unauthorized.") or verify the
+     * wrong person — the signed link's own id/hash always wins over
+     * whichever session happens to already be active.
+     */
+    public function test_verifying_while_a_different_account_is_logged_in_still_verifies_the_right_user(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $user->forceFill(['email_verification_token' => 'test-token'])->save();
+        $otherUser = User::factory()->create();
+
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email), 'token' => 'test-token']
+        );
+
+        $response = $this->actingAs($otherUser)->get($verificationUrl);
+
+        $response->assertRedirect(route('login', absolute: false));
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+        $this->assertFalse($otherUser->fresh()->hasVerifiedEmail());
     }
 }

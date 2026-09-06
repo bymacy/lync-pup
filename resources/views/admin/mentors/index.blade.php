@@ -45,10 +45,14 @@
                 <p class="mt-1 text-sm text-gray-500 sm:text-base">Manage Mentor Profiles and track case assignments.</p>
             </div>
 
-            {{-- Desktop trigger: top right, beside the title --}}
-            <button @click="open = true" class="{{ $addBtn }} hidden flex-shrink-0 sm:flex">
-                <span class="text-lg leading-none">+</span> Add Mentor
-            </button>
+            <div class="flex flex-shrink-0 items-center gap-3">
+                <x-cohort-filter-dropdown :cohorts="$filterCohorts" :selected="$selectedCohortId" />
+
+                {{-- Desktop trigger: top right, beside the title --}}
+                <button @click="open = true" class="{{ $addBtn }} hidden flex-shrink-0 sm:flex">
+                    <span class="text-lg leading-none">+</span> Add Mentor
+                </button>
+            </div>
         </div>
 
         {{-- Manage Mentor row: on phones the trigger sits on this line --}}

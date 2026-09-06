@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreMentorRequest;
 use App\Http\Requests\Admin\UpdateMentorRequest;
+use App\Models\Cohort;
 use App\Models\Mentor;
 use App\Models\Roadblock;
 use App\Traits\CompressesImages;
@@ -20,13 +21,21 @@ class MentorController extends Controller
 
     public function index(): View
     {
+        // Mentors themselves aren't cohort-scoped (one mentor can serve
+        // startups across every cohort), so the app-wide selected cohort
+        // (see ResolveSelectedCohort) narrows down which of their cases show
+        // up here — the Active Cases / Completed counts and lists only ever
+        // count startups in that cohort — rather than filtering out mentors.
+        $cohortId = session('selected_cohort_id');
+
         // Eager-loaded (with their startup) so the Active Cases / Completed
         // stat on each mentor card can list the actual startups behind those
         // counts without an extra query per click — see
         // Mentor::getActiveCasesCountAttribute()/getCompletedCasesCountAttribute(),
         // which read from this loaded collection instead of re-querying.
-        $mentors = Mentor::with(['roadblocks' => function ($query) {
+        $mentors = Mentor::with(['roadblocks' => function ($query) use ($cohortId) {
             $query->whereIn('status', array_merge(Roadblock::ACTIVE_STATUSES, ['Resolved', 'Failed']))
+                ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
                 ->with('startup')
                 ->latest();
         }])->latest()->get();
@@ -42,7 +51,14 @@ class MentorController extends Controller
             ->pluck('specialization_other')
             ->values();
 
-        return view('admin.mentors.index', compact('mentors', 'otherSpecializationSuggestions'));
+        return view('admin.mentors.index', [
+            'mentors' => $mentors,
+            'otherSpecializationSuggestions' => $otherSpecializationSuggestions,
+            'selectedCohortId' => $cohortId ? (int) $cohortId : null,
+            'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+                ->orderBy('number')
+                ->get(),
+        ]);
     }
 
     public function store(StoreMentorRequest $request): RedirectResponse

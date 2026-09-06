@@ -66,7 +66,7 @@ Route::get('/storage/{path}', [StorageController::class, 'show'])
 // in), and without a role check this route rendered the full admin layout
 // for them. CheckRole now catches that and bounces them to their own
 // dashboard instead.
-Route::middleware(['auth', 'role:Admin'])->group(function () {
+Route::middleware(['auth', 'role:Admin', 'select-cohort'])->group(function () {
     Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
 });
 
@@ -77,7 +77,7 @@ Route::middleware('auth')->group(function () {
 });
 
 // Admin-only routes
-Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:Admin', 'select-cohort'])->prefix('admin')->name('admin.')->group(function () {
 
     Route::get('startups', [StartupProfileController::class, 'index'])->name('startups.index');
     Route::get('startups/{startup}', [StartupProfileController::class, 'show'])->name('startups.show');
@@ -130,6 +130,9 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
 
     Route::post('startups/{startup}/request-pitch-deck', [StartupProfileController::class, 'requestPitchDeck'])
         ->name('startups.request-pitch-deck');
+
+    Route::get('/notifications/{notification}', [\App\Http\Controllers\Admin\NotificationController::class, 'show'])
+        ->name('notifications.show');
 
     Route::get('/roadblocks', [AdminRoadblockController::class, 'index'])->name('roadblocks.index');
     Route::put('/roadblocks/{roadblock}/assign', [AdminRoadblockController::class, 'assign'])->name('roadblocks.assign');

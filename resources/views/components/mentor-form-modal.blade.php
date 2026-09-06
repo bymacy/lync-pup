@@ -109,17 +109,50 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             --}}
             <form method="POST" action="{{ $action }}" enctype="multipart/form-data"
                 class="flex flex-1 flex-col space-y-3 px-8 pb-6 pt-1"
-                x-data="{ dirty: false }"
-                x-init="$watch('{{ $openVar }}', value => { if (! value) $dispatch('{{ $resetEvent }}') })"
-                @input="dirty = true"
-                @change="dirty = true"
+                x-data="{
+                dirty: false,
+                initial: {},
+
+                /* A plain snapshot of every named field's CURRENT value, read
+                   straight off the DOM via FormData -- this reaches every
+                   field regardless of which nested x-data scope actually
+                   owns it (Honorifics/Expertise's hidden inputs included),
+                   without needing every field converted to x-model. File
+                   inputs are skipped: their binary can't be diffed, and the
+                   'mentor_photo_data' base64 hidden field already mirrors
+                   any real photo change. */
+                snapshot() {
+                    const data = new FormData(this.$el);
+                    const values = {};
+                    for (const [key, value] of data.entries()) {
+                        if (value instanceof File) continue;
+                        values[key] = value;
+                    }
+                    return values;
+                },
+
+                /* Recomputes dirty from an actual current-vs-initial value
+                   comparison, instead of a monotonic 'something fired'
+                   flag -- so reverting a field back to its original value
+                   (e.g. retyping a deleted character) correctly clears it. */
+                refresh() {
+                    this.dirty = JSON.stringify(this.snapshot()) !== JSON.stringify(this.initial);
+                },
+            }"
+                x-init="
+                $nextTick(() => { initial = snapshot(); });
+                $watch('{{ $openVar }}', value => { if (! value) $dispatch('{{ $resetEvent }}') });
+            "
+                @input="refresh()"
+                @change="refresh()"
+                @dirty-check="$nextTick(() => refresh())"
                 x-on:{{ $resetEvent }}.window="
                 Object.entries(@js($textDefaults)).forEach(([name, value]) => {
                     const control = $el.elements[name];
                     if (control) control.value = value ?? '';
                 });
                 $el.querySelectorAll('[data-error]').forEach(node => node.remove());
-                dirty = false;
+                $nextTick(() => { initial = snapshot(); dirty = false; });
             ">
                 @csrf
                 @if ($mode === 'edit')
@@ -184,6 +217,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 this.selected = option;
                                 this.open = false;
                                 this.$refs.trigger.focus();
+                                this.$dispatch('dirty-check');
                             },
 
                             move(step) {
@@ -280,6 +314,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 this.selected = option;
                                 this.open = false;
                                 this.$refs.trigger.focus();
+                                this.$dispatch('dirty-check');
                             },
 
                             move(step) {
@@ -305,6 +340,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             pickOtherSuggestion(value) {
                                 this.otherText = value;
                                 this.showOtherSuggestions = false;
+                                this.$dispatch('dirty-check');
                             },
                         }"
                             x-on:{{ $resetEvent }}.window="selected = @js((string) ($mentor?->specialization ?? '')); otherText = @js((string) ($mentor?->specialization_other ?? '')); showOtherSuggestions = false; open = false">
@@ -405,7 +441,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                 {{-- Email / Phone --}}
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-6">
                     <div>
-                        <label class="{{ $label }}">Email</label>
+                        <label class="{{ $label }}">Email <span class="font-normal text-gray-400">(Optional)</span></label>
 
                         <div class="{{ $group }}">
                             <span class="{{ $slot_ }}">
@@ -420,7 +456,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     </div>
 
                     <div>
-                        <label class="{{ $label }}">Phone Number</label>
+                        <label class="{{ $label }}">Phone Number <span class="font-normal text-gray-400">(Optional)</span></label>
 
                         <div class="{{ $group }}">
                             <span class="{{ $slot_ }}">
@@ -561,6 +597,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 this.photoData = canvas.toDataURL('image/jpeg', 0.9);
                                 this.photoPreview = this.photoData;
                                 this.closeCropper();
+                                this.$dispatch('dirty-check');
                             }, 'image/jpeg', 0.9);
                         },
 
@@ -592,6 +629,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             this.photoData = '';
                             this.croppedFile = null;
                             this.$refs.photoInput.value = '';
+                            this.$dispatch('dirty-check');
                         },
 
                         /* Back to the stored photo (Edit) or nothing (Add) */

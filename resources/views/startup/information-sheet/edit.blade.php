@@ -29,7 +29,35 @@
     saving: false,
     dirty: false,
     lastClickedInput: null,
- 
+
+    // `dirty` used to be a monotonic flag: every scattered '@input=\'dirty =
+    // true\'' across this form's ~30 fields/rows set it permanently true and
+    // nothing ever set it back except a full save or reload. Retyping a
+    // deleted character back, for example, left it stuck true. Those old
+    // 'dirty = true' touches are harmless no-ops now (still fine to leave in
+    // place) -- the real answer instead comes from comparing a live snapshot
+    // of every named field's current DOM value against a baseline captured
+    // the moment editing started, recomputed via refresh() below.
+    _initial: null,
+
+    snapshot() {
+        const fields = [];
+        this.$el.querySelectorAll('input[name], textarea[name], select[name]').forEach((el) => {
+            if (el.type === 'file') return;
+            fields.push([el.name, el.value]);
+        });
+        return JSON.stringify({ fields, removed: [...this.pendingRemoval].sort() });
+    },
+
+    // Deferred to nextTick everywhere it's called: a click that changes
+    // reactive state (option-card picks, unit toggles, packed-row add/remove)
+    // updates its backing hidden input via x-effect, which flushes on
+    // Alpine's next DOM-update tick, not synchronously -- reading the DOM too
+    // early would compare against stale values.
+    refresh() {
+        this.dirty = this._initial !== null && this.snapshot() !== this._initial;
+    },
+
     newRows: { team: [], inc: [], ld: [], ref: [] },
     nextRowId: 1,
 
@@ -194,7 +222,7 @@ pendingRemoval: [],
         @click.capture="
         if (!editing && $event.target.matches('input, textarea, select')) {
             lastClickedInput = $event.target.name;
- 
+
             $nextTick(() => {
                 $refs.editButton?.scrollIntoView({
                     behavior: 'smooth',
@@ -203,6 +231,9 @@ pendingRemoval: [],
             });
         }
     "
+        @input="$nextTick(() => refresh())"
+        @change="$nextTick(() => refresh())"
+        @click="$nextTick(() => refresh())"
 
         x-init="
         $nextTick(() => { growAll(); });
@@ -217,6 +248,16 @@ pendingRemoval: [],
 
         $watch('editing', value => {
             if (!value) newRows = { team: [], inc: [], ld: [], ref: [] };
+        });
+
+        // Baseline for the dirty comparison: captured once at load, and
+        // again every time an edit session actually starts, so re-opening
+        // Edit after a save (or a previous cancel) always compares against
+        // what's genuinely on the page right now, not a stale pre-save
+        // snapshot.
+        $nextTick(() => { _initial = snapshot(); });
+        $watch('editing', value => {
+            if (value) $nextTick(() => { _initial = snapshot(); dirty = false; });
         });
 
         window.addEventListener('beforeunload', (e) => {

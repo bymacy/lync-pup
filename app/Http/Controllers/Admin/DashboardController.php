@@ -62,7 +62,10 @@ class DashboardController extends Controller
 
     public function index(Request $request): View
     {
-        $cohortId = $request->query('cohort');
+        // Reads the app-wide selected cohort (see ResolveSelectedCohort) —
+        // already synced from '?cohort=' on this request if it was present,
+        // otherwise whatever was last picked on any module's own filter.
+        $cohortId = session('selected_cohort_id');
         $readinessStage = $request->query('readinessStage', 'Pre-Assessment');
         if (! in_array($readinessStage, ['Pre-Assessment', 'Post-Assessment'], true)) {
             $readinessStage = 'Pre-Assessment';
@@ -88,7 +91,32 @@ class DashboardController extends Controller
             'riskClassification' => $this->buildRiskClassification($startupIds),
             'averageReadiness' => $this->buildAverageReadiness($startupIds, $totalStartups, $readinessStage),
             'milestones' => $this->buildMilestoneCompletion($startupIds, $totalStartups),
+            'updates' => $this->updates(),
         ]);
+    }
+
+    /**
+     * The Admin Dashboard's own "what's new" cards — same idea and shape as
+     * the founder Dashboard's (see Startup\DashboardController::updates()),
+     * just reading whichever notifications were sent to this Admin instead
+     * (currently just NewRoadblockSubmitted). Capped at three for the same
+     * reason: a readable dashboard rather than a wall of cards.
+     */
+    protected function updates(): array
+    {
+        return auth()->user()
+            ->unreadNotifications()
+            ->latest()
+            ->limit(3)
+            ->get()
+            ->map(fn ($note) => [
+                'id' => $note->id,
+                'title' => $note->data['title'] ?? 'Update',
+                'body' => $note->data['body'] ?? '',
+                'action' => $note->data['action'] ?? 'View',
+                'icon' => $note->data['icon'] ?? 'info-sheet.svg',
+            ])
+            ->all();
     }
 
     /**

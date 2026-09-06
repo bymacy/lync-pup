@@ -164,8 +164,30 @@
         exportSelected() {
             if (! this.canExport) return;
             const today = new Date().toISOString().slice(0, 10);
-            this.fileName = `${this.startupName} - Export - ${today}`;
+            // "Export" used to sit in the middle of the default name — replaced
+            // with the actual document numbers included (e.g. "Doc1,2,3,4,12,13")
+            // so the file name itself says what's inside without opening it.
+            const docList = [...this.selectedDocs].sort((a, b) => a - b).join(',');
+            this.fileName = `${this.startupName} - Doc${docList} - ${today}`;
             this.generate();
+        },
+
+        // Each generated file keeps its real extension fixed — the admin can
+        // only rename the part before it, so a rename can never end up
+        // producing a file with the wrong (or missing) extension.
+        fileExtension(file) {
+            const idx = file.file_name.lastIndexOf('.');
+            return idx > -1 ? file.file_name.slice(idx) : '';
+        },
+
+        fileBaseName(file) {
+            const idx = file.file_name.lastIndexOf('.');
+            return idx > -1 ? file.file_name.slice(0, idx) : file.file_name;
+        },
+
+        renameFile(file, newBase) {
+            const trimmed = newBase.trim();
+            file.file_name = (trimmed || 'Untitled') + this.fileExtension(file);
         },
 
         async generate() {
@@ -471,8 +493,18 @@
                         <div class="mb-4 max-h-56 space-y-2 overflow-y-auto">
                             <template x-for="file in result.files" :key="file.file_path">
                                 <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 text-sm">
-                                    <div class="min-w-0">
-                                        <div class="truncate font-semibold text-gray-800" x-text="file.file_name"></div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex items-center gap-1">
+                                            <input type="text"
+                                                :value="fileBaseName(file)"
+                                                @input="renameFile(file, $event.target.value)"
+                                                aria-label="Rename file"
+                                                class="w-full min-w-0 rounded border border-transparent bg-transparent px-1 py-0.5 font-semibold text-gray-800 transition hover:border-gray-300 focus:border-rose-300 focus:bg-white focus:outline-none focus:ring-1 focus:ring-rose-200">
+                                            <span class="shrink-0 text-gray-500" x-text="fileExtension(file)"></span>
+                                            <svg class="h-3.5 w-3.5 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                                            </svg>
+                                        </div>
                                         <div class="text-xs text-gray-500">
                                             <span x-text="(file.page_count ?? '—') + ' pages'"></span> &middot;
                                             <span x-text="file.file_size_label"></span>

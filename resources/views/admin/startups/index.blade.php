@@ -34,9 +34,13 @@
             ];
             @endphp
 
-            <div class="mb-6">
-                <h1 class="text-3xl font-bold text-gray-900">Startup Profile</h1>
-                <p class="text-gray-500 mt-1">Monitor readiness, detect weak spots, and act on each startup.</p>
+            <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Startup Profile</h1>
+                    <p class="text-gray-500 mt-1">Monitor readiness, detect weak spots, and act on each startup.</p>
+                </div>
+
+                <x-cohort-filter-dropdown :cohorts="$filterCohorts" :selected="$selectedCohortId" class="ml-auto" />
             </div>
 
             {{--

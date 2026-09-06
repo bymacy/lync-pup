@@ -46,6 +46,10 @@ class InformationSheetController extends Controller
                 'mobile_no' => (string) $startup->contact_phone,
                 'founder_email' => (string) $startup->user?->email,
             ],
+            // Feeds the "Approve & Lock" incomplete-assessments warning below
+            // — same Pre/Active/Post completeness rule Venture Exit's own
+            // "Save Assessment" gate uses, see ReadinessRubric::incompleteLabelsFor().
+            'incompleteAssessments' => \App\Support\ReadinessRubric::incompleteLabelsFor($startup),
         ]);
     }
 

@@ -24,7 +24,10 @@ class FounderApplicationController extends Controller
     {
         $tab = $request->query('tab', 'all');
         $perPage = (int) $request->query('per_page', 10);
-        $cohortId = $request->query('cohort');
+        // Reads the app-wide selected cohort (see ResolveSelectedCohort) —
+        // this page's own filter dropdown is no longer independent of the
+        // Dashboard's; picking a cohort anywhere keeps it selected here too.
+        $cohortId = session('selected_cohort_id');
 
         if (! in_array($perPage, self::PER_PAGE_OPTIONS, true)) {
             $perPage = 10;
@@ -83,10 +86,14 @@ class FounderApplicationController extends Controller
             // application is approved, see approve() above), scoped to the
             // same Startup+role='Startup' set the "Total Application" count
             // itself uses, so a pending/rejected applicant (no cohort yet)
-            // simply doesn't show up in the breakdown.
+            // simply doesn't show up in the breakdown. When a specific
+            // cohort is selected (not "All Cohort"), this only ever includes
+            // that one cohort's row — previously every cohort's count showed
+            // here regardless of the page's own filter.
             'cohortBreakdown' => Startup::query()
                 ->whereHas('user', fn ($q) => $q->where('role', 'Startup'))
                 ->whereNotNull('cohort_number')
+                ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
                 ->selectRaw('cohort_number, count(*) as total')
                 ->groupBy('cohort_number')
                 ->orderBy('cohort_number')
@@ -108,6 +115,17 @@ class FounderApplicationController extends Controller
             return redirect()
                 ->route('admin.founder-applications.index', $request->only('tab', 'per_page', 'cohort'))
                 ->with('error', 'This application has already been processed.');
+        }
+
+        // An unverified email means whoever submitted this application never
+        // actually proved they own that inbox — approving it anyway would
+        // hand out an Active account on nothing but an unconfirmed address.
+        // The Review modal already disables the Approve button for exactly
+        // this case; this is the server-side backstop.
+        if (! $startup->user->hasVerifiedEmail()) {
+            return redirect()
+                ->route('admin.founder-applications.index', $request->only('tab', 'per_page', 'cohort'))
+                ->with('error', 'This founder has not verified their email yet — approve once their email is verified.');
         }
 
         $cohort = Cohort::findOrFail($request->validated('cohort_id'));

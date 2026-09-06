@@ -517,17 +517,27 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
 
                             <p class="mb-2.5 text-xs text-gray-600">Drag-and-drop</p>
 
+                            {{--
+                                Bound to files.length (a plain reactive array Alpine
+                                properly tracks), not dt.files.length -- dt is a native
+                                DataTransfer object, and mutating it via dt.items.add()
+                                in addFiles() never triggers Alpine's reactivity (only
+                                reassigning `this.dt = new DataTransfer()`, as
+                                removeFile()/resetForm() do, does). Reading dt.files.length
+                                here left this stuck un-disabled after reaching the cap
+                                by adding files, even though the count itself was correct.
+                            --}}
                             <button type="button" @click="$refs.fileInput.click()"
-                                :disabled="dt.files.length >= limits.maxFiles"
-                                :class="dt.files.length >= limits.maxFiles
+                                :disabled="files.length >= limits.maxFiles"
+                                :class="files.length >= limits.maxFiles
                                     ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                                     : 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-95'"
                                 class="rounded px-4 py-1.5 text-xs font-medium transition">
-                                <span x-text="dt.files.length >= limits.maxFiles ? 'Limit Reached' : 'Browse Files'"></span>
+                                <span x-text="files.length >= limits.maxFiles ? 'Limit Reached' : 'Browse Files'"></span>
                             </button>
 
                             <input type="file" name="supporting_files[]" x-ref="fileInput" multiple class="hidden"
-                                :disabled="dt.files.length >= limits.maxFiles"
+                                :disabled="files.length >= limits.maxFiles"
                                 accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv"
                                 @change="addFiles($event.target.files)">
                         </div>

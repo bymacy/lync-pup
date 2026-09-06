@@ -47,13 +47,21 @@ Route::middleware('guest')->group(function () {
     })->name('password.reset.complete');
 });
 
+// Deliberately NOT behind 'auth' — this link is meant to be clicked straight
+// out of an email client, which may be a completely different browser/device
+// (or simply a session that's since expired) than the one the founder
+// registered from. The signed URL itself (plus the one-time "token" query
+// param, see VerifyEmailNotification) is what proves it's legitimate;
+// requiring the *current* browser session to already belong to that same
+// user on top of that just produced a confusing 403 for anyone verifying
+// from a fresh session — see VerifyEmailController.
+Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify');
+
 Route::middleware('auth')->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');
-
-    Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
-        ->middleware(['signed', 'throttle:6,1'])
-        ->name('verification.verify');
 
     Route::post('email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
         ->middleware('throttle:6,1')

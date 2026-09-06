@@ -74,6 +74,32 @@
     confirmingApprove: false,
     lastClickedInput: null,
 
+    // Approve & Lock warning: reuses the exact "warn with specific reasons,
+    // let the admin proceed anyway" pattern Venture Exit's own Save
+    // Assessment gate already uses (_venture-exit.blade.php's trySubmit /
+    // showIncompleteConfirm / proceedAnyway). Only intercepts the actual
+    // submit — if nothing is incomplete, it goes straight through.
+    incompleteAssessments: @js($incompleteAssessments ?? []),
+    showIncompleteConfirm: false,
+    confirmedIncomplete: false,
+
+    trySubmit(event) {
+        if (this.incompleteAssessments.length && ! this.confirmedIncomplete) {
+            event.preventDefault();
+            this.showIncompleteConfirm = true;
+            return;
+        }
+
+        this.dirty = false;
+        this.$store.navigation.hasUnsavedChanges = false;
+    },
+
+    proceedAnyway() {
+        this.confirmedIncomplete = true;
+        this.showIncompleteConfirm = false;
+        this.$nextTick(() => document.getElementById('approve-form').requestSubmit());
+    },
+
     newRows: { team: [], inc: [], ld: [], ref: [] },
     nextRowId: 1,
 
@@ -1613,8 +1639,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                 class="flex-1 border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition">
                                 Cancel
                             </button>
-                            <form method="POST" action="{{ $approveUrl }}" class="flex-1"
-                                @submit="dirty = false; $store.navigation.hasUnsavedChanges = false">
+                            <form id="approve-form" method="POST" action="{{ $approveUrl }}" class="flex-1"
+                                @submit="trySubmit($event)">
                                 @csrf
                                 @method('PATCH')
                                 <button type="submit"
@@ -1624,6 +1650,53 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     Yes, approve &amp; lock
                                 </button>
                             </form>
+                        </div>
+                    </div>
+
+                    {{-- Incomplete-assessments warning: only shown if Pre/Active/Post
+                         still has something not yet started, and only once the admin
+                         has actually confirmed "Yes, approve & lock" above — same
+                         list-driven Cancel/Proceed Anyway pattern as Venture Exit's
+                         own Save Assessment gate (_venture-exit.blade.php). --}}
+                    <div x-show="showIncompleteConfirm" x-cloak
+                        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+                        style="display:none;">
+                        <div class="relative w-full max-w-lg rounded-2xl bg-white px-5 pb-5 pt-8 text-center shadow-2xl sm:px-6">
+                            <button type="button" @click="showIncompleteConfirm = false"
+                                class="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                                aria-label="Close">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                                </svg>
+                            </button>
+
+                            <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A]">
+                                <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007M10.29 3.86 1.82 18a1.5 1.5 0 0 0 1.28 2.25h17.8a1.5 1.5 0 0 0 1.28-2.25L13.71 3.86a1.5 1.5 0 0 0-2.42 0Z" />
+                                </svg>
+                            </div>
+
+                            <h2 class="mt-3 text-base font-bold text-gray-900">Incomplete Assessments</h2>
+                            <p class="mt-1.5 text-xs leading-5 text-gray-600">The following assessment(s) have not been started yet:</p>
+
+                            <ul class="mx-auto mt-3 max-w-xs list-inside list-disc space-y-1 text-left text-xs text-gray-700">
+                                <template x-for="item in incompleteAssessments" :key="item">
+                                    <li x-text="item"></li>
+                                </template>
+                            </ul>
+
+                            <p class="mt-3 text-xs leading-5 text-gray-600">Do you want to proceed anyway?</p>
+
+                            <div class="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
+                                <button type="button" @click="showIncompleteConfirm = false"
+                                    class="rounded-lg border border-gray-300 bg-white py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                                    Cancel
+                                </button>
+                                <button type="button" @click="proceedAnyway()"
+                                    class="rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-sm font-semibold text-white transition hover:opacity-95">
+                                    Proceed Anyway
+                                </button>
+                            </div>
                         </div>
                     </div>
                     @endif

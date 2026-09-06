@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AssessmentDocument;
+use App\Models\Cohort;
 use App\Models\Startup;
 use App\Support\RiskEngine;
 use Illuminate\View\View;
@@ -12,7 +13,14 @@ class RiskMonitoringController extends Controller
 {
     public function index(): View
     {
-        $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])->get();
+        // The app-wide selected cohort (see ResolveSelectedCohort) — every
+        // startup this page assesses narrows to just this cohort when one
+        // is selected, instead of always assessing every cohort together.
+        $cohortId = session('selected_cohort_id');
+
+        $startups = Startup::with(['informationSheet', 'activeCoordinatorAssignment', 'roadblocks', 'readinessAssessments', 'cohort'])
+            ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
+            ->get();
 
         $documentsByStartup = AssessmentDocument::whereIn('startup_id', $startups->pluck('startup_id'))
             ->get()
@@ -71,6 +79,10 @@ class RiskMonitoringController extends Controller
             'riskRows' => $riskRows,
             'levelColors' => RiskEngine::LEVEL_COLORS,
             'severityColors' => RiskEngine::SEVERITY_COLORS,
+            'selectedCohortId' => $cohortId ? (int) $cohortId : null,
+            'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+                ->orderBy('number')
+                ->get(),
         ]);
     }
 }

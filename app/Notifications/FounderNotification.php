@@ -6,7 +6,10 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
 /**
- * Shared base for every admin-side change announced to a founder.
+ * Shared base for every "what's new" dashboard-card notification — most
+ * subclasses announce an admin-side change to a founder (hence the name),
+ * but the same shape is reused in the other direction too (see
+ * NewRoadblockSubmitted, sent to Admins).
  *
  * Every subclass boils down to the same four things — a headline, a sentence,
  * where clicking it should go, and which icon to draw — so they are declared

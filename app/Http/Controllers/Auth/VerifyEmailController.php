@@ -3,43 +3,59 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Auth\Events\Verified;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class VerifyEmailController extends Controller
 {
     /**
-     * Mark the authenticated user's email address as verified.
+     * Mark the given user's email address as verified.
      *
-     * Only while still unverified does the extra "token" query param need
-     * to match the user's current email_verification_token — that's what
-     * makes an old, superseded verification link stop working the moment a
-     * newer one is sent (see User::sendEmailVerificationNotification() and
-     * VerifyEmailNotification). Once verified, any lingering old link is
-     * just a harmless no-op redirect, same as Laravel's stock behavior.
+     * Deliberately takes {id}/{hash} as plain route params instead of using
+     * Laravel's stock EmailVerificationRequest — that class's authorize()
+     * requires the *currently logged-in* user to already be the same one
+     * being verified, which 403'd ("This action is unauthorized.") for
+     * anyone who opened the link on a different device/browser than the one
+     * they registered from, or whose session had simply expired by the time
+     * they checked their email. The route itself sits outside the 'auth'
+     * middleware group for the same reason (see routes/auth.php).
      *
-     * Unlike Breeze's stock behavior (redirect straight into the
-     * dashboard), self-registered Founder accounts still need admin
-     * approval after verifying — so this logs them out and sends them back
-     * to login with that context in a flash message, instead.
+     * The signed URL's hash (plus the one-time "token" query param, which
+     * only the newest verification email carries — see
+     * User::sendEmailVerificationNotification()) is what actually proves
+     * this link is legitimate for this user; the 'signed' route middleware
+     * already validated the signature/expiry before this method ever runs.
      */
-    public function __invoke(EmailVerificationRequest $request): RedirectResponse
+    public function __invoke(Request $request, string $id, string $hash): RedirectResponse
     {
-        if (! $request->user()->hasVerifiedEmail()) {
-            if ($request->query('token') !== $request->user()->email_verification_token) {
+        $user = User::findOrFail($id);
+
+        if (! hash_equals(sha1($user->getEmailForVerification()), (string) $hash)) {
+            abort(403, 'This verification link is invalid.');
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            if ($request->query('token') !== $user->email_verification_token) {
                 abort(403, 'This verification link has been replaced by a newer one. Please check your email for the latest link.');
             }
 
-            if ($request->user()->markEmailAsVerified()) {
-                event(new Verified($request->user()));
+            if ($user->markEmailAsVerified()) {
+                event(new Verified($user));
             }
 
-            $request->user()->forceFill(['email_verification_token' => null])->save();
+            $user->forceFill(['email_verification_token' => null])->save();
         }
 
-        Auth::logout();
+        // Whatever session/account this browser happened to already be on
+        // (a different founder tested on the same device, a stale login,
+        // or nobody at all) doesn't matter — clear it out before sending
+        // them to log in fresh as themselves.
+        if (Auth::check()) {
+            Auth::logout();
+        }
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

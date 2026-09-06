@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCoordinatorRequest;
 use App\Http\Requests\Admin\UpdateCoordinatorRequest;
+use App\Models\Cohort;
 use App\Models\Coordinator;
 use App\Models\Roadblock;
 use App\Traits\CompressesImages;
@@ -19,6 +20,13 @@ class CoordinatorProfileController extends Controller
 
     public function index(): View
     {
+        // Coordinators themselves aren't cohort-scoped (one coordinator can
+        // serve startups across every cohort), so the app-wide selected
+        // cohort (see ResolveSelectedCohort) narrows down which of their
+        // assigned startups show up here, rather than filtering out
+        // coordinators.
+        $cohortId = session('selected_cohort_id');
+
         // Eager-loaded (with their startup) so the "X Startup" stat on each
         // coordinator card can list the actual startups behind that count
         // without an extra query per click — see
@@ -26,11 +34,20 @@ class CoordinatorProfileController extends Controller
         // this loaded collection instead of the stale assigned_startups_count
         // column (only ever incremented, never decremented — see
         // CoordinatorAssignmentController::store()).
-        $coordinators = Coordinator::with(['assignments' => function ($query) {
-            $query->where('assignment_status', 'Active')->with('startup')->latest();
+        $coordinators = Coordinator::with(['assignments' => function ($query) use ($cohortId) {
+            $query->where('assignment_status', 'Active')
+                ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
+                ->with('startup')
+                ->latest();
         }])->latest()->get();
 
-        return view('admin.coordinators.index', compact('coordinators'));
+        return view('admin.coordinators.index', [
+            'coordinators' => $coordinators,
+            'selectedCohortId' => $cohortId ? (int) $cohortId : null,
+            'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+                ->orderBy('number')
+                ->get(),
+        ]);
     }
 
     public function store(StoreCoordinatorRequest $request): RedirectResponse

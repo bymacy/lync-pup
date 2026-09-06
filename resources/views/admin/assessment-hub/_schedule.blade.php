@@ -52,7 +52,8 @@ return $url
                              submission's schedule_row_key matches this startup —
                              same idiom as admin/mentors|coordinators|cohorts index
                              pages seeding editOpen from $errors. --}}
-                        <tr x-data="{ scheduleOpen: @js($errors->any() && (string) old('schedule_row_key') === (string) $startup->startup_id) }" class="border-b border-gray-100 last:border-0">
+                        <tr x-data="{ scheduleOpen: @js($errors->any() && (string) old('schedule_row_key') === (string) $startup->startup_id) }"
+                            data-highlight-id="startup-{{ $startup->startup_id }}" class="border-b border-gray-100 last:border-0">
                             <td class="px-3 py-2 text-left">
                                 <div class="flex justify-start">
                                     <div class="inline-flex max-w-full items-center gap-2 text-left text-xs" style="{{ $pendingCell }}">

@@ -49,8 +49,9 @@
         </div>
 
         {{-- Cohort filter dropdown — same pattern as the Dashboard's cohort
-             selector, so admins can filter applicants by cohort right here
-             instead of switching the Dashboard's globally-selected cohort. --}}
+             selector, and now the SAME selection (see ResolveSelectedCohort):
+             picking a cohort here also shows it pre-selected everywhere else,
+             and vice versa, instead of each page tracking its own. --}}
         <div class="relative ml-auto" x-data="{ cohortMenuOpen: false }" @click.outside="cohortMenuOpen = false">
             <button type="button" @click="cohortMenuOpen = !cohortMenuOpen"
                 class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-sm">
@@ -69,7 +70,11 @@
                 style="width: 260px;">
                 <div class="py-2">
                     <p class="px-4 pb-1 text-xs font-semibold uppercase tracking-widest text-gray-400">Active</p>
-                    <a href="{{ request()->fullUrlWithQuery(['cohort' => null, 'page' => null]) }}"
+                    {{-- Empty string, not null: ResolveSelectedCohort only clears a
+                         previously selected cohort when '?cohort=' is actually present
+                         on the request — http_build_query() would silently drop a null
+                         value and this link would do nothing. --}}
+                    <a href="{{ request()->fullUrlWithQuery(['cohort' => '', 'page' => null]) }}"
                         class="flex items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white {{ ! $selectedCohortId ? 'bg-blue-50 text-[#11386A] font-medium' : 'text-gray-700' }}">
                         All Cohort
                         @if (! $selectedCohortId)
@@ -347,10 +352,18 @@
                                         </div>
                                     </div>
 
-                                    <div class="flex gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
-                                        <button type="button" @click="step = null" class="flex-1 border rounded-lg py-2.5 text-sm font-medium text-gray-700">Cancel</button>
-                                        <button type="button" @click="step = 'reject'" class="flex-1 bg-rose-900 hover:bg-rose-950 text-white rounded-lg py-2.5 text-sm font-medium transition">Reject Application</button>
-                                        <button type="button" @click="step = 'approve'" class="flex-1 bg-green-700 hover:bg-green-800 text-white rounded-lg py-2.5 text-sm font-medium transition">Approve Application</button>
+                                    <div class="flex flex-col gap-2 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+                                        @unless ($founder->hasVerifiedEmail())
+                                        <p class="text-center text-xs text-amber-700">This founder hasn't verified their email yet — Approve is disabled until they do.</p>
+                                        @endunless
+                                        <div class="flex gap-3">
+                                            <button type="button" @click="step = null" class="flex-1 border rounded-lg py-2.5 text-sm font-medium text-gray-700">Cancel</button>
+                                            <button type="button" @click="step = 'reject'" class="flex-1 bg-rose-900 hover:bg-rose-950 text-white rounded-lg py-2.5 text-sm font-medium transition">Reject Application</button>
+                                            <button type="button" @click="step = 'approve'" @if (! $founder->hasVerifiedEmail()) disabled title="Email not verified yet" @endif
+                                                class="flex-1 bg-green-700 hover:bg-green-800 text-white rounded-lg py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-green-700">
+                                                Approve Application
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

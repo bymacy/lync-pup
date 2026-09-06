@@ -76,7 +76,11 @@
                         style="width: 260px;">
                         <div class="py-2">
                             <p class="px-4 pb-1 text-xs font-semibold uppercase tracking-widest text-gray-400">Active</p>
-                            <a href="{{ request()->fullUrlWithQuery(['cohort' => null]) }}"
+                            {{-- Empty string, not null: ResolveSelectedCohort only clears
+                                 a previously selected cohort when '?cohort=' is actually
+                                 present on the request — http_build_query() would silently
+                                 drop a null value and this link would do nothing. --}}
+                            <a href="{{ request()->fullUrlWithQuery(['cohort' => '']) }}"
                                 class="flex items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white {{ ! $selectedCohort ? 'bg-blue-50 text-[#11386A] font-medium' : 'text-gray-700' }}">
                                 All Cohort
                                 @if (! $selectedCohort)
@@ -170,6 +174,32 @@
                 </div>
             </div>
         </div>
+
+        {{-- "What's new" cards — mirrors the founder Dashboard's update cards
+             exactly (see Startup\DashboardController::updates()), just fed by
+             whatever's been sent to this Admin instead (currently just
+             NewRoadblockSubmitted). --}}
+        @foreach ($updates ?? [] as $update)
+            <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#11386A]/40 bg-[#11386A]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                <div class="flex items-center gap-3 sm:gap-4">
+                    <span class="flex shrink-0 items-center justify-center rounded-md bg-[#11386A] text-white" style="width: 44px; height: 44px;">
+                        <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/' . $update['icon']) }}')"></span>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold text-gray-900">{{ $update['title'] }}</p>
+                        <p class="text-xs text-gray-600">{{ $update['body'] }}</p>
+                    </div>
+                </div>
+                <a href="{{ route('admin.notifications.show', $update['id']) }}"
+                    class="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-md border border-[#11386A] bg-white px-4 py-2 text-xs font-semibold text-[#11386A] transition hover:bg-[#11386A] hover:text-white sm:w-auto">
+                    {{ $update['action'] }}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                        <path d="M9 5l7 7-7 7" />
+                    </svg>
+                </a>
+            </div>
+        @endforeach
 
         {{-- Stat cards --}}
         <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-8">

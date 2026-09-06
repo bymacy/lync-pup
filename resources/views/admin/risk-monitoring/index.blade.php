@@ -50,9 +50,13 @@
         ])->values();
     @endphp
 
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-900">Risk Monitoring</h1>
-        <p class="text-gray-500 mt-1">Overview of risk register, top risk categories, and risk indicator.</p>
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Risk Monitoring</h1>
+            <p class="text-gray-500 mt-1">Overview of risk register, top risk categories, and risk indicator.</p>
+        </div>
+
+        <x-cohort-filter-dropdown :cohorts="$filterCohorts" :selected="$selectedCohortId" class="ml-auto" />
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 items-stretch">

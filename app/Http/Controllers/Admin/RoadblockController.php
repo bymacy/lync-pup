@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AssignRoadblockRequest;
+use App\Models\Cohort;
 use App\Models\Coordinator;
 use App\Models\Mentor;
 use App\Models\Roadblock;
@@ -16,8 +17,14 @@ class RoadblockController extends Controller
     {
         Roadblock::promoteEndedMeetingsToPendingReview();
 
+        // The app-wide selected cohort (see ResolveSelectedCohort) — every
+        // stage table below narrows to just this cohort's roadblocks when
+        // one is selected, instead of always mixing every cohort together.
+        $cohortId = session('selected_cohort_id');
+
         $pending = Roadblock::with(['startup', 'files'])
             ->where('status', 'Pending')
+            ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
             ->latest()
             ->get();
 
@@ -27,6 +34,7 @@ class RoadblockController extends Controller
         // whose meeting just ended but hasn't been swept yet.
         $scheduled = Roadblock::with(['startup', 'mentor', 'coordinator', 'files'])
             ->whereIn('status', ['Scheduled', 'Pending Review'])
+            ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
             ->get();
 
         // sortBy('meeting_date') only compares the date part, so multiple
@@ -45,13 +53,21 @@ class RoadblockController extends Controller
         $scheduledToday = $upcoming->filter(fn ($r) => $r->meeting_date?->isToday())->values();
         $assessment = $scheduled->filter->isInAssessment()->sortByDesc('meeting_date')->values();
 
-        $resolved = Roadblock::with(['startup', 'mentor', 'coordinator'])
+        // 'files' eager-loaded here too (previously only $pending/$scheduled
+        // had it) — the Archive tab's View modal (_details-modal.blade.php)
+        // renders a Supporting Files section off this same relation, and
+        // without it every row here still worked via Eloquent's normal lazy
+        // loading, but only firing one query per row instead of one query
+        // total.
+        $resolved = Roadblock::with(['startup', 'mentor', 'coordinator', 'files'])
             ->where('status', 'Resolved')
+            ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
             ->orderByDesc('resolved_at')
             ->get();
 
-        $failed = Roadblock::with(['startup', 'mentor', 'coordinator'])
+        $failed = Roadblock::with(['startup', 'mentor', 'coordinator', 'files'])
             ->where('status', 'Failed')
+            ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
             ->orderByDesc('failed_at')
             ->get();
 
@@ -67,6 +83,10 @@ class RoadblockController extends Controller
             'failed' => $failed,
             'mentors' => $mentors,
             'coordinators' => $coordinators,
+            'selectedCohortId' => $cohortId ? (int) $cohortId : null,
+            'filterCohorts' => Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+                ->orderBy('number')
+                ->get(),
         ]);
     }
 

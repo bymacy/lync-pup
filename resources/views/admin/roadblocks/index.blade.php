@@ -181,9 +181,13 @@
             $watch('archiveStage', value => setQueryParam('stage', value));
             $watch('upcomingSort', () => sortUpcomingRows());
         ">
-            <div class="mb-6">
-                <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Roadblock Management</h1>
-                <p class="mt-1 text-sm text-gray-500 sm:text-base">Review startup roadblocks and assign experts.</p>
+            <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Roadblock Management</h1>
+                    <p class="mt-1 text-sm text-gray-500 sm:text-base">Review startup roadblocks and assign experts.</p>
+                </div>
+
+                <x-cohort-filter-dropdown :cohorts="$filterCohorts" :selected="$selectedCohortId" class="ml-auto" />
             </div>
 
             <div class="border-b border-gray-200 mb-6">
