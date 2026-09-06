@@ -464,8 +464,8 @@
                     </div>
                     <div class="flex-1 w-full">
                         <div class="flex items-center justify-between text-sm text-gray-900 mb-4">
-                            <span>Milestones</span>
-                            <span>% Completed</span>
+                            <span class="font-bold">Milestones</span>
+                            <span class="font-bold">% Completed</span>
                         </div>
                         <div class="space-y-4">
                             @foreach ($milestones['milestones'] as $m)

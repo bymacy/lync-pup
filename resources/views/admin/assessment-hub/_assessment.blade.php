@@ -140,7 +140,7 @@ for ($i = 0; $i < $count; $i++) {
                     style="display:none;">
                     @if ($selectedStartup)
                     <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $selectedStage]) }}"
-                        @click="if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
+                        @click="if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.pendingAction = null; $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
                         class="block w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                         All Startup
                     </a>
@@ -148,7 +148,7 @@ for ($i = 0; $i < $count; $i++) {
                     @foreach ($assessableStartups as $option)
                     @unless ($selectedStartup && $selectedStartup->startup_id === $option->startup_id)
                     <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $selectedStage, 'assessment_startup' => $option->startup_id]) }}"
-                        @click="if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
+                        @click="if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.pendingAction = null; $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
                         class="block w-full px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
                         {{ $option->company_name }}
                     </a>
@@ -159,8 +159,11 @@ for ($i = 0; $i < $count; $i++) {
 
             <div class="flex w-full overflow-x-auto rounded-lg border border-gray-200">
                 @foreach ($allStages as $stageOption)
+                    {{-- The currently-selected stage tab points at the page you're
+                         already on - clicking it again must not trigger the
+                         unsaved-changes prompt (or reload and lose the draft). --}}
                     <a href="{{ route('admin.assessment-hub.index', ['main' => 'assessment', 'stage' => $stageOption, 'assessment_startup' => $selectedStartup?->startup_id]) }}"
-                        @click="if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
+                        @click="if ({{ $stageOption === $selectedStage ? 'true' : 'false' }}) { $event.preventDefault(); } else if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.pendingAction = null; $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
                         class="flex-none whitespace-nowrap px-3 py-1.5 text-center text-xs font-semibold transition sm:flex-1 sm:px-4 sm:text-sm {{ $selectedStage === $stageOption ? 'bg-[#6C0E24] text-white' : 'text-gray-600 hover:bg-gray-50' }}">
                         {{ $stageOption }}
                     </a>
@@ -329,8 +332,8 @@ for ($i = 0; $i < $count; $i++) {
             // Which fields belong to a given RL type — MRL and TMRL
             // deliberately share one signatory block (evaluatedBy/reviewedBy/
             // notedBy and their positions), same as the read/edit form above;
-            // assessmentDate is shared by all four types' own "Date of
-            // Assessment" field, so it's included everywhere.
+            // assessmentDate is shared by all four types' own 'Date of
+            // Assessment' field, so it's included everywhere.
             discardChangesFor(type) {
                 this.progress[type] = JSON.parse(JSON.stringify(this.initialProgress[type]));
                 this.assessmentDate = this.initialAssessmentDate;
@@ -429,7 +432,7 @@ for ($i = 0; $i < $count; $i++) {
             // The official 0-9 score (matches ReadinessRubric::scoreFromProgress()
             // server-side): the weighted fraction-per-level sum, rounded to 1
             // decimal, or null when nothing anywhere in this type is checked yet
-            // (so the badge can show "Not Started" instead of "0.0/9").
+            // (so the badge can show 'Not Started' instead of '0.0/9').
             scoreFor(type) {
                 const total = this.weightedProgress(type);
                 return total > 0 ? Math.round(total * 10) / 10 : null;
@@ -1031,7 +1034,7 @@ for ($i = 0; $i < $count; $i++) {
                 @endif
 
                 <a href="{{ route('admin.startups.show', ['startup' => $selectedStartup, 'from' => 'assessment-hub', 'stage' => $selectedStage, 'assessment_startup' => $selectedStartup->startup_id]) }}"
-                    @click="if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
+                    @click="if ($store.navigation.hasUnsavedChanges) { $event.preventDefault(); $store.navigation.pendingAction = null; $store.navigation.nextUrl = $el.href; $store.navigation.showLeaveModal = true; }"
                     class="mt-5 block rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-center text-sm font-bold text-white transition hover:opacity-90">
                     View Profile
                 </a>

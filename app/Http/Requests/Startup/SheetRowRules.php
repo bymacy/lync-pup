@@ -86,6 +86,26 @@ trait SheetRowRules
         return ['required', 'string', 'max:'.$max, 'regex:/^[\p{L}][\p{L}\s\.\,\-\x{2019}\']*$/iu'];
     }
 
+    /**
+     * The Core Team Formation name column specifically: not just a real
+     * name (rowPersonName above), but the exact "Surname, Firstname[,
+     * Middle Name[, Ext]]" shape its own header asks for - two to four
+     * comma-separated parts, each one or more space-separated words so a
+     * compound surname like "Dela Cruz" still counts as one part. A bare
+     * "Elias Navarro" (no comma at all) no longer passes; neither does a
+     * fifth part. A missing Middle Name or Ext is left out entirely rather
+     * than filled with "N/A" - a stray "N/A" breaks the match here exactly
+     * like it does in rowPersonName, since a slash isn't an allowed
+     * character in any part.
+     */
+    protected function rowFullName(int $max): array
+    {
+        $word = '[\p{L}][\p{L}\.\-\x{2019}\']*';
+        $part = $word.'(?:\s+'.$word.')*';
+
+        return ['required', 'string', 'max:'.$max, 'regex:/^'.$part.'(?:,\s*'.$part.'){1,3}$/iu'];
+    }
+
     /** A job title or role: letters, numbers, spaces, and . - / & - no N/A. */
     protected function rowDesignation(int $max): array
     {

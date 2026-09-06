@@ -1594,10 +1594,10 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                         x-show="editing && !isLocked"
                         x-cloak
                         @click="saveAll()"
-                        :disabled="saving"
+                        :disabled="saving || !dirty"
                         class="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white
                bg-gradient-to-r from-[#6D0D23] to-[#11386A]
-               hover:opacity-95 transition disabled:opacity-60">
+               hover:opacity-95 transition disabled:opacity-60 disabled:cursor-not-allowed">
                         <span x-text="saving ? 'Saving…' : 'Save'"></span>
                     </button>
 
@@ -1655,7 +1655,10 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                 el.setAttribute('data-field-invalid', '');
             };
 
-            Object.entries(errors || {}).forEach(([field, messages]) => {
+            Object.values(errors || {}).forEach((entry) => {
+                const field = entry.field;
+                const messages = entry.messages;
+                const sourceForm = entry.form;
                 const text = Array.isArray(messages) ? messages[0] : messages;
 
                 // Row tables (23, 32, 34) keep their message under the table.
@@ -1671,13 +1674,27 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                     return;
                 }
 
-                // Fields join the form through form="info-sheet-form", so they are
-                // in form.elements even though they are not DOM descendants of it.
-                const form = document.getElementById('info-sheet-form');
-                let control = (form && form.elements) ? form.elements[field] : null;
+                // Prefer resolving the field inside the exact row form this
+                // error came from - every Core Team / Incubation / L&D /
+                // Reference row reuses the same field names, so a
+                // document-wide lookup below would always land on the first
+                // row regardless of which row actually failed.
+                let control = (sourceForm && sourceForm.elements) ? sourceForm.elements[field] : null;
 
                 if (control && control.length !== undefined && ! control.tagName) {
                     control = control[0];
+                }
+
+                // Fields join the MAIN form through form="info-sheet-form", so
+                // they are in its form.elements even though they are not DOM
+                // descendants of it.
+                if (! control) {
+                    const mainForm = document.getElementById('info-sheet-form');
+                    control = (mainForm && mainForm.elements) ? mainForm.elements[field] : null;
+
+                    if (control && control.length !== undefined && ! control.tagName) {
+                        control = control[0];
+                    }
                 }
 
                 if (! control) control = document.querySelector('[name="' + field + '"]');
@@ -1949,6 +1966,14 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
             // first one — same "attempt everything, then decide" shape whether
             // this is the dry run or the real save below.
             const attemptAll = async (dryRun) => {
+                // Keyed by field + which row's form it came from, not just the
+                // bare field name: every Core Team / Incubation / L&D /
+                // Reference row reuses the same field names (full_name, phone,
+                // designation...), so keying by field name alone would let one
+                // row's error silently overwrite another's, and
+                // showInfoSheetFieldErrors would have no way to tell which row's
+                // control to flag - it would always flag the first row on the
+                // page no matter which row's request actually failed.
                 const combinedValidation = {};
                 let firstHardError = null;
                 let created = 0;
@@ -1959,7 +1984,10 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                         if (! dryRun && saved.classList.contains('js-addform')) created++;
                     } catch (error) {
                         if (error.status === 422 && error.validation) {
-                            Object.assign(combinedValidation, error.validation);
+                            Object.entries(error.validation).forEach(([field, messages]) => {
+                                const key = field + '@' + form.action;
+                                combinedValidation[key] = { field, messages, form };
+                            });
                         } else if (! firstHardError) {
                             firstHardError = error;
                         }
@@ -1969,9 +1997,12 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                 const problemCount = Object.keys(combinedValidation).length;
 
                 if (problemCount > 0) {
+                    const firstEntry = Object.values(combinedValidation)[0];
+                    const firstMessage = Array.isArray(firstEntry.messages) ? firstEntry.messages[0] : firstEntry.messages;
+
                     const error = new Error(
                         problemCount === 1
-                            ? Object.values(combinedValidation)[0][0]
+                            ? firstMessage
                             : `${problemCount} fields need fixing — see the messages on the form.`
                     );
                     error.validation = combinedValidation;

@@ -151,8 +151,14 @@
                             <a
                                 href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
                                 @click="
-                                if ($store.navigation.hasUnsavedChanges) {
+                                if ({{ $isActive ? 'true' : 'false' }}) {
+                                    // Already on this page - clicking it again is not a
+                                    // navigation, so it must never trigger the unsaved-
+                                    // changes prompt (or silently reload and lose the draft).
                                     $event.preventDefault();
+                                } else if ($store.navigation.hasUnsavedChanges) {
+                                    $event.preventDefault();
+                                    $store.navigation.pendingAction = null;
                                     $store.navigation.nextUrl = $el.href;
                                     $store.navigation.showLeaveModal = true;
                                 } else {

@@ -104,20 +104,12 @@ class StartupProfileController extends Controller
                 ->delete();
         }
 
-        // The Information Sheet's own Core Team table (Section II) is only
-        // ever seeded from the Profile's roster once, while it's still
-        // empty - after that the founder manages it entirely through the
-        // Information Sheet's own Core Team CRUD (storeTeamMember() etc.
-        // below), which is what stays locked. Only full_name transfers;
-        // the biographical columns are left for the founder to fill in
-        // there.
-        if ($startup->teamMembers()->count() === 0) {
-            $startup->startupTeamMembers->each(function (StartupTeamMember $member) use ($startup) {
-                $startup->teamMembers()->create([
-                    'full_name' => $member->full_name,
-                ]);
-            });
-        }
+        // The Information Sheet's own Core Team table (Section II) is
+        // deliberately never seeded from the Profile's roster (or from
+        // anything else) - the founder always starts Section II empty and
+        // fills it in there directly, through its own Core Team CRUD
+        // (storeTeamMember() etc. below), which is what stays locked. The
+        // two rosters share nothing beyond both existing on this Startup.
 
         auth()->user()->update(['name' => $data['founder_name']]);
 

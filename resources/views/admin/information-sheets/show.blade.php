@@ -159,7 +159,7 @@
             console.error('Info sheet save failed:', e);
 
             const shown = e?.validation && typeof e.validation === 'object'
-                ? window.showInfoSheetFieldErrors(e.validation)
+                ? window.showInfoSheetFieldErrors(e.validation, e.form)
                 : false;
 
             Alpine.store('toast').error(
@@ -1641,10 +1641,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                         <button
                             type="button"
                             @click="saveAll()"
-                            :disabled="saving"
+                            :disabled="saving || !dirty"
                             class="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white
                                    bg-gradient-to-r from-[#6D0D23] to-[#11386A]
-                                   hover:opacity-95 transition disabled:opacity-60">
+                                   hover:opacity-95 transition disabled:opacity-60 disabled:cursor-not-allowed">
                             <span x-text="saving ? 'Saving…' : 'Save'"></span>
                         </button>
                     </div>
@@ -1679,7 +1679,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
             });
         };
 
-        window.showInfoSheetFieldErrors = function (errors) {
+        window.showInfoSheetFieldErrors = function (errors, sourceForm) {
             let first = null;
 
             const flag = (el) => {
@@ -1704,13 +1704,29 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     return;
                 }
 
-                // Fields join the form through form="info-sheet-form", so they are
-                // in form.elements even though they are not DOM descendants of it.
-                const form = document.getElementById('info-sheet-form');
-                let control = (form && form.elements) ? form.elements[field] : null;
+                // Prefer resolving the field inside the exact row form this error
+                // came from - every Core Team / Incubation / L&D / Reference row
+                // reuses the same field names (full_name, phone, designation...),
+                // so a document-wide "[name=...]" lookup below would always land
+                // on the FIRST row's field, regardless of which row actually
+                // failed. sourceForm is the one specific form that produced this
+                // error, passed in by whoever called this function.
+                let control = (sourceForm && sourceForm.elements) ? sourceForm.elements[field] : null;
 
                 if (control && control.length !== undefined && ! control.tagName) {
                     control = control[0];
+                }
+
+                // Fields join the MAIN form through form="info-sheet-form", so
+                // they are in form.elements even though they are not DOM
+                // descendants of it.
+                if (! control) {
+                    const mainForm = document.getElementById('info-sheet-form');
+                    control = (mainForm && mainForm.elements) ? mainForm.elements[field] : null;
+
+                    if (control && control.length !== undefined && ! control.tagName) {
+                        control = control[0];
+                    }
                 }
 
                 if (! control) control = document.querySelector('[name="' + field + '"]');
@@ -1838,6 +1854,13 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     const error = new Error('Request to ' + form.action + ' failed with status ' + response.status);
                     error.status = response.status;
                     error.action = form.action;
+                    // Which row's own form this came from, so the field can be
+                    // looked up inside it: Core Team / Incubation / L&D /
+                    // Reference rows all reuse the same field names (full_name,
+                    // phone...), so a document-wide "[name=...]" lookup would
+                    // always land on the first row regardless of which row this
+                    // error actually belongs to.
+                    error.form = form;
 
                     // Laravel returns validation errors as JSON on an XHR request.
                     if (response.status === 422) {

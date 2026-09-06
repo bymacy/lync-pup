@@ -61,6 +61,11 @@ Alpine.store('navigation', {
     hasUnsavedChanges: false,
     showLeaveModal: false,
     nextUrl: null,
+    // Set instead of nextUrl when the thing being guarded isn't a page
+    // navigation — e.g. opening the Export Document modal while an
+    // assessment draft is unsaved. The Leave modal in admin.blade.php
+    // branches on this instead of always doing window.location.
+    pendingAction: null,
 });
 
 Alpine.store('toast', {

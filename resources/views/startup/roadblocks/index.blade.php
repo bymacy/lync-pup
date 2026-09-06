@@ -579,18 +579,18 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
 
                 {{-- Actions: stack on phones so neither label wraps --}}
                 <div class="flex flex-col gap-3 pt-1 sm:flex-row sm:gap-4">
-                    {{-- Clear Form: gradient hairline border, gradient label --}}
-                    <div class="order-2 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] p-px transition sm:order-none sm:flex-1"
-                        :class="isDirty || 'opacity-50'">
-                        <button type="button" @click="resetForm()"
-                            :disabled="!isDirty"
-                            :class="isDirty ? 'hover:bg-gray-50' : 'cursor-not-allowed'"
-                            class="h-full w-full rounded-[7px] bg-white py-3 text-sm font-semibold transition focus:outline-none">
-                            <span class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-transparent">
-                                Clear Form
-                            </span>
-                        </button>
-                    </div>
+                    {{-- Clear Form: gradient hairline border (painted as a
+                         background image, not a p-px wrapper, so the edge
+                         can't round away to nothing at fractional zoom),
+                         gradient label --}}
+                    <button type="button" @click="resetForm()"
+                        :disabled="!isDirty"
+                        :class="isDirty ? '' : 'cursor-not-allowed opacity-50'"
+                        class="btn-brand-outline order-2 rounded-lg py-3 text-sm font-semibold transition focus:outline-none sm:order-none sm:flex-1">
+                        <span class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] bg-clip-text text-transparent">
+                            Clear Form
+                        </span>
+                    </button>
 
                     <button type="button"
                         @click="validateAll() && (showConfirm = true)"

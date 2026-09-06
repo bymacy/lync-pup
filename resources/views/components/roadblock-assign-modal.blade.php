@@ -440,8 +440,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         Cancel
                     </button>
                     @else
-                    <button type="button" @click="clearForm()"
-                        class="order-2 h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:order-none sm:flex-1">
+                    <button type="button" @click="clearForm()" :disabled="!isDirty()"
+                        class="order-2 h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white sm:order-none sm:flex-1">
                         Clear Form
                     </button>
                     @endif

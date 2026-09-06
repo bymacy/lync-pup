@@ -267,7 +267,7 @@
         // above) rather than re-deriving blank values field-by-field here,
         // so nothing gets missed and a document that was never saved always
         // ends up byte-for-byte equal to its initialDocN after clearing —
-        // i.e. no longer "dirty", so navigating away afterward doesn't warn.
+        // i.e. no longer 'dirty', so navigating away afterward doesn't warn.
         clearAll() {
             document.getElementById('active-assessment-form').reset();
             this.doc6 = JSON.parse(JSON.stringify(this.blankDoc6));

@@ -64,3 +64,35 @@
         linear-gradient(#56091B, #56091B),
         linear-gradient(to right, #56091B, #0D2C55);
 }
+
+/*
+ * "Clear Form"-style secondary button: white fill with the brand
+ * maroon-to-navy gradient as its 1px hairline border, using the same
+ * border-box/padding-box layered-background technique as .btn-brand-edge
+ * above. This used to be done with a wrapper div (`p-px` + an inset
+ * `rounded-[7px]` button) faking the hairline with real padding, but at
+ * fractional browser zoom (e.g. 67%) that 1px can round away to 0 on one
+ * edge, making the border vanish on that side. Painting the border as a
+ * background image instead of real padding isn't subject to that
+ * rounding, so the hairline stays whole at any zoom level.
+ */
+.btn-brand-outline {
+    border: 1px solid transparent;
+    background-image:
+        linear-gradient(#fff, #fff),
+        linear-gradient(to right, #6D0D23, #11386A);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+}
+
+.btn-brand-outline:hover {
+    background-image:
+        linear-gradient(#f9fafb, #f9fafb),
+        linear-gradient(to right, #6D0D23, #11386A);
+}
+
+.btn-brand-outline:disabled {
+    background-image:
+        linear-gradient(#fff, #fff),
+        linear-gradient(to right, #6D0D23, #11386A);
+}

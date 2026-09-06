@@ -156,8 +156,8 @@
                             $avatarColor = $avatarPalette[$row['startup']->startup_id % count($avatarPalette)];
                         @endphp
                         <tr class="border-b border-gray-100 last:border-0 align-top">
-                            <td class="py-4 pr-2 text-gray-500" style="padding-left: 24px;">{{ $i + 1 }}</td>
-                            <td class="py-4 px-2 text-center">
+                            <td class="py-4 pr-2 text-gray-500 align-middle" style="padding-left: 24px;">{{ $i + 1 }}</td>
+                            <td class="py-4 px-2 text-center align-middle">
                                 {{-- Fixed-width row so the avatar sits at the same x position
                                      on every row once centered — centering a variable-width
                                      group (name lengths differ) would make the avatars drift

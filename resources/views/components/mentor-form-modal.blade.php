@@ -727,8 +727,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     @else
                     {{-- type=button + explicit dispatch: native reset() restores the HTML
                      value attributes, which after a failed submit ARE the old() values --}}
-                    <button type="button" @click="$dispatch('{{ $resetEvent }}')"
-                        class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 sm:flex-1">
+                    <button type="button" @click="$dispatch('{{ $resetEvent }}')" :disabled="!dirty"
+                        class="h-10 w-full rounded-md border border-gray-300 bg-white text-sm font-bold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white sm:flex-1">
                         Clear Form
                     </button>
 

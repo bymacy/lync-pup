@@ -10,8 +10,23 @@
                 <p class="mt-1 text-sm text-gray-500 sm:text-base">Manage Startup Information Sheets from submission to approval and the Assessment Documents</p>
             </div>
 
+            {{-- The assessment form(s) further down (TRL/MRL/TMRL/SRL, Document
+                 6/7/8, Venture Exit) all mirror their own dirty state into
+                 $store.navigation.hasUnsavedChanges. Exporting doesn't touch
+                 or discard that draft — it's just another modal on the same
+                 page — but jumping into it with an unsaved draft sitting
+                 around is exactly the kind of thing that's easy to forget
+                 about, so it gets the same Stay/Leave confirmation as
+                 actually navigating away. --}}
             <button type="button" x-show="mainTab === 'assessment'" x-cloak
-                @click="$dispatch('open-export-modal')"
+                @click="
+                    if ($store.navigation.hasUnsavedChanges) {
+                        $store.navigation.pendingAction = 'export';
+                        $store.navigation.showLeaveModal = true;
+                    } else {
+                        $dispatch('open-export-modal');
+                    }
+                "
                 class="ml-auto inline-flex shrink-0 items-center gap-1.5 self-start whitespace-nowrap rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 sm:gap-2 sm:px-3.5 sm:py-2 lg:px-5 lg:py-2.5 lg:text-sm">
                 <x-icon name="exportdoc.svg" class="h-3.5 w-3.5 shrink-0 lg:h-4 lg:w-4" />
                 <span>Export Document</span>

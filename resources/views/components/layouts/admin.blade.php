@@ -112,8 +112,14 @@
 
                             <a href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
                                 @click="
-                                if ($store.navigation.hasUnsavedChanges) {
+                                if ({{ $isActive ? 'true' : 'false' }}) {
+                                    // Already on this page - clicking it again is not a
+                                    // navigation, so it must never trigger the unsaved-
+                                    // changes prompt (or silently reload and lose the draft).
                                     $event.preventDefault();
+                                } else if ($store.navigation.hasUnsavedChanges) {
+                                    $event.preventDefault();
+                                    $store.navigation.pendingAction = null;
                                     $store.navigation.nextUrl = $el.href;
                                     $store.navigation.showLeaveModal = true;
                                 } else {
@@ -386,9 +392,16 @@
                         Unsaved Changes
                     </h2>
 
-                    <p class="mt-2 text-center text-sm text-gray-600">
-                        You have unsaved changes.
-                        If you leave this page, your edits will be lost.
+                    {{-- Reused for two guards: leaving the page outright (a
+                         real navigation, nextUrl) and staying on the page but
+                         proceeding into something like Export Document while
+                         a draft is unsaved (pendingAction, no navigation) —
+                         the copy and the action button need to say the
+                         right thing for whichever one is pending. --}}
+                    <p class="mt-2 text-center text-sm text-gray-600"
+                        x-text="$store.navigation.pendingAction === 'export'
+                            ? 'You have an unsaved assessment draft. You can still open Export Document, but your draft won\'t be saved until you come back and hit Save.'
+                            : 'You have unsaved changes. If you leave this page, your edits will be lost.'">
                     </p>
 
                     <div class="mt-6 flex gap-3">
@@ -402,12 +415,17 @@
                         <button
                             type="button"
                             @click="
-                                $store.navigation.hasUnsavedChanges = false;
                                 $store.navigation.showLeaveModal = false;
-                                window.location = $store.navigation.nextUrl;
+                                if ($store.navigation.pendingAction === 'export') {
+                                    $store.navigation.pendingAction = null;
+                                    $dispatch('open-export-modal');
+                                } else {
+                                    $store.navigation.hasUnsavedChanges = false;
+                                    window.location = $store.navigation.nextUrl;
+                                }
                             "
-                            class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 font-medium text-white">
-                            Leave
+                            class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 font-medium text-white"
+                            x-text="$store.navigation.pendingAction === 'export' ? 'Continue to Export' : 'Leave'">
                         </button>
                     </div>
                 </div>

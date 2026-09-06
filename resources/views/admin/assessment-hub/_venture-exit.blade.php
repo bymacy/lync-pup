@@ -113,6 +113,13 @@
                         this.ve.readiness_levels[key].remarks = row.remarks || '';
                     }
                 });
+                // The AI draft only lives in this in-memory form state until
+                // Save Assessment is clicked — flag it explicitly as an
+                // unsaved change so navigating away (sidebar, stage tabs,
+                // startup switcher, View Profile) prompts the same Unsaved
+                // Changes confirmation a manual edit would, instead of
+                // silently discarding the draft.
+                this.$store.navigation.hasUnsavedChanges = true;
             } catch (e) {
                 this.aiError = e.message || 'Something went wrong generating content. Please try again.';
             } finally {
@@ -122,10 +129,10 @@
         isDirty() {
             return JSON.stringify(this.ve) !== JSON.stringify(this.initialVe);
         },
-        // "Highest Level" stays stored as the same "X/9" (or "X.X/9")
+        // 'Highest Level' stays stored as the same 'X/9' (or 'X.X/9')
         // string VentureExitAiGenerator.php and the saved Post-Assessment
         // prefill already rely on — only the admin-facing input is
-        // constrained to just the level number, with "/9" shown as a
+        // constrained to just the level number, with '/9' shown as a
         // fixed, non-editable suffix instead of free text.
         highestLevelNumber(type) {
             const raw = this.ve.readiness_levels[type].highest_level || '';
@@ -153,7 +160,13 @@
             if (this.incompleteAssessments.length && ! this.confirmedIncomplete) {
                 event.preventDefault();
                 this.showIncompleteConfirm = true;
+                return;
             }
+            // Submission is actually going through (full page reload) —
+            // same as the other assessment forms' @submit reset, so the
+            // beforeunload guard doesn't fire a native 'leave site?' prompt
+            // over the navigation this very submit is causing.
+            this.$store.navigation.hasUnsavedChanges = false;
         },
         proceedAnyway() {
             this.confirmedIncomplete = true;
@@ -181,7 +194,8 @@
             });
             this.showClearConfirm = false;
         },
-    }">
+    }"
+    x-init="$watch(() => isDirty(), value => { $store.navigation.hasUnsavedChanges = value; })">
 
     <div class="rounded-t-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-4 py-3 text-center font-bold uppercase text-white">
         Startup Exit Form
