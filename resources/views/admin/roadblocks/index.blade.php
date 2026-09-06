@@ -15,8 +15,22 @@
     $archiveHead = 'px-3 py-3 text-center font-semibold sm:px-4';
     $archiveHeadWide = 'px-4 py-3 text-center font-semibold';
     $archiveCell = 'px-4 py-3 text-center align-middle';
-    $archiveNameBox = 'mx-auto flex w-[12rem] items-center gap-2.5 sm:gap-3';
+    $archiveNameBox = 'flex w-[12rem] items-center gap-2.5 sm:gap-3';
     $archiveActions = 'flex flex-col gap-2 sm:flex-row sm:justify-center';
+
+    // Startup (first column) sits flush left and gets a fixed width so the
+    // browser's auto table layout doesn't hand it the table's leftover space
+    // — same fix as the Mentorship Evaluation table on this page's other tab.
+    // Roadblock keeps its centered header/data but is biased left via
+    // asymmetric padding so it doesn't float far from Startup either — also
+    // matching that same table.
+    $archiveHeadFirst = 'px-3 py-3 whitespace-nowrap text-left font-semibold sm:px-4';
+    $archiveHeadRoadblock = 'pl-1 pr-24 py-3 whitespace-nowrap text-center font-semibold';
+    $archiveCellRoadblock = 'pl-1 pr-24 py-3 text-center align-middle';
+    $archiveHeadDate = 'pl-1 pr-28 py-3 whitespace-nowrap text-center font-semibold';
+    $archiveCellDate = 'pl-1 pr-28 py-3 whitespace-nowrap text-center align-middle';
+    $archiveHeadMentor = 'pl-1 pr-16 py-3 text-center font-semibold';
+    $archiveCellMentor = 'pl-1 pr-16 py-3 text-center align-middle';
 
     $pendingCategories = $pending->pluck('display_category')->filter()->unique()->sort()->values();
     $pendingCount = $pending->count();
@@ -54,7 +68,7 @@
                 role="listbox"
                 class="absolute left-0 top-full z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
 
-                <template x-for="entry in Object.entries({$json})" :key="entry[0]">
+                <template x-for="entry in Object.entries({$json}).filter(([key]) => key !== {$model})" :key="entry[0]">
                     <button type="button" role="option"
                         :aria-selected="{$model} === entry[0]"
                         @click="{$model} = entry[0]; open = false"
@@ -601,10 +615,10 @@
                             <table class="w-full min-w-[780px] text-sm">
                                 <thead>
                                     <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white">
-                                        <th class="{{ $archiveHead }}">Startup</th>
-                                        <th class="{{ $archiveHeadWide }}">Roadblock</th>
-                                        <th class="{{ $archiveHead }}">Date</th>
-                                        <th class="{{ $archiveHeadWide }}">Mentor</th>
+                                        <th style="width: 14rem;" class="{{ $archiveHeadFirst }}">Startup</th>
+                                        <th class="{{ $archiveHeadRoadblock }}">Roadblock</th>
+                                        <th class="{{ $archiveHeadDate }}">Date</th>
+                                        <th class="{{ $archiveHeadMentor }}">Mentor</th>
                                         <th class="{{ $archiveHead }}">Action</th>
                                     </tr>
                                 </thead>
@@ -612,7 +626,7 @@
                                     @forelse ($assessment as $roadblock)
                                     @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
                                     <tr class="border-b border-gray-100 last:border-0" x-data="{ viewOpen: false, previewImage: null }">
-                                        <td class="px-3 py-3 align-middle sm:px-4">
+                                        <td style="width: 14rem;" class="px-3 py-3 text-left align-middle sm:px-4">
                                             <div class="{{ $archiveNameBox }}">
                                                 @if ($roadblock->startup->startup_photo_url)
                                                 <img src="{{ $roadblock->startup->startup_photo_url }}" alt=""
@@ -628,9 +642,9 @@
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="{{ $archiveCell }}">{{ $roadblock->display_category }}</td>
-                                        <td class="{{ $archiveCell }} whitespace-nowrap">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
-                                        <td class="{{ $archiveCell }}">{{ $roadblock->assignee_display_name }}</td>
+                                        <td class="{{ $archiveCellRoadblock }}">{{ $roadblock->display_category }}</td>
+                                        <td class="{{ $archiveCellDate }}">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
+                                        <td class="{{ $archiveCellMentor }}">{{ $roadblock->assignee_display_name }}</td>
                                         <td class="px-3 py-3 align-middle sm:px-4">
                                             <div class="{{ $archiveActions }}">
                                                 <button type="button" @click="viewOpen = true" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">View</button>
@@ -668,10 +682,10 @@
                             <table class="w-full min-w-[780px] text-sm">
                                 <thead>
                                     <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white">
-                                        <th class="{{ $archiveHead }}">Startup</th>
-                                        <th class="{{ $archiveHeadWide }}">Roadblock</th>
-                                        <th class="{{ $archiveHead }}">Date</th>
-                                        <th class="{{ $archiveHeadWide }}">Mentor</th>
+                                        <th style="width: 14rem;" class="{{ $archiveHeadFirst }}">Startup</th>
+                                        <th class="{{ $archiveHeadRoadblock }}">Roadblock</th>
+                                        <th class="{{ $archiveHeadDate }}">Date</th>
+                                        <th class="{{ $archiveHeadMentor }}">Mentor</th>
                                         <th class="{{ $archiveHead }}">Action</th>
                                     </tr>
                                 </thead>
@@ -679,7 +693,7 @@
                                     @forelse ($resolved as $roadblock)
                                     @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
                                     <tr class="border-b border-gray-100 last:border-0" x-data="{ viewOpen: false, previewImage: null }">
-                                        <td class="px-3 py-3 align-middle sm:px-4">
+                                        <td style="width: 14rem;" class="px-3 py-3 text-left align-middle sm:px-4">
                                             <div class="{{ $archiveNameBox }}">
                                                 @if ($roadblock->startup->startup_photo_url)
                                                 <img src="{{ $roadblock->startup->startup_photo_url }}" alt=""
@@ -695,9 +709,9 @@
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="{{ $archiveCell }}">{{ $roadblock->display_category }}</td>
-                                        <td class="{{ $archiveCell }} whitespace-nowrap">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
-                                        <td class="{{ $archiveCell }}">{{ $roadblock->assignee_display_name }}</td>
+                                        <td class="{{ $archiveCellRoadblock }}">{{ $roadblock->display_category }}</td>
+                                        <td class="{{ $archiveCellDate }}">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
+                                        <td class="{{ $archiveCellMentor }}">{{ $roadblock->assignee_display_name }}</td>
                                         <td class="px-3 py-3 align-middle sm:px-4">
                                             <div class="{{ $archiveActions }}">
                                                 <button type="button" @click="viewOpen = true" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">View</button>
@@ -731,10 +745,10 @@
                             <table class="w-full min-w-[780px] text-sm">
                                 <thead>
                                     <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white">
-                                        <th class="{{ $archiveHead }}">Startup</th>
-                                        <th class="{{ $archiveHeadWide }}">Roadblock</th>
-                                        <th class="{{ $archiveHead }}">Date</th>
-                                        <th class="{{ $archiveHeadWide }}">Mentor</th>
+                                        <th style="width: 14rem;" class="{{ $archiveHeadFirst }}">Startup</th>
+                                        <th class="{{ $archiveHeadRoadblock }}">Roadblock</th>
+                                        <th class="{{ $archiveHeadDate }}">Date</th>
+                                        <th class="{{ $archiveHeadMentor }}">Mentor</th>
                                         <th class="{{ $archiveHead }}">Action</th>
                                     </tr>
                                 </thead>
@@ -742,7 +756,7 @@
                                     @forelse ($failed as $roadblock)
                                     @php $avatarColor = $avatarPalette[$roadblock->startup->startup_id % count($avatarPalette)]; @endphp
                                     <tr class="border-b border-gray-100 last:border-0" data-highlight-id="startup-{{ $roadblock->startup_id }}" x-data="{ deleteOpen: false, rescheduleOpen: @js($erroredRoadblockId === $roadblock->roadblock_id), viewOpen: false, previewImage: null }">
-                                        <td class="px-3 py-3 align-middle sm:px-4">
+                                        <td style="width: 14rem;" class="px-3 py-3 text-left align-middle sm:px-4">
                                             <div class="{{ $archiveNameBox }}">
                                                 @if ($roadblock->startup->startup_photo_url)
                                                 <img src="{{ $roadblock->startup->startup_photo_url }}" alt=""
@@ -758,9 +772,9 @@
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="{{ $archiveCell }}">{{ $roadblock->display_category }}</td>
-                                        <td class="{{ $archiveCell }} whitespace-nowrap">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
-                                        <td class="{{ $archiveCell }}">{{ $roadblock->assignee_display_name }}</td>
+                                        <td class="{{ $archiveCellRoadblock }}">{{ $roadblock->display_category }}</td>
+                                        <td class="{{ $archiveCellDate }}">{{ $roadblock->meeting_date?->format('M j, Y') }}</td>
+                                        <td class="{{ $archiveCellMentor }}">{{ $roadblock->assignee_display_name }}</td>
                                         <td class="px-3 py-3 align-middle sm:px-4">
                                             <div class="{{ $archiveActions }}">
                                                 <button type="button" @click="viewOpen = true" class="{{ $archiveBtn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">View</button>

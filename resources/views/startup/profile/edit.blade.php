@@ -406,8 +406,8 @@
 
                         <button
                             type="submit"
-                            :disabled="!canSave"
-                            :class="canSave
+                            :disabled="!canSave || !dirty"
+                            :class="(canSave && dirty)
                                 ? 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-90'
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
                             class="text-sm font-medium rounded-lg px-5 py-2.5 transition">

@@ -314,9 +314,15 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                             highlighted: -1,
                             options: ['Business Development', 'Technical Support', 'Market Research', 'Strategy Consultant', 'Others'],
 
+                            // The current value is left out entirely -- it's already
+                            // selected, so there's nothing to switch it to.
+                            get available() {
+                                return this.options.filter(o => o !== this.category);
+                            },
+
                             toggle() {
                                 this.open = !this.open;
-                                this.highlighted = this.open ? this.options.indexOf(this.category) : -1;
+                                this.highlighted = -1;
                                 if (!this.open) this.blurValidate();
                             },
 
@@ -335,7 +341,8 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
 
                             move(step) {
                                 if (!this.open) { this.toggle(); return; }
-                                const count = this.options.length;
+                                const count = this.available.length;
+                                if (! count) return;
                                 this.highlighted = (this.highlighted + step + count) % count;
                             },
                         }"
@@ -349,7 +356,7 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                             @click="toggle()"
                             @keydown.arrow-down.prevent="move(1)"
                             @keydown.arrow-up.prevent="move(-1)"
-                            @keydown.enter.prevent="open && highlighted > -1 ? choose(options[highlighted]) : toggle()"
+                            @keydown.enter.prevent="open && highlighted > -1 ? choose(available[highlighted]) : toggle()"
                             :aria-expanded="open"
                             aria-haspopup="listbox"
                             class="flex w-full items-stretch overflow-hidden rounded-lg border text-left
@@ -386,16 +393,17 @@ $xIcon = fn (string $class = 'h-3.5 w-3.5') =>
                             role="listbox"
                             class="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
 
-                            <template x-for="(option, index) in options" :key="option">
+                            {{-- The current value is excluded from `available` entirely
+                             -- reopening only ever offers something new to switch to. --}}
+                            <template x-for="(option, index) in available" :key="option">
                                 <button type="button"
                                     role="option"
-                                    :aria-selected="category === option"
                                     @click="choose(option)"
                                     @mouseenter="highlighted = index"
                                     class="w-full px-4 py-2.5 text-left text-sm transition-colors"
                                     :class="highlighted === index
                                         ? 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white'
-                                        : (category === option ? 'bg-rose-50 text-rose-900 font-medium' : 'text-gray-700')"
+                                        : 'text-gray-700'"
                                     x-text="option"></button>
                             </template>
                         </div>

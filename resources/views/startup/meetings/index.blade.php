@@ -238,20 +238,22 @@
                         </div>
                         @endif
                         @else
-                        @php
-                        $evalNote = $meeting['notes'] ?: 'Bring 1 valid ID each startup member.';
-                        $evalNoteIsLong = mb_strlen($evalNote) > $noteLimit;
-                        @endphp
+                        {{-- Admin-entered note only -- no generic fallback text,
+                             so a blank note field on the admin side means the
+                             founder sees no note section at all. --}}
+                        @if (!empty($meeting['notes']))
+                        @php $evalNoteIsLong = mb_strlen($meeting['notes']) > $noteLimit; @endphp
                         <div class="min-w-0 text-xs text-gray-600">
                             <p class="mb-1 font-semibold text-gray-800">Note:</p>
-                            <p class="line-clamp-2 break-words italic">{{ $evalNote }}</p>
+                            <p class="line-clamp-2 break-words italic">{{ $meeting['notes'] }}</p>
                             @if ($evalNoteIsLong)
-                            <button type="button" @click="viewingNote = @js($evalNote)"
+                            <button type="button" @click="viewingNote = @js($meeting['notes'])"
                                 class="mt-1 font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
                                 View
                             </button>
                             @endif
                         </div>
+                        @endif
                         @endif
                     </div>
                 </div>

@@ -42,7 +42,7 @@
                 <div class="mb-6 flex items-start justify-between gap-4">
                     <div>
                         <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Coordinator Profile</h1>
-                        <p class="mt-1 text-sm text-gray-500 sm:text-base">Review and manage weekly updates submitted by startup founders.</p>
+                        <p class="mt-1 text-sm text-gray-500 sm:text-base">Manage Portfolio Coordinators and their startup assignments.</p>
                     </div>
 
                     {{-- Desktop trigger: top right, beside the title --}}

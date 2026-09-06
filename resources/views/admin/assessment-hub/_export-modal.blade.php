@@ -326,7 +326,7 @@
                             x-transition:enter-end="opacity-100 translate-y-0"
                             class="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
 
-                            <template x-for="s in startups" :key="s.id">
+                            <template x-for="s in startups.filter(x => x.id !== startupId)" :key="s.id">
                                 <button type="button" role="option" :aria-selected="startupId === s.id"
                                     @click="selectStartup(s.id); open = false"
                                     class="w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white"
@@ -418,7 +418,7 @@
                                 x-transition:enter-end="opacity-100 translate-y-0"
                                 class="absolute bottom-full left-0 z-30 mb-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
 
-                                <template x-for="opt in formats" :key="opt.value">
+                                <template x-for="opt in formats.filter(o => o.value !== format)" :key="opt.value">
                                     <button type="button" role="option" :aria-selected="format === opt.value"
                                         @click="format = opt.value; open = false"
                                         class="w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white"

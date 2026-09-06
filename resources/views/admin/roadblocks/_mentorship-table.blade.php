@@ -45,9 +45,9 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         {{-- Every column is centred as a block, not as text: each cell's content sits
                              in a fixed-width box so icons and avatars still line up row to row. --}}
                         <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white">
-                            <th class="px-3 py-3 text-center font-semibold sm:px-4">Startup</th>
-                            <th class="px-4 py-3 text-center font-semibold">Roadblock</th>
-                            <th class="px-3 py-3 text-center font-semibold sm:px-4">Status</th>
+                            <th style="width: 14rem;" class="px-3 py-3 whitespace-nowrap text-left font-semibold sm:px-4">Startup</th>
+                            <th class="pl-1 pr-24 py-3 whitespace-nowrap text-center font-semibold">Roadblock</th>
+                            <th class="pl-1 pr-20 py-3 text-center font-semibold">Status</th>
                             <th class="px-3 py-3 text-center font-semibold sm:px-4">Meeting Schedule</th>
                             <th class="px-4 py-3 text-center font-semibold">Mentor / Coordinator</th>
                             <th class="px-3 py-3 text-center font-semibold sm:px-4">Action</th>
@@ -114,8 +114,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             @endif
                             x-data="{ viewOpen: false, editOpen: @js($erroredRoadblockId === $roadblock->roadblock_id), previewImage: null }">
 
-                            <td class="px-3 py-3 align-middle sm:px-4">
-                                <div class="mx-auto flex w-[13rem] items-center gap-2.5 sm:gap-3">
+                            <td style="width: 14rem;" class="px-3 py-3 text-left align-middle sm:px-4">
+                                <div class="flex w-[13rem] items-center gap-2.5 sm:gap-3">
                                     @if ($roadblock->startup->startup_photo_url)
                                     <img src="{{ $roadblock->startup->startup_photo_url }}" alt=""
                                         class="h-7 w-7 flex-shrink-0 rounded-full object-cover sm:h-8 sm:w-8">
@@ -131,18 +131,19 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3 text-center align-middle">{{ $roadblock->display_category }}</td>
+                            <td class="pl-1 pr-24 py-3 text-center align-middle">{{ $roadblock->display_category }}</td>
 
-                            <td class="px-3 py-3 text-center align-middle sm:px-4">
+                            <td class="pl-1 pr-20 py-3 text-center align-middle">
                                 <p class="font-semibold text-gray-900">{{ $statusMain }}</p>
                                 @if ($statusSub)
                                 <p class="text-xs text-gray-500">{{ $statusSub }}</p>
                                 @endif
                             </td>
 
-                            <td class="px-3 py-3 text-center align-middle sm:px-4">
-                                {{-- inline-block shrinks to the content width so the whole stack can
-                                     be centred, while text-left keeps the icons in a clean column. --}}
+                            <td class="px-3 py-3 align-middle sm:px-4">
+                                {{-- Centered as a flex block; text-left inside keeps the icons in a
+                                     clean column instead of each line centering independently. --}}
+                                <div class="flex justify-center">
                                 <div class="inline-block w-[13rem] text-left">
                                     <div class="flex items-center gap-1.5 text-gray-700">
                                         <span class="flex-shrink-0 text-[#6C0E24]">{!! $icon('cal.svg', 'w-3.5 h-3.5') !!}</span>
@@ -190,6 +191,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                         @endif
                                         @endif
                                     </div>
+                                </div>
                                 </div>
                             </td>
 

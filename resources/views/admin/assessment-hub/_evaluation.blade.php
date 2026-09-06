@@ -6,7 +6,7 @@ $thC = $th;
 $shell = 'w-full border border-gray-200 rounded-xl overflow-hidden bg-white';
 $scroll = 'max-h-[60vh] overflow-y-auto overflow-x-auto';
 $table = 'w-full min-w-[680px] table-fixed text-sm';
-$btn = 'inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg px-8 text-sm font-semibold transition';
+$btn = 'inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg px-4 text-sm font-semibold transition';
 $avatar = function ($startup) {
 $url = $startup->startup_photo_url ?? null;
 $name = $startup->company_name ?? '?';
@@ -110,7 +110,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                 <table class="{{ $table }}">
                     <thead class="{{ $thead }}">
                         <tr>
-                            <th class="{{ $th }}">Time</th>
+                            <th class="{{ $th }} !text-left">Time</th>
                             <th class="{{ $th }}">Startup</th>
                             <th class="{{ $th }}">Category</th>
                             <th class="{{ $th }}">Status</th>
@@ -127,17 +127,14 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                         $missed = $outcome === 'missed';
                         @endphp
                         <tr x-data="{ rescheduleOpen: @js($errors->any() && (string) old('schedule_row_key') === (string) $item->evaluation_schedule_id) }"
-                            class="border-b last:border-0 {{ $missed ? 'border-rose-200 bg-rose-50' : 'border-gray-100 hover:bg-gray-50/70' }}">
-                            <td class="relative px-4 py-3 whitespace-nowrap text-center {{ $missed ? 'text-rose-800' : 'text-gray-600' }}">
-                                @if ($missed)
-                                <span class="absolute inset-y-0 left-0 w-1 bg-rose-900" aria-hidden="true"></span>
-                                @endif
+                            class="border-b border-gray-100 last:border-0 hover:bg-gray-50/70">
+                            <td class="px-4 py-3 whitespace-nowrap text-left text-gray-600">
                                 {{ $item->time_range_label }}
                             </td>
                             <td class="px-4 py-3 text-center font-medium text-gray-900">
-                                {{-- The cell stays centered, but the logo + name sit in a
-                                     fixed-width block so every row's avatar lines up on the
-                                     same vertical edge instead of drifting with name length. --}}
+                                {{-- Logo + name sit in a fixed-width block so every row's
+                                     avatar lines up on the same vertical edge instead of
+                                     drifting with name length. --}}
                                 <div class="flex justify-center">
                                     <div class="relative inline-flex max-w-full items-center gap-2 text-left" style="{{ $startupCell }}">
                                         <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
@@ -148,7 +145,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-4 py-3 text-center {{ $missed ? 'text-rose-800' : 'text-gray-600' }}">{{ $item->startup->industry_sector }}</td>
+                            <td class="px-4 py-3 text-center text-gray-600">{{ $item->startup->industry_sector }}</td>
 
                             {{-- DONE only when the Information Sheet was approved before the
                                  booked time ran out; MISSED when it wasn't. Nothing to report
@@ -184,7 +181,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                             </td>
 
                             <td class="px-4 py-3 text-center">
-                                <div class="flex justify-center gap-2.5">
+                                <div class="flex justify-center gap-2">
                                     {{-- A missed row is handled exactly like one in the Missed view:
                                          outlined View, then Reschedule as the solid rose action. --}}
                                     @if ($missed)
@@ -243,7 +240,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                 <table class="{{ $table }}">
                     <thead class="{{ $thead }}">
                         <tr>
-                            <th class="{{ $th }}">Date &amp; Time</th>
+                            <th class="{{ $th }} !text-left">Date &amp; Time</th>
                             <th class="{{ $th }}">Startup</th>
                             <th class="{{ $th }}">Category</th>
                             <th class="{{ $th }}">Action</th>
@@ -256,16 +253,16 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                             class="border-b border-gray-100 last:border-0 hover:bg-gray-50/70">
 
                             {{-- 1. Date & Time --}}
-                            <td class="px-4 py-3 whitespace-nowrap text-center">
+                            <td class="px-4 py-3 whitespace-nowrap text-left">
                                 <span class="text-gray-900">{{ $item->evaluation_date->format('M d, Y') }}</span><br>
                                 <span class="text-xs text-gray-400">{{ $item->time_range_label }}</span>
                             </td>
 
                             {{-- 2. Startup --}}
                             <td class="px-4 py-3 text-center font-medium text-gray-900">
-                                {{-- The cell stays centered, but the logo + name sit in a
-                                     fixed-width block so every row's avatar lines up on the
-                                     same vertical edge instead of drifting with name length. --}}
+                                {{-- Logo + name sit in a fixed-width block so every row's
+                                     avatar lines up on the same vertical edge instead of
+                                     drifting with name length. --}}
                                 <div class="flex justify-center">
                                     <div class="inline-flex max-w-full items-center gap-2 text-left" style="{{ $startupCell }}">
                                         <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
@@ -281,7 +278,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
 
                             {{-- 4. Action --}}
                             <td class="px-4 py-3 text-center">
-                                <div class="flex justify-center gap-2.5">
+                                <div class="flex justify-center gap-2">
                                     <a href="{{ route('admin.information-sheet.show', ['startup' => $item->startup, 'from' => 'assessment-hub', 'tab' => 'evaluation', 'stage' => 'upcoming']) }}"
                                         class="{{ $btn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">
                                         View
@@ -324,7 +321,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
     {{-- ==================== MISSED ==================== --}}
     <div x-show="stage === 'missed'" x-cloak>
         <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-            Slots whose time ran out and whose Information Sheet still isn't approved, from any day - so this list is a queue of what still needs doing. Approving one drops it from here even if the approval was late; today's are also still on today's schedule, overlaid in red.
+            Expired slots with unapproved Information Sheets
         </div>
 
         <div class="{{ $shell }}">
@@ -332,7 +329,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                 <table class="{{ $table }}  ">
                     <thead class="{{ $thead }}">
                         <tr>
-                            <th class="{{ $th }}">Startup</th>
+                            <th class="{{ $th }} !text-left">Startup</th>
                             <th class="{{ $th }}">Date &amp; Time</th>
                             <th class="{{ $th }}">Category</th>
                             <th class="{{ $thC }}">Action</th>
@@ -341,11 +338,11 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                     <tbody>
                         @forelse ($missedEvaluations as $item)
                         <tr x-data="{ rescheduleOpen: @js($errors->any() && (string) old('schedule_row_key') === (string) $item->evaluation_schedule_id) }" class="border-b border-gray-100 last:border-0 hover:bg-gray-50/70">
-                            <td class="px-4 py-3 text-center font-medium text-gray-900">
+                            <td class="px-4 py-3 text-left font-medium text-gray-900">
                                 {{-- The cell stays centered, but the logo + name sit in a
                                      fixed-width block so every row's avatar lines up on the
                                      same vertical edge instead of drifting with name length. --}}
-                                <div class="flex justify-center">
+                                <div class="flex justify-start">
                                     <div class="inline-flex max-w-full items-center gap-2 text-left" style="{{ $startupCell }}">
                                         <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
                                             {!! $avatar($item->startup) !!}
@@ -360,7 +357,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                             </td>
                             <td class="px-4 py-3 text-center text-gray-600">{{ $item->startup->industry_sector }}</td>
                             <td class="px-4 py-3 text-center">
-                                <div class="flex justify-center gap-2.5">
+                                <div class="flex justify-center gap-2">
                                     {{-- The founder's sheet reopens the day after a missed
                                          evaluation, so this always renders whatever they have
                                          saved since. Approve lives on that page: the schedule

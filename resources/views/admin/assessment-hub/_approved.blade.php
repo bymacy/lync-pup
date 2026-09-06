@@ -97,7 +97,7 @@ return [
     <table class="w-full min-w-[620px] table-fixed text-sm">
         <thead>
             <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-center">
-                <th class="whitespace-nowrap px-4 py-3 text-sm font-semibold tracking-wider">Startup</th>
+                <th class="whitespace-nowrap px-4 py-3 text-left text-sm font-semibold tracking-wider">Startup</th>
                 <th class="whitespace-nowrap px-4 py-3 text-sm font-semibold tracking-wider">Approved Date</th>
                 <th class="whitespace-nowrap px-4 py-3 text-sm font-semibold tracking-wider">Category</th>
                 <th class="whitespace-nowrap px-4 py-3 text-sm font-semibold tracking-wider">Action</th>
@@ -106,8 +106,8 @@ return [
         <tbody>
             <template x-for="s in paged" :key="s.id">
                 <tr class="border-b">
-                    <td class="px-4 py-3 text-center">
-                        <div class="flex justify-center">
+                    <td class="px-4 py-3 text-left">
+                        <div class="flex justify-start">
                             <div class="inline-flex max-w-full items-center gap-3 text-left"
                                 :style="`width: calc(2.25rem + 0.75rem + ${nameCh}ch)`">
                                 <div class="h-9 w-9 rounded-full overflow-hidden bg-gradient-to-br from-rose-900 to-blue-950 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">

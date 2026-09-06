@@ -100,15 +100,26 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
             {{-- Watching the parent's open flag catches every way out — the X, Escape,
              clicking the backdrop — instead of only the close button. --}}
+            {{--
+                Edit mode only: Save Changes (below) starts disabled and only
+                lights up once the admin actually touches a field -- guards
+                against a no-op submit right after opening the modal. Add
+                mode has no "unchanged" concept to compare against, so its
+                submit button is untouched by `dirty`.
+            --}}
             <form method="POST" action="{{ $action }}" enctype="multipart/form-data"
                 class="flex flex-1 flex-col space-y-3 px-8 pb-6 pt-1"
+                x-data="{ dirty: false }"
                 x-init="$watch('{{ $openVar }}', value => { if (! value) $dispatch('{{ $resetEvent }}') })"
+                @input="dirty = true"
+                @change="dirty = true"
                 x-on:{{ $resetEvent }}.window="
                 Object.entries(@js($textDefaults)).forEach(([name, value]) => {
                     const control = $el.elements[name];
                     if (control) control.value = value ?? '';
                 });
                 $el.querySelectorAll('[data-error]').forEach(node => node.remove());
+                dirty = false;
             ">
                 @csrf
                 @if ($mode === 'edit')
@@ -120,7 +131,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                 {{-- Row 1: First Name / Last Name / Honorifics --}}
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
-                        <label class="{{ $label }}">First Name</label>
+                        <label class="{{ $label }}">First Name <span class="text-red-500">*</span></label>
 
                         <div class="{{ $group }}">
                             <span class="{{ $slot_ }}">
@@ -136,7 +147,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     </div>
 
                     <div>
-                        <label class="{{ $label }}">Last Name</label>
+                        <label class="{{ $label }}">Last Name <span class="text-red-500">*</span></label>
 
                         <input type="text" name="last_name" value="{{ $oldFor('last_name', $mentor?->last_name) }}"
                             placeholder="Mentor Last Name"
@@ -146,7 +157,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     </div>
 
                     <div>
-                        <label class="{{ $label }}">Honorifics</label>
+                        <label class="{{ $label }}">Honorifics <span class="text-red-500">*</span></label>
 
                         {{-- Custom listbox: a native <select> paints its own OS-blue
                          highlight that CSS can't touch, so the popup is ours and
@@ -158,9 +169,15 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             highlighted: -1,
                             options: @js($honorifics),
 
+                            // The current value is left out entirely -- it's already
+                            // selected, so there's nothing to switch it to.
+                            get available() {
+                                return this.options.filter(o => o !== this.selected);
+                            },
+
                             toggle() {
                                 this.open = !this.open;
-                                this.highlighted = this.open ? this.options.indexOf(this.selected) : -1;
+                                this.highlighted = -1;
                             },
 
                             choose(option) {
@@ -171,7 +188,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                             move(step) {
                                 if (!this.open) { this.toggle(); return; }
-                                const count = this.options.length;
+                                const count = this.available.length;
+                                if (! count) return;
                                 this.highlighted = (this.highlighted + step + count) % count;
                             },
                         }"
@@ -186,7 +204,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 @click="toggle()"
                                 @keydown.arrow-down.prevent="move(1)"
                                 @keydown.arrow-up.prevent="move(-1)"
-                                @keydown.enter.prevent="open && highlighted > -1 ? choose(options[highlighted]) : toggle()"
+                                @keydown.enter.prevent="open && highlighted > -1 ? choose(available[highlighted]) : toggle()"
                                 :aria-expanded="open"
                                 aria-haspopup="listbox"
                                 class="{{ $plain }} flex items-center pr-9 text-left"
@@ -207,16 +225,17 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 role="listbox"
                                 class="{{ $listPopup }}">
 
-                                <template x-for="(option, index) in options" :key="option">
+                                {{-- The current value is excluded from `available` entirely
+                                 -- reopening only ever offers something new to switch to. --}}
+                                <template x-for="(option, index) in available" :key="option">
                                     <button type="button"
                                         role="option"
-                                        :aria-selected="selected === option"
                                         @click="choose(option)"
                                         @mouseenter="highlighted = index"
                                         class="{{ $listOption }}"
                                         :class="highlighted === index
                                         ? 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white'
-                                        : (selected === option ? 'bg-[#FDF2F5] font-medium text-[#9F1239]' : 'text-gray-700')"
+                                        : 'text-gray-700'"
                                         x-text="option"></button>
                                 </template>
                             </div>
@@ -229,7 +248,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                 {{-- Expertise: half width --}}
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-6">
                     <div>
-                        <label class="{{ $label }}">Expertise</label>
+                        <label class="{{ $label }}">Expertise <span class="text-red-500">*</span></label>
 
                         {{-- x-data lives on this outer wrapper (not just the listbox
                          below) so the "Others" free-text field — a normal-flow
@@ -246,9 +265,15 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             highlighted: -1,
                             options: @js($expertises),
 
+                            // The current value is left out entirely -- it's already
+                            // selected, so there's nothing to switch it to.
+                            get available() {
+                                return this.options.filter(o => o !== this.selected);
+                            },
+
                             toggle() {
                                 this.open = !this.open;
-                                this.highlighted = this.open ? this.options.indexOf(this.selected) : -1;
+                                this.highlighted = -1;
                             },
 
                             choose(option) {
@@ -259,7 +284,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                             move(step) {
                                 if (!this.open) { this.toggle(); return; }
-                                const count = this.options.length;
+                                const count = this.available.length;
+                                if (! count) return;
                                 this.highlighted = (this.highlighted + step + count) % count;
                             },
 
@@ -300,7 +326,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     @click="toggle()"
                                     @keydown.arrow-down.prevent="move(1)"
                                     @keydown.arrow-up.prevent="move(-1)"
-                                    @keydown.enter.prevent="open && highlighted > -1 ? choose(options[highlighted]) : toggle()"
+                                    @keydown.enter.prevent="open && highlighted > -1 ? choose(available[highlighted]) : toggle()"
                                     :aria-expanded="open"
                                     aria-haspopup="listbox"
                                     class="flex min-w-0 flex-1 items-center px-3 pr-9 text-left text-sm focus:outline-none">
@@ -320,16 +346,17 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     role="listbox"
                                     class="{{ $listPopup }}">
 
-                                    <template x-for="(option, index) in options" :key="option">
+                                    {{-- The current value is excluded from `available` entirely
+                                     -- reopening only ever offers something new to switch to. --}}
+                                    <template x-for="(option, index) in available" :key="option">
                                         <button type="button"
                                             role="option"
-                                            :aria-selected="selected === option"
                                             @click="choose(option)"
                                             @mouseenter="highlighted = index"
                                             class="{{ $listOption }}"
                                             :class="highlighted === index
                                             ? 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white'
-                                            : (selected === option ? 'bg-[#FDF2F5] font-medium text-[#9F1239]' : 'text-gray-700')"
+                                            : 'text-gray-700'"
                                             x-text="option"></button>
                                     </template>
                                 </div>
@@ -645,7 +672,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <h4 class="text-sm font-bold text-gray-900">Crop Photo</h4>
                                     <p class="mt-1 text-xs text-gray-500">Drag to reposition, slide to zoom.</p>
 
-                                    <div class="mx-auto mt-3 touch-none select-none overflow-hidden rounded-lg bg-gray-900"
+                                    <div class="mx-auto mt-3 touch-none select-none overflow-hidden rounded-lg border-2 border-[#9F1239] bg-gray-900"
                                         :style="`width:${frame.w}px;height:${frame.h}px`"
                                         :class="drag ? 'cursor-grabbing' : 'cursor-grab'"
                                         @pointerdown.prevent="startDrag($event)"
@@ -693,8 +720,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         Cancel
                     </button>
 
-                    <button type="submit"
-                        class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 sm:flex-1">
+                    <button type="submit" :disabled="!dirty"
+                        class="h-10 w-full rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-sm font-bold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:opacity-40 sm:flex-1">
                         Save Changes
                     </button>
                     @else

@@ -686,33 +686,15 @@
     </div>
 
     @if (session('application_result'))
-        <div x-data="{ open: true }" x-show="open" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style="display: none;">
-            <div class="relative bg-white rounded-xl w-full max-w-lg overflow-hidden">
-                @php $result = session('application_result'); @endphp
-                <div class="bg-gradient-to-r from-rose-950 to-blue-950 flex items-center justify-center py-8">
-                    <div class="w-16 h-16 rounded-full bg-white flex items-center justify-center">
-                        <svg class="w-8 h-8 text-[#11386A]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="p-8 text-center">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-2">
-                        {{ $result['type'] === 'approved' ? 'Application Approved' : 'Application Processed' }}
-                    </h3>
-                    <p class="text-gray-500 mb-6">
-                        @if ($result['type'] === 'approved')
-                            The founder has been successfully accepted into the cohort, and their welcome notification has been sent.
-                        @else
-                            The applicant has been moved to the rejected list and notified.
-                        @endif
-                    </p>
-                    <button type="button" @click="open = false"
-                        class="w-full bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white font-semibold rounded-full py-3 hover:opacity-90 transition">
-                        Continue
-                    </button>
-                </div>
-            </div>
+        @php $result = session('application_result'); @endphp
+        <div
+            x-data
+            x-init="$store.toast.success(
+                @js($result['type'] === 'approved' ? 'Application Approved' : 'Application Processed'),
+                @js($result['type'] === 'approved'
+                    ? 'The founder has been successfully accepted into the cohort, and their welcome notification has been sent.'
+                    : 'The applicant has been moved to the rejected list and notified.')
+            )">
         </div>
     @endif
 </x-layouts.admin>

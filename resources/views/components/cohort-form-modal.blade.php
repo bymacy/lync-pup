@@ -4,7 +4,14 @@
     <h3 class="font-bold">{{ $mode === 'edit' ? 'Edit Cohort' : 'Create Cohort' }}</h3>
 </div>
 
-<form method="POST" action="{{ $action }}" class="p-6 space-y-4">
+<form method="POST" action="{{ $action }}" class="p-6 space-y-4"
+    @if ($mode === 'edit')
+    x-data="{ dirty: false }"
+    x-init="$watch('editOpen', value => { if (! value) dirty = false })"
+    @input="dirty = true"
+    @change="dirty = true"
+    @endif
+>
     @csrf
     @if ($mode === 'edit')
         @method('PATCH')
@@ -49,7 +56,7 @@
     <div class="flex gap-3 pt-2">
         @if ($mode === 'edit')
             <button type="button" @click="editOpen = false" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Cancel</button>
-            <button type="submit" class="flex-1 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium">Save Changes</button>
+            <button type="submit" :disabled="!dirty" class="flex-1 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40">Save Changes</button>
         @else
             <button type="button" @click="open = false" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Cancel</button>
             <button type="submit" class="flex-1 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium">Create Cohort</button>

@@ -60,7 +60,9 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
         $photoUrl = fn ($c) => $c->coordinator_photo_path ? Storage::url($c->coordinator_photo_path) : null;
 
-        $coordinatorList = \App\Models\Coordinator::orderBy('first_name')->get()->map(fn ($c) => [
+        $coordinatorList = \App\Models\Coordinator::orderBy('first_name')
+        ->when($current, fn ($q) => $q->where('coordinator_id', '!=', $current->coordinator_id))
+        ->get()->map(fn ($c) => [
         'id' => $c->coordinator_id,
         'name' => $displayName($c),
         'role_title' => $c->role_title ?: 'Portfolio Coordinator',
@@ -92,7 +94,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         step: {{ $current ? 0 : 1 }},
         startStep: {{ $current ? 0 : 1 }},
         search: '',
-        selected: {{ $current ? Illuminate\Support\Js::from($current->coordinator_id) : 'null' }},
+        selected: null,
         coordinators: {{ Illuminate\Support\Js::from($coordinatorList) }},
 
         get filtered() {
@@ -118,7 +120,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             // Reset every time, or a cancelled search is still sitting there on reopen.
             this.step = this.startStep;
             this.search = '';
-            this.selected = {{ $current ? Illuminate\Support\Js::from($current->coordinator_id) : 'null' }};
+            this.selected = null;
             this.open = true;
         },
 
@@ -137,7 +139,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         },
     }"
             x-init="maybeAutoOpen()"
-            @keydown.escape.window="open = false"
+            @keydown.escape.window="open = false">
 
             @if ($current)
             <div class="mt-3 flex items-center gap-2">
@@ -166,7 +168,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
             {{-- w-full, not w-md: Tailwind's md size exists only on max-w-*, so w-md compiles to
          nothing and the button collapses to its text width. --}}
             <button type="button" @click="show()"
-                class="mt-3 h-10 w-md max-w-md rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-4 text-sm font-bold text-white transition hover:opacity-95">
+                class="mt-3 h-10 w-5/6 rounded-md bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-4 text-sm font-bold text-white transition hover:opacity-95">
                 Assign Coordinator
             </button>
             @endif
@@ -255,10 +257,14 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         {{-- List --}}
                         <div class="max-h-64 divide-y overflow-y-auto rounded-md border border-gray-300">
                             <template x-for="c in filtered" :key="c.id">
-                                <label class="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-gray-50">
+                                <label class="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-gray-50"
+                                    @click.prevent="selected = isChosen(c) ? null : c.id">
                                     {{-- Native radio kept for keyboard and screen readers; the visible
-                                 control is the span beside it. --}}
-                                    <input type="radio" :value="c.id" x-model="selected" class="sr-only" name="coordinator_pick">
+                                 control is the span beside it. Selection toggles via the label's
+                                 @click above instead of x-model, since a native radio can never be
+                                 unchecked by clicking it again -- this lets picking the same
+                                 coordinator a second time clear the selection. --}}
+                                    <input type="radio" :checked="isChosen(c)" class="sr-only" name="coordinator_pick">
 
                                     <span class="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border transition"
                                         :class="isChosen(c) ? 'bg-[#9F1239] border-[#9F1239]' : 'border-gray-300 bg-white'">

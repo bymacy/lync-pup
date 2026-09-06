@@ -131,7 +131,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                 {{-- Row 1: First Name / Last Name / Honorifics --}}
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-x-6">
                     <div>
-                        <label class="{{ $label }}">First Name</label>
+                        <label class="{{ $label }}">First Name <span class="text-red-500">*</span></label>
 
                         <div class="{{ $group }}">
                             <span class="{{ $slot_ }}">
@@ -147,7 +147,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     </div>
 
                     <div>
-                        <label class="{{ $label }}">Last Name</label>
+                        <label class="{{ $label }}">Last Name <span class="text-red-500">*</span></label>
 
                         <input type="text" name="last_name" value="{{ $oldFor('last_name', $coordinator?->last_name) }}"
                             placeholder="Coordinator Last Name"
@@ -157,7 +157,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                     </div>
 
                     <div>
-                        <label class="{{ $label }}">Honorifics</label>
+                        <label class="{{ $label }}">Honorifics <span class="text-red-500">*</span></label>
 
                         {{-- Custom listbox: the placeholder is trigger text rather than a
                          disabled <option>, so there's nothing invalid to pick, and the
@@ -169,9 +169,15 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                             highlighted: -1,
                             options: @js($honorifics),
 
+                            // The current value is left out entirely -- it's already
+                            // selected, so there's nothing to switch it to.
+                            get available() {
+                                return this.options.filter(o => o !== this.selected);
+                            },
+
                             toggle() {
                                 this.open = !this.open;
-                                this.highlighted = this.open ? this.options.indexOf(this.selected) : -1;
+                                this.highlighted = -1;
                             },
 
                             choose(option) {
@@ -182,7 +188,8 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
 
                             move(step) {
                                 if (!this.open) { this.toggle(); return; }
-                                const count = this.options.length;
+                                const count = this.available.length;
+                                if (! count) return;
                                 this.highlighted = (this.highlighted + step + count) % count;
                             },
                         }"
@@ -197,7 +204,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 @click="toggle()"
                                 @keydown.arrow-down.prevent="move(1)"
                                 @keydown.arrow-up.prevent="move(-1)"
-                                @keydown.enter.prevent="open && highlighted > -1 ? choose(options[highlighted]) : toggle()"
+                                @keydown.enter.prevent="open && highlighted > -1 ? choose(available[highlighted]) : toggle()"
                                 :aria-expanded="open"
                                 aria-haspopup="listbox"
                                 class="{{ $plain }} flex items-center pr-9 text-left"
@@ -218,16 +225,17 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                 role="listbox"
                                 class="{{ $listPopup }} max-h-48 overflow-y-auto">
 
-                                <template x-for="(option, index) in options" :key="option">
+                                {{-- The current value is excluded from `available` entirely
+                                 -- reopening only ever offers something new to switch to. --}}
+                                <template x-for="(option, index) in available" :key="option">
                                     <button type="button"
                                         role="option"
-                                        :aria-selected="selected === option"
                                         @click="choose(option); dirty = true"
                                         @mouseenter="highlighted = index"
                                         class="{{ $listOption }}"
                                         :class="highlighted === index
                                         ? 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white'
-                                        : (selected === option ? 'bg-[#FDF2F5] font-medium text-[#9F1239]' : 'text-gray-700')"
+                                        : 'text-gray-700'"
                                         x-text="option"></button>
                                 </template>
                             </div>
@@ -506,7 +514,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                                     <h4 class="text-sm font-bold text-gray-900">Crop Photo</h4>
                                     <p class="mt-1 text-xs text-gray-500">Drag to reposition, slide to zoom.</p>
 
-                                    <div class="mx-auto mt-3 touch-none select-none overflow-hidden rounded-lg bg-gray-900"
+                                    <div class="mx-auto mt-3 touch-none select-none overflow-hidden rounded-lg border-2 border-[#9F1239] bg-gray-900"
                                         :style="`width:${frame.w}px;height:${frame.h}px`"
                                         :class="drag ? 'cursor-grabbing' : 'cursor-grab'"
                                         @pointerdown.prevent="startDrag($event)"

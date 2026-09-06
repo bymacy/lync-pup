@@ -117,7 +117,7 @@
         :style="`position:fixed; top:${coords.top}px; left:${coords.left}px; width:${coords.width}px; max-height:${coords.maxHeight}px`"
         class="z-50 overflow-y-auto rounded-lg border border-gray-200 bg-white p-1 shadow-xl">
 
-        <template x-for="option in options" :key="option">
+        <template x-for="option in options.filter(o => o !== value)" :key="option">
             <button type="button" role="option" :aria-selected="value === option"
                 @click="choose(option)"
                 class="w-full rounded-md text-left transition-colors hover:bg-gradient-to-r hover:from-[#6C0E24] hover:to-[#11386A] hover:text-white

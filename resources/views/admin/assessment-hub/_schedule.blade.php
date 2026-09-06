@@ -38,7 +38,7 @@ return $url
                 <table class="w-full min-w-[560px] table-fixed text-sm">
                     <thead>
                         <tr class="{{ $gradient }} text-white text-center">
-                            <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Startup</th>
+                            <th class="px-3 py-2 text-left text-[11px] font-semibold tracking-wider">Startup</th>
                             <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Date Started</th>
                             <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Cohort</th>
                             <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Status</th>
@@ -53,8 +53,8 @@ return $url
                              same idiom as admin/mentors|coordinators|cohorts index
                              pages seeding editOpen from $errors. --}}
                         <tr x-data="{ scheduleOpen: @js($errors->any() && (string) old('schedule_row_key') === (string) $startup->startup_id) }" class="border-b border-gray-100 last:border-0">
-                            <td class="px-3 py-2 text-center">
-                                <div class="flex justify-center">
+                            <td class="px-3 py-2 text-left">
+                                <div class="flex justify-start">
                                     <div class="inline-flex max-w-full items-center gap-2 text-left text-xs" style="{{ $pendingCell }}">
                                         <span class="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200">
                                             {!! $avatar($startup) !!}
@@ -179,7 +179,7 @@ return $url
                     <table class="w-full min-w-[300px] table-fixed text-sm">
                         <thead class="sticky top-0">
                             <tr class="{{ $gradient }} text-white text-center">
-                                <th class="px-2.5 py-2 text-[10px] font-semibold tracking-wider">Time</th>
+                                <th class="px-2.5 py-2 text-left text-[10px] font-semibold tracking-wider">Time</th>
                                 <th class="px-2.5 py-2 text-[10px] font-semibold tracking-wider">Startup</th>
                                 <th class="px-2.5 py-2 text-[10px] font-semibold tracking-wider">Action</th>
                             </tr>
@@ -187,7 +187,7 @@ return $url
                         <tbody>
                             @forelse ($scheduledToday as $item)
                             <tr class="border-b border-gray-100 last:border-0">
-                                <td class="px-2.5 py-1.5 whitespace-nowrap text-center text-xs text-gray-600">
+                                <td class="px-2.5 py-1.5 whitespace-nowrap text-left text-xs text-gray-600">
                                     {{ $item->time_range_label ?? '—' }}
                                 </td>
                                 <td class="px-2.5 py-1.5 text-center">

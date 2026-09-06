@@ -548,7 +548,11 @@
                         </svg>
                     </button>
                     </div>
-                    <form id="editCohortForm" method="POST" action="{{ route('admin.cohorts.update', $selectedCohort) }}" class="p-6 space-y-4">
+                    <form id="editCohortForm" method="POST" action="{{ route('admin.cohorts.update', $selectedCohort) }}" class="p-6 space-y-4"
+                        x-data="{ dirty: false }"
+                        x-init="$watch('modal', value => { if (value !== 'edit') dirty = false })"
+                        @input="dirty = true"
+                        @change="dirty = true">
                         @csrf
                         @method('PATCH')
                         <div>
@@ -583,7 +587,7 @@
                         </div>
                         <div class="flex gap-3 pt-2">
                             <button type="button" @click="modal = null; document.getElementById('editCohortForm').reset()" class="flex-1 border rounded-lg py-2.5 text-sm font-medium">Cancel</button>
-                            <button type="submit" class="flex-1 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium">Save Changes</button>
+                            <button type="submit" :disabled="!dirty" class="flex-1 bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white rounded-lg py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40">Save Changes</button>
                         </div>
                     </form>
                 </div>

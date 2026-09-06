@@ -42,7 +42,7 @@
         <div class="mb-6 flex items-start justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Mentor Profile</h1>
-                <p class="mt-1 text-sm text-gray-500 sm:text-base">Review startup roadblocks and assign experts.</p>
+                <p class="mt-1 text-sm text-gray-500 sm:text-base">Manage Mentor Profiles and track case assignments.</p>
             </div>
 
             {{-- Desktop trigger: top right, beside the title --}}
