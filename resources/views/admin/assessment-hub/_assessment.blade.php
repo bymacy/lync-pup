@@ -23,6 +23,13 @@ for ($i = 0; $i < $count; $i++) {
     // checklist accordion but skips straight to the checklist.
     $showTrlOverview = $selectedStage === 'Pre-Assessment';
 
+    // Post-Assessment's "Evaluated by" only ever prints one position/title
+    // line on the real form (unlike Pre-Assessment's two - Portfolio
+    // Coordinator, TBIDO + Project Technical Assistant II, DOST HEIRIT) -
+    // used below to seed a one-line default and render a single-line input
+    // instead of a 2-row textarea for the MRL/TMRL and SRL blocks.
+    $isPostAssessment = $selectedStage === 'Post-Assessment';
+
     // Section 1's identity fields are pulled straight from this startup's
     // own records (Information Sheet / Team Members / Startup profile)
     // instead of being retyped by the assessor here — rendered read-only
@@ -59,19 +66,27 @@ for ($i = 0; $i < $count; $i++) {
     $overviewApprovedByPosition = $currentAssessment?->approved_by_position
         ?? "Director, Technology Business Incubation and Development Office\nProject Leader, DOST-HEIRIT";
 
-    // MRL block's own three position/title lines — same
+    // MRL/TMRL block's own three position/title lines — same
     // editable-but-prefilled treatment as approved_by_position above.
+    // Evaluated by only gets its second line on Pre-Assessment — the real
+    // Post-Assessment form only ever prints one position line.
     $overviewEvaluatedByPosition = $currentAssessment?->evaluated_by_position
-        ?? "Portfolio Coordinator, TBIDO\nProject Technical Assistant II, DOST HEIRIT";
+        ?? ($isPostAssessment
+            ? 'Portfolio Coordinator, TBIDO'
+            : "Portfolio Coordinator, TBIDO\nProject Technical Assistant II, DOST HEIRIT");
     $overviewReviewedByPosition = $currentAssessment?->reviewed_by_position ?? 'Startup Development Chief, TBIDO';
     $overviewNotedByPosition = $currentAssessment?->noted_by_position
         ?? "Director, TBIDO\nProject Leader, DOST HEIRIT";
 
     // SRL's own Evaluated/Reviewed/Noted by block — distinct storage
     // from MRL/TMRL's above since its "Reviewed by" default title differs.
+    // Same Pre/Post one-vs-two-line rule for Evaluated by as the MRL/TMRL
+    // block above.
     $overviewSrlEvaluatedBy = $currentAssessment?->srl_evaluated_by ?? '';
     $overviewSrlEvaluatedByPosition = $currentAssessment?->srl_evaluated_by_position
-        ?? "Portfolio Coordinator, TBIDO\nProject Technical Assistant II, DOST HEIRIT";
+        ?? ($isPostAssessment
+            ? 'Portfolio Coordinator, TBIDO'
+            : "Portfolio Coordinator, TBIDO\nProject Technical Assistant II, DOST HEIRIT");
     $overviewSrlReviewedBy = $currentAssessment?->srl_reviewed_by ?? '';
     $overviewSrlReviewedByPosition = $currentAssessment?->srl_reviewed_by_position ?? 'Incubation Management Chief, TBIDO';
     $overviewSrlNotedBy = $currentAssessment?->srl_noted_by ?? '';
@@ -903,8 +918,13 @@ for ($i = 0; $i < $count; $i++) {
                             <p class="mb-2 text-sm font-semibold text-gray-700">Evaluated by:</p>
                             <input type="text" x-model="evaluatedBy" placeholder="Input Name"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            @if ($isPostAssessment)
+                            <input type="text" x-model="evaluatedByPosition" placeholder="Position"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                            @else
                             <textarea x-model="evaluatedByPosition" rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                            @endif
                         </div>
 
                         <div>
@@ -929,8 +949,13 @@ for ($i = 0; $i < $count; $i++) {
                             <p class="mb-2 text-sm font-semibold text-gray-700">Evaluated by:</p>
                             <input type="text" x-model="srlEvaluatedBy" placeholder="Input Name"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            @if ($isPostAssessment)
+                            <input type="text" x-model="srlEvaluatedByPosition" placeholder="Position"
+                                class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                            @else
                             <textarea x-model="srlEvaluatedByPosition" rows="2"
                                 class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500"></textarea>
+                            @endif
                         </div>
 
                         <div>

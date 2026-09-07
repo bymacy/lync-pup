@@ -1072,11 +1072,7 @@ class WordDocumentExporter
             foreach ($cat['criteria'] as $i => $criterion) {
                 $rating = data_get($data, "ratings.$catKey.$i");
                 foreach ([5, 4, 3, 2, 1] as $scale) {
-                    // Macy: the checkmark glyph's own line-height was adding
-                    // wasted vertical space per rating cell, contributing to
-                    // the Section 2 box overlap in real Word - use a plain
-                    // slash instead, which sits shorter.
-                    $processor->setValue("rt_{$catKey}_{$i}_{$scale}", $rating === $scale ? '/' : '');
+                    $processor->setValue("rt_{$catKey}_{$i}_{$scale}", $rating === $scale ? '✓' : '');
                 }
             }
             $avg = \App\Support\ActiveAssessmentForms::averageRating(data_get($data, "ratings.$catKey", []));
@@ -1159,13 +1155,11 @@ class WordDocumentExporter
             $processor->setValue("rl_{$type}_remarks", $v(data_get($data, "readiness_levels.$type.remarks")));
         }
 
-        // Macy: names in the signatory block must be all caps.
-        $vUpper = fn ($val) => mb_strtoupper($v($val), 'UTF-8');
-        $processor->setValue('evaluated_by_name', $vUpper(data_get($data, 'evaluated_by_name')));
+        $processor->setValue('evaluated_by_name', $v(data_get($data, 'evaluated_by_name')));
         $processor->setValue('evaluated_by_position', $v(data_get($data, 'evaluated_by_position')));
-        $processor->setValue('reviewed_by_name', $vUpper(data_get($data, 'reviewed_by_name')));
+        $processor->setValue('reviewed_by_name', $v(data_get($data, 'reviewed_by_name')));
         $processor->setValue('reviewed_by_position', $v(data_get($data, 'reviewed_by_position')));
-        $processor->setValue('noted_by_name', $vUpper(data_get($data, 'noted_by_name')));
+        $processor->setValue('noted_by_name', $v(data_get($data, 'noted_by_name')));
         $processor->setValue('noted_by_position', $v(data_get($data, 'noted_by_position')));
 
         return $this->saveAndReadBinary($processor, 'doc13-');
