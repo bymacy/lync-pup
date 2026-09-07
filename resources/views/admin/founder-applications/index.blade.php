@@ -35,7 +35,7 @@
             // same-size (w-24 h-24) positioning box and shrinking + pinning it to the
             // top-right makes its person glyph line up with the others' head/shoulder
             // position instead.
-            ['label' => 'Total Application', 'value' => $totals['total'], 'iconSvg' => '<div class="relative w-24 h-24">'.$statIcon('1person.svg', 'absolute top-[6px] right-0 w-[80px] h-[80px]').'</div>', 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]', 'breakdown' => $cohortBreakdown],
+            ['label' => 'Total Application', 'value' => $totals['total'], 'iconSvg' => '<div class="stat-icon-box-total-app relative w-24 h-24">'.$statIcon('1person.svg', 'stat-icon-total-app absolute top-[2px] right-[8px] w-[88px] h-[88px]').'</div>', 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]', 'breakdown' => $cohortBreakdown],
             ['label' => 'Pending', 'value' => $totals['pending'], 'iconSvg' => $statIcon('person-loading.svg'), 'border' => 'border-[#FFE2AA]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['pending'], $totals['total']).'% application is under evaluation'],
             ['label' => 'Approved', 'value' => $totals['approved'], 'iconSvg' => $statIcon('person-check.svg'), 'border' => 'border-[#AAFFBC]', 'bg' => 'bg-[#F2FFF2]', 'note' => $pct($totals['approved'], $totals['total']).'% application approved'],
             ['label' => 'Rejected', 'value' => $totals['rejected'], 'iconSvg' => $statIcon('person-x.svg'), 'border' => 'border-[#FFD6E1]', 'bg' => 'bg-[#FFF7F7]', 'note' => $pct($totals['rejected'], $totals['total']).'% application rejected'],
@@ -61,9 +61,23 @@
     <style>
         @media (max-width: 639px) {
             .founder-stat-card { padding: 12px !important; }
-            .founder-stat-card .stat-watermark-lg svg { width: 56px !important; height: 56px !important; }
+            .founder-stat-card .stat-watermark-lg svg:not(.stat-icon-total-app) { width: 56px !important; height: 56px !important; }
+            .founder-stat-card .stat-icon-box-total-app { width: 56px !important; height: 56px !important; }
+            .founder-stat-card .stat-icon-total-app { width: 51px !important; height: 51px !important; top: 1px !important; right: 5px !important; }
             .founder-stat-card .stat-text-wrap { padding-right: 44px !important; }
             .founder-stat-card .stat-value-lg { font-size: 1.35rem !important; }
+        }
+        /* Tablets/foldables (Surface Duo, iPad, Galaxy Fold unfolded, etc.) sit
+           in this range while the grid is still 2-up (matches grid-cols-2's
+           xl:grid-cols-4 switch below) - the full 96px watermark looks
+           oversized against a narrower 2-up column here, so step it down.
+           Total Application's icon is excluded from the plain svg rule and
+           scaled via its own box/offset rule instead (see above comment on
+           the markup) so it doesn't drift out of position. */
+        @media (min-width: 640px) and (max-width: 1279px) {
+            .founder-stat-card .stat-watermark-lg svg:not(.stat-icon-total-app) { width: 72px !important; height: 72px !important; }
+            .founder-stat-card .stat-icon-box-total-app { width: 72px !important; height: 72px !important; }
+            .founder-stat-card .stat-icon-total-app { width: 66px !important; height: 66px !important; top: 2px !important; right: 6px !important; }
         }
     </style>
 
@@ -85,7 +99,7 @@
                 <div class="relative h-full">
                     @if (! empty($stat['breakdown']) && $stat['breakdown']->isNotEmpty())
                         <div class="stat-text-wrap" style="padding-right: 70px;">
-                            <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                            <p class="text-gray-600 text-sm font-semibold">{{ $stat['label'] }}</p>
                             <div class="mt-1.5 space-y-0.5">
                                 @foreach ($stat['breakdown'] as $b)
                                     <p class="text-sm leading-tight">
@@ -98,13 +112,13 @@
                         <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
                     @elseif (! empty($stat['note']))
                         <div class="stat-text-wrap" style="padding-right: 70px;">
-                            <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                            <p class="text-gray-600 text-sm font-semibold">{{ $stat['label'] }}</p>
                             <p class="text-sm text-[#6D0D23] mt-1 leading-snug">{{ $stat['note'] }}</p>
                         </div>
                         <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
                     @else
                         <div class="stat-text-wrap" style="padding-right: 70px;">
-                            <p class="text-gray-600 text-sm">{{ $stat['label'] }}</p>
+                            <p class="text-gray-600 text-sm font-semibold">{{ $stat['label'] }}</p>
                         </div>
                         <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
                     @endif

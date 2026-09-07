@@ -54,7 +54,7 @@ class DashboardController extends Controller
 
     protected const INCUBATION_COLORS = [
         'High Ready' => '#00BF1D',
-        'Moderately Ready' => '#FFE120',
+        'Moderately Ready' => '#F2BE25',
         'Moderately Unready' => '#FF9B20',
         'Not Ready' => '#FF2525',
         'Critically Unready' => '#8D8D8D',

@@ -39,6 +39,18 @@ class AssessmentHubController extends Controller
             ->pending()
             ->whereDoesntHave('evaluationSchedules', fn ($q) => $q->where('status', 'Scheduled'))
             ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
+            // Completed (submitted) on top, then In Progress (sheet started
+            // but not submitted), then Not Started (no sheet row yet) -
+            // mirrors Startup::informationSheetStatus()'s three states via
+            // correlated subqueries rather than a join, so this stays
+            // unambiguous for the pluck('startup_id') below. Within each
+            // status group, earliest applicant (created_at) stays on top
+            // (Macy: "top most is who applied first").
+            ->orderByRaw('(CASE
+                WHEN (SELECT submission_date FROM information_sheets WHERE information_sheets.startup_id = startups.startup_id) IS NOT NULL THEN 0
+                WHEN EXISTS (SELECT 1 FROM information_sheets WHERE information_sheets.startup_id = startups.startup_id) THEN 1
+                ELSE 2
+            END)')
             ->orderBy('created_at');
 
         // The Startup Profile "View Status" button (and anything else that
@@ -311,7 +323,14 @@ class AssessmentHubController extends Controller
                     'completed_count' => $pills->where('completed', true)->count(),
                     'not_started_count' => $pills->where('completed', false)->count(),
                 ];
-            });
+            })
+            // Startups with the most "Not Started" documents surface first
+            // (Macy: "highest count of Not Started should be on top,
+            // descending order") - values() reindexes so the Blade loop's
+            // "#" column numbers 1..N in the new order instead of keeping
+            // each row's original position in $assessableStartups.
+            ->sortByDesc('not_started_count')
+            ->values();
 
         // Venture Exit's "Save Assessment" should warn (not silently allow)
         // when the startup still has other assessments/documents that were

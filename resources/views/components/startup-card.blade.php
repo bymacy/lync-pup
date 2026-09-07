@@ -57,9 +57,17 @@ $hasSecondAction = in_array($startup->status, ['Assign Coordinator', 'Pending'])
         <span class="absolute right-2.5 top-2.5 rounded-full border bg-white px-2.5 py-1 text-[10px] font-semibold {{ $badgeClasses }}">
             {{ $startup->status }}
         </span>
-        <span class="[&>svg]:h-10 [&>svg]:w-10 {{ $iconTone }}">
-            {!! $iconMarkup !!}
-        </span>
+        {{-- Show the startup's own uploaded logo when there is one - the
+             decorative icon below is only a per-startup placeholder for
+             startups that haven't uploaded a logo yet. --}}
+        @if ($startup->startup_photo_url)
+            <img src="{{ $startup->startup_photo_url }}" alt="{{ $startup->company_name }} logo"
+                class="h-16 w-16 rounded-xl bg-white object-contain p-1.5 shadow-sm">
+        @else
+            <span class="[&>svg]:h-10 [&>svg]:w-10 {{ $iconTone }}">
+                {!! $iconMarkup !!}
+            </span>
+        @endif
     </div>
 
     {{-- Body --}}

@@ -45,4 +45,15 @@ class MentorshipScheduled extends FounderNotification
     {
         return 'cal.svg';
     }
+
+    /**
+     * Stamped so RoadblockController::assign() can find "the founder's
+     * existing unread notification for this exact roadblock" and update it
+     * in place, instead of inserting a second card every time the mentor or
+     * the date/time gets changed on an already-scheduled roadblock.
+     */
+    protected function extraData(): array
+    {
+        return ['roadblock_id' => $this->roadblock->roadblock_id];
+    }
 }

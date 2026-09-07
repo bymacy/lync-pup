@@ -602,6 +602,7 @@
                         pointer to move away) can't leave the gradient stuck on until the
                         next tap elsewhere. --}}
                             <button type="button"
+                                x-show="archiveStage !== '{{ $value }}'"
                                 @click="archiveStage = '{{ $value }}'; open = false"
                                 class="w-full text-left px-3 py-2 text-sm text-gray-700 transition [@media(hover:hover)]:hover:bg-gradient-to-r [@media(hover:hover)]:hover:from-[#6D0D23] [@media(hover:hover)]:hover:to-[#11386A] [@media(hover:hover)]:hover:text-white">
                                 {{ $label }}

@@ -317,7 +317,10 @@
                 <div x-show="modal === 'archive'" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
                     <div class="w-full max-w-lg rounded-xl bg-white overflow-hidden shadow-xl" @click.outside="modal = null; archiveConfirm = ''">
                         <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-4 flex items-center justify-between">
-                            <h3 class="text-white font-semibold">Archive / End Cohort</h3>
+                            <h3 class="text-white font-semibold flex items-center gap-2">
+                                <x-icon name="3person.svg" class="h-5 w-5 shrink-0 text-white" />
+                                Archive / End Cohort
+                            </h3>
                             <button type="button"
                                 class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                                 @click="modal = null; archiveConfirm = ''" aria-label="Close">

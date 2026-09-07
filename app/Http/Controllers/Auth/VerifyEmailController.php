@@ -61,6 +61,6 @@ class VerifyEmailController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login')
-            ->with('status', 'Your email has been verified! Your account is now pending admin approval — you\'ll be notified once it\'s reviewed.');
+            ->with('status', 'Email verified. Your account is under review. You will be notified upon completion.');
     }
 }

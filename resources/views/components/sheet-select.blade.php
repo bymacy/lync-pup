@@ -103,7 +103,7 @@
                {{ $compact ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm' }}
                disabled:cursor-default disabled:bg-gray-50 disabled:text-gray-500"
         :class="open ? 'border-rose-400 ring-2 ring-rose-100' : 'border-gray-300 hover:border-gray-400'">
-        <span class="min-w-0 truncate" :class="value ? 'text-gray-900' : 'text-gray-300'" x-text="label"></span>
+        <span class="min-w-0 sm:truncate" :class="value ? 'text-gray-900' : 'text-gray-300'" x-text="label"></span>
         <svg class="{{ $compact ? 'h-3.5 w-3.5' : 'h-4 w-4' }} shrink-0 text-gray-400 transition-transform" :class="open && 'rotate-180'"
             fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />

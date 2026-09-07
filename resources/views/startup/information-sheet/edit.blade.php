@@ -208,6 +208,16 @@ pendingRemoval: [],
     // the sex/civil status dropdowns - reverts to what's really saved,
     // instead of only doing that after a manual page refresh.
     cancelEdit() {
+        // A validation error injected by showInfoSheetFieldErrors() lives
+        // entirely in the DOM (red border + <p data-field-error>), not in
+        // any server-rendered state - a reload naturally wipes it, but the
+        // no-reload branch below never touched it, so a cancel that didn't
+        // also revert every field (dirty already false) left the founder's
+        // last error message stuck on screen forever. Cleared unconditionally
+        // here so Cancel always leaves the sheet exactly as if nothing had
+        // been attempted.
+        window.clearInfoSheetFieldErrors();
+
         if (this.dirty) {
             this.dirty = false;
             this.$store.navigation.hasUnsavedChanges = false;
@@ -360,7 +370,17 @@ pendingRemoval: [],
                     'portfolio_manager', 'cohort_no', 'endorsed_by',
                     ];
 
-$field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $prefill, $hints, $upperFields, $dobMin, $dobMax) {
+                    // Of the caps-required fields above, only I. Founder's Information's
+                    // own hint text ("e.g. Santos") shows caps too ("E.G. SANTOS") - the
+                    // startup registration block (28-31) and the endorsement fields further
+                    // down keep their placeholder in normal case for now.
+                    $upperPlaceholderFields = [
+                    'surname', 'first_name', 'middle_name', 'name_extension', 'blood_type',
+                    'gsis_no', 'pagibig_no', 'philhealth_no', 'sss_no',
+                    'residential_address', 'permanent_address', 'place_of_birth', 'mobile_no',
+                    ];
+
+$field = function ($name, $label, $number = null, $type = 'text', $note = null) use ($sheet, $prefill, $hints, $upperFields, $upperPlaceholderFields, $dobMin, $dobMax) {
                     // Falls back to the Startup Profile value only while the column is
                     // still empty — a prefill the user reviews, never an overwrite.
                     $stored = $sheet?->{$name};
@@ -374,7 +394,11 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                         $value = $value->format('Y-m-d');
                     }
                     $numHtml = $number ? "<span class='font-semibold'>{$number}.</span> " : '';
-                    $upperClass = in_array($name, $upperFields, true) ? 'uppercase placeholder:normal-case' : '';
+                    $upperClass = match (true) {
+                    in_array($name, $upperPlaceholderFields, true) => 'uppercase',
+                    in_array($name, $upperFields, true) => 'uppercase placeholder:normal-case',
+                    default => '',
+                    };
                     $placeholder = $type === 'date' ? '' : ($hints[$name] ?? '');
                     // The input sits in its own flex-1 column so a validation
                     // message inserted after it lands UNDER the box, not beside it.
@@ -395,10 +419,13 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                 @click=\"if(!editing){ lastClickedInput=\$el.name }\"
                                 class='w-full resize-none overflow-hidden border rounded px-3 py-1.5 text-sm leading-snug {$upperClass} disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300'>".e($value)."</textarea>";
 
+                    $noteHtml = $note ? "<p class='mt-1 text-xs text-gray-400'>" . e($note) . "</p>" : '';
+
                     return "<div class='flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-start sm:gap-2'>
                         <label class='w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5'>{$numHtml}".e($label).": <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span></label>
                         <div class='flex-1 min-w-0'>
                             {$control}
+                            {$noteHtml}
                         </div>
                     </div>";
                     };
@@ -515,7 +542,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                         <div>
                             {!! $field('surname', 'SURNAME', 1) !!}
                             {!! $field('first_name', 'FIRST NAME', 2) !!}
-                            {!! $field('middle_name', 'MIDDLE NAME', 3) !!}
+                            {!! $field('middle_name', 'MIDDLE NAME', 3, note: 'N/A if not applicable') !!}
                             {!! $field('name_extension', 'NAME EXTENSION', 4) !!}
                             {!! $unitField('height_m', 'HEIGHT', 5, ['cm' => 0.01, 'in' => 0.0254, 'm' => 1, 'ft' => 0.3048], 'e.g. 175') !!}
                             {!! $unitField('weight_kg', 'WEIGHT', 6, ['kg' => 1, 'lb' => 0.45359237], 'e.g. 58') !!}
@@ -537,7 +564,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                     <x-sheet-select name="civil_status"
                                         :value="mb_strtoupper((string) old('civil_status', $sheet?->civil_status))"
                                         :options="\App\Support\SheetOptions::civilStatuses()"
-                                        placeholder="Select civil status" />
+                                        placeholder="SELECT CIVIL STATUS" />
                                 </div>
                             </div>
 
@@ -560,7 +587,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                             x-init="autoGrow($el)" @keydown.enter.prevent
                                             @input="dirty = true; autoGrow($el)"
                                             @click="if(!editing){ lastClickedInput = $el.name }"
-                                            class="w-full resize-none overflow-hidden border rounded px-3 py-1.5 text-sm leading-snug uppercase placeholder:normal-case disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300">{{ old('citizenship_by_birth', $sheet?->citizenship_by_birth) }}</textarea>
+                                            class="w-full resize-none overflow-hidden border rounded px-3 py-1.5 text-sm leading-snug uppercase disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300">{{ old('citizenship_by_birth', $sheet?->citizenship_by_birth) }}</textarea>
                                         </div>
                                     </div>
                                     <div class="flex flex-col gap-1">
@@ -571,7 +598,7 @@ $field = function ($name, $label, $number = null, $type = 'text') use ($sheet, $
                                             x-init="autoGrow($el)" @keydown.enter.prevent
                                             @input="dirty = true; autoGrow($el)"
                                             @click="if(!editing){ lastClickedInput = $el.name }"
-                                            class="w-full resize-none overflow-hidden border rounded px-3 py-1.5 text-sm leading-snug uppercase placeholder:normal-case disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300">{{ old('citizenship_dual', $sheet?->citizenship_dual) }}</textarea>
+                                            class="w-full resize-none overflow-hidden border rounded px-3 py-1.5 text-sm leading-snug uppercase disabled:bg-gray-50 disabled:text-gray-500 placeholder:text-gray-300">{{ old('citizenship_dual', $sheet?->citizenship_dual) }}</textarea>
                                         </div>
                                     </div>
                                 </div>

@@ -27,10 +27,10 @@
             // One definition per card so the four stay structurally identical — a change to
             // padding or watermark size happens once, not four times.
             $stats = [
-            ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FFE8EE]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => $cohortBreakdown],
-            ['label' => 'Active', 'value' => $totals['active'], 'icon' => 'personcheck.svg', 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]', 'note' => $pct($totals['active'], $totals['total']).'% startup are active'],
-            ['label' => 'Assign Coordinator', 'value' => $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FFE2AA]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['needsCoordinator'], $totals['total']).'% startup needs assigned coordinator'],
-            ['label' => 'Pending', 'value' => $totals['pending'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E3D4FF]', 'bg' => 'bg-[#FAF6FF]', 'note' => $pct($totals['pending'], $totals['total']).'% startup is under evaluation'],
+            ['label' => 'Total Startup', 'value' => $totals['total'], 'icon' => '3person.svg', 'border' => 'border-[#FECDD3]', 'bg' => 'bg-[#FFF7F7]', 'breakdown' => $cohortBreakdown],
+            ['label' => 'Active', 'value' => $totals['active'], 'icon' => 'personcheck.svg', 'border' => 'border-[#BFDBFE]', 'bg' => 'bg-[#F8FBFF]', 'note' => $pct($totals['active'], $totals['total']).'% startup are active'],
+            ['label' => 'Assign Coordinator', 'value' => $totals['needsCoordinator'], 'icon' => 'mentorProfile.svg', 'border' => 'border-[#FDE68A]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['needsCoordinator'], $totals['total']).'% startup needs assigned coordinator'],
+            ['label' => 'Pending', 'value' => $totals['pending'], 'icon' => 'profileArrow.svg', 'border' => 'border-[#E9D5FF]', 'bg' => 'bg-[#FAF6FF]', 'note' => $pct($totals['pending'], $totals['total']).'% startup is under evaluation'],
             ];
             @endphp
 
@@ -58,6 +58,13 @@
                     .startup-stat-card .stat-text-wrap { padding-right: 44px !important; }
                     .startup-stat-card .stat-value-lg { font-size: 1.35rem !important; }
                     .startup-stat-card .stat-value-plain { font-size: 1.35rem !important; }
+                }
+                /* Tablets/foldables (Surface Duo, iPad, Galaxy Fold unfolded, etc.) sit
+                   in this range while the grid is still 2-up (matches grid-cols-2's
+                   xl:grid-cols-4 switch below) - the full 96px watermark looks
+                   oversized against a narrower 2-up column here, so step it down. */
+                @media (min-width: 640px) and (max-width: 1279px) {
+                    .startup-stat-card .stat-watermark-lg svg { width: 72px !important; height: 72px !important; }
                 }
             </style>
 

@@ -83,6 +83,19 @@
 
             window.location.reload();
         },
+
+        // Keystroke-level guard for the phone field: letters/symbols never
+        // even land in the box, instead of being typeable and only caught
+        // afterward by canSave's regex. A leading '+' is kept (for the +63
+        // format - see UpdateStartupProfileRequest's regex) and capped at 12
+        // digits after it; without one, plain digits are capped at 11 (the
+        // local 09XXXXXXXXX format).
+        sanitizePhone(raw) {
+            const hasPlus = raw.startsWith('+');
+            const digits = raw.replace(/[^0-9]/g, '');
+
+            return (hasPlus ? '+' : '') + digits.slice(0, hasPlus ? 12 : 11);
+        },
     }"
         x-init="
         $watch('dirty', value => {
@@ -252,7 +265,7 @@
                                     type="text"
                                     name="contact_phone"
                                     inputmode="tel"
-                                    x-model="contact_phone"
+                                    :value="contact_phone"
                                     required
                                     pattern="^(09[0-9]{9}|\+639[0-9]{9})$"
                                     maxlength="13"
@@ -260,7 +273,7 @@
                                     :readonly="!editing"
                                     :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
                                     class="w-full border rounded-lg px-3 py-2 text-sm"
-                                    @input="dirty = true">
+                                    @input="contact_phone = sanitizePhone($event.target.value); $event.target.value = contact_phone; dirty = true">
 
                                 {{-- Format only, not a real-number lookup: digits and a
                                      leading + only, matching the server's regex (see

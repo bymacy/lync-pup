@@ -137,7 +137,7 @@ class RiskEngine
     public const LEVEL_COLORS = [
         'Critical' => '#FF2525',
         'High' => '#FF9B20',
-        'Moderate' => '#FFE120',
+        'Moderate' => '#F2BE25',
         'Low' => '#00BF1D',
         'None' => '#9CA3AF',
     ];
@@ -147,7 +147,7 @@ class RiskEngine
     public const SEVERITY_COLORS = [
         'Critical' => '#FF2525',
         'High' => '#FF9B20',
-        'Medium' => '#FFE120',
+        'Medium' => '#F2BE25',
         'Low' => '#00BF1D',
     ];
 

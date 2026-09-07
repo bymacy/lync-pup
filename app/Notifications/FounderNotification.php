@@ -38,6 +38,19 @@ abstract class FounderNotification extends Notification
     /** Label for the dashboard card's action button. */
     abstract public function action(): string;
 
+    /**
+     * Optional extra keys merged into the stored payload alongside the
+     * standard title/body/route/action/icon shape. Subclasses that need a
+     * way to recognize "this is about the same thing as an earlier
+     * notification" (see MentorshipScheduled, which stamps roadblock_id so
+     * a reassignment or reschedule can update its existing card instead of
+     * stacking a new one) override this instead of touching toDatabase().
+     */
+    protected function extraData(): array
+    {
+        return [];
+    }
+
     public function via(object $notifiable): array
     {
         return ['database'];
@@ -51,6 +64,7 @@ abstract class FounderNotification extends Notification
             'route' => $this->route(),
             'action' => $this->action(),
             'icon' => $this->icon(),
+            ...$this->extraData(),
         ];
     }
 }

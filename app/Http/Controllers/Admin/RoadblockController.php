@@ -120,11 +120,28 @@ class RoadblockController extends Controller
             'failed_at' => null,
         ]);
 
-        // Tells the founder a mentor and a slot now exist. Fired on every
-        // assign, including a reassignment to a different mentor or a moved
-        // meeting — from the founder's side those are all "your session
-        // changed, go look", which is exactly what needs announcing.
-        $roadblock->startup?->user?->notify(new MentorshipScheduled($roadblock->fresh(['mentor', 'coordinator'])));
+        // Tells the founder a mentor and a slot now exist. This same action
+        // also fires on a reassignment to a different mentor or a moved
+        // meeting for a roadblock that's already Scheduled — from the
+        // founder's side that's still "your session changed, go look", not
+        // a brand new event, so it should update the existing unread card
+        // rather than stack a second one on top of it (MentorshipScheduled
+        // stamps roadblock_id into its payload precisely so it can be found
+        // again here).
+        if ($user = $roadblock->startup?->user) {
+            $notification = new MentorshipScheduled($roadblock->fresh(['mentor', 'coordinator']));
+
+            $existing = $user->unreadNotifications()
+                ->where('type', MentorshipScheduled::class)
+                ->where('data->roadblock_id', $roadblock->roadblock_id)
+                ->first();
+
+            if ($existing) {
+                $existing->forceFill(['data' => $notification->toDatabase($user)])->save();
+            } else {
+                $user->notify($notification);
+            }
+        }
 
         return back()->with('status', 'Roadblock scheduled.');
     }

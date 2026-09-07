@@ -101,7 +101,7 @@
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
                         <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#FFD5DF]" style="width: 64px; height: 64px;">
-                            <img src="{{ asset('images/icons/3person-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
+                            <img src="{{ asset('images/icons/3person-gradient.svg') }}" alt="" class="h-12 w-12 object-contain opacity-80">
                         </div>
                         <div class="min-w-0">
                             <p class="text-gray-800 font-semibold text-sm">Total Startup</p>
@@ -118,7 +118,7 @@
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
                         <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#C1DBFF]" style="width: 64px; height: 64px;">
-                            <img src="{{ asset('images/icons/1person-solidgradient.svg') }}" alt="" class="h-12 w-12 object-contain">
+                            <img src="{{ asset('images/icons/1person-solidgradient.svg') }}" alt="" class="h-12 w-12 object-contain opacity-80">
                         </div>
                         <div class="min-w-0">
                             <p class="text-gray-800 font-semibold text-sm">Assessed Startup</p>
@@ -144,7 +144,7 @@
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
                         <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#FFDB96]" style="width: 64px; height: 64px;">
-                            <img src="{{ asset('images/icons/warning-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
+                            <img src="{{ asset('images/icons/warning-gradient.svg') }}" alt="" class="h-12 w-12 object-contain opacity-80">
                         </div>
                         <div class="min-w-0">
                             <p class="text-gray-800 font-semibold text-sm">At Risk Startup</p>
@@ -161,7 +161,7 @@
                 <div class="relative z-10 flex h-full flex-col justify-between">
                     <div class="stat-header-row flex shrink-0 items-start gap-3" style="min-height: 72px;">
                         <div class="stat-icon-box flex shrink-0 items-center justify-center rounded-2xl bg-[#DCCBFF]" style="width: 64px; height: 64px;">
-                            <img src="{{ asset('images/icons/hands-gradient.svg') }}" alt="" class="h-12 w-12 object-contain">
+                            <img src="{{ asset('images/icons/hands-gradient.svg') }}" alt="" class="h-12 w-12 object-contain opacity-80">
                         </div>
                         <div class="min-w-0">
                             <p class="text-gray-800 font-semibold text-sm">Intervention Provided</p>
@@ -255,8 +255,13 @@
                             @foreach ($riskClassification['breakdown']->reverse() as $row)
                                 <tr class="border-b border-gray-100 last:border-0">
                                     <td class="py-2.5 pr-2 whitespace-nowrap">
-                                        <span class="flex items-center gap-2 text-gray-700">
-                                            <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background: {{ $row['color'] }}"></span>
+                                        {{-- items-start (not items-center): the second line below is an
+                                             invisible height-matching spacer, not real content, so
+                                             centering the dot against the whole two-line block pushes it
+                                             out of line with the visible label. mt-[3px] instead centers
+                                             the dot on just that first (visible) line. --}}
+                                        <span class="flex items-start gap-2 text-gray-700">
+                                            <span class="h-2.5 w-2.5 rounded-full shrink-0 mt-[3px]" style="background: {{ $row['color'] }}"></span>
                                             {{-- Second (invisible) line matches Incubation Progress's two-line
                                                  row markup exactly, so both tables' rows render at the same
                                                  height and line up row-for-row instead of Risk's single-line

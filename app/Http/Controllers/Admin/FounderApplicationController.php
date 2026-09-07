@@ -56,9 +56,13 @@ class FounderApplicationController extends Controller
         // counts underneath it (rather than running a 4th, separately
         // scoped count() query that could disagree with the others on edge
         // cases, e.g. a Startup row whose user isn't role=Startup).
-        $pendingCount = Startup::applicationPending()->count();
-        $approvedCount = Startup::applicationApproved()->count();
-        $rejectedCount = Startup::applicationRejected()->count();
+        // Scoped to the selected cohort too, same as $query and
+        // cohortBreakdown below - these previously counted every cohort
+        // regardless of this page's own cohort filter, so the 4 stat cards
+        // never matched what the table/breakdown right below them showed.
+        $pendingCount = Startup::applicationPending()->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))->count();
+        $approvedCount = Startup::applicationApproved()->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))->count();
+        $rejectedCount = Startup::applicationRejected()->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))->count();
 
         return view('admin.founder-applications.index', [
             'applications' => $applications,
