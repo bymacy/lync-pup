@@ -44,6 +44,7 @@ class WordDocumentExporter
     private const TEMPLATES = [
         1 => 'startup-information-sheet-template.docx',
         2 => 'startup-tech-assessment-trl-template.docx',
+        3 => 'startup-tech-assessment-mrl-template.docx',
         9 => 'startup-post-tech-assessment-trl-template.docx',
     ];
 
@@ -71,6 +72,7 @@ class WordDocumentExporter
         return match ($documentNumber) {
             1 => $this->renderDocument1($startup),
             2 => $this->renderDocument2($startup),
+            3 => $this->renderDocument3($startup),
             9 => $this->renderDocument9($startup),
             default => null,
         };
@@ -382,6 +384,75 @@ class WordDocumentExporter
         }
 
         $filledDocxPath = $tempDir.'/'.uniqid('doc2-', true).'.docx';
+        $processor->saveAs($filledDocxPath);
+
+        $binary = file_get_contents($filledDocxPath);
+        @unlink($filledDocxPath);
+
+        return $binary;
+    }
+
+    /**
+     * Document 3: Pre-Assessment MRL ("Market Readiness Level"). Built from
+     * Macy's real official master ("3  OK MRL 1.docx") - like Document 9,
+     * this form has no Section 1 startup/tech overview at all, just its own
+     * Startup Name / Date header line, the 9-level (4 criteria each) MRL
+     * rubric, and its own three-signatory block (Evaluated by / Reviewed
+     * by / Noted by - a different shape than TRL's Prepared/Noted/Approved,
+     * matching the evaluated_by/reviewed_by/noted_by columns the Assessment
+     * Hub's MRL/TMRL block already writes to). Same "plain checkmark,
+     * nothing when unchecked" convention as Document 2/9's TRL rubric, and
+     * same two-line-position-split trick for the two signatories whose
+     * printed title spans two lines.
+     */
+    protected function renderDocument3(Startup $startup): string
+    {
+        $assessment = ReadinessLevelAssessment::where('startup_id', $startup->startup_id)
+            ->where('stage', 'Pre-Assessment')
+            ->first();
+
+        $progress = $assessment?->progressFor('MRL') ?? [];
+
+        $templatePath = storage_path('app/templates/'.self::TEMPLATES[3]);
+        $processor = new TemplateProcessor($templatePath);
+
+        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $vc = fn ($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
+        $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
+        // Same "plain checkmark, nothing when unchecked" convention as
+        // Document 2/9's TRL rubric (Macy: "lagay na lang a check instead
+        // of checkbox").
+        $cbCheck = fn (bool $isChecked) => $isChecked ? '✓' : '';
+
+        $processor->setValue('company_name', $v($startup->company_name));
+        $processor->setValue('assessment_date', $d($assessment?->assessment_date));
+
+        foreach (ReadinessRubric::levels('MRL') as $level => $definition) {
+            $criteriaChecked = $progress[$level] ?? $progress[(string) $level] ?? [];
+            foreach ($definition['criteria'] as $i => $criterion) {
+                $processor->setValue("mrl_{$level}_{$i}", $cbCheck((bool) ($criteriaChecked[$i] ?? false)));
+            }
+        }
+
+        $processor->setValue('evaluated_by', $vc($assessment?->evaluated_by));
+        $evaluatedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->evaluated_by_position ?? ''));
+        $processor->setValue('evaluated_by_position_1', $v($evaluatedPositionLines[0] ?? ''));
+        $processor->setValue('evaluated_by_position_2', $v($evaluatedPositionLines[1] ?? ''));
+
+        $processor->setValue('reviewed_by', $vc($assessment?->reviewed_by));
+        $processor->setValue('reviewed_by_position', $v($assessment?->reviewed_by_position));
+
+        $processor->setValue('noted_by', $vc($assessment?->noted_by));
+        $notedPositionLines = preg_split('/\r\n|\r|\n/', (string) ($assessment?->noted_by_position ?? ''));
+        $processor->setValue('noted_by_position_1', $v($notedPositionLines[0] ?? ''));
+        $processor->setValue('noted_by_position_2', $v($notedPositionLines[1] ?? ''));
+
+        $tempDir = storage_path('app/tmp-exports');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $filledDocxPath = $tempDir.'/'.uniqid('doc3-', true).'.docx';
         $processor->saveAs($filledDocxPath);
 
         $binary = file_get_contents($filledDocxPath);
