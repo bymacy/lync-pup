@@ -105,6 +105,10 @@
                             </button>
                         </div>
 
+                        {{-- App-wide cohort filter + manage control — every admin
+                             page shares this one, session-based selection. --}}
+                        <x-cohort-sidebar-control :cohorts="$sidebarCohorts ?? collect()" :selected="$sidebarSelectedCohort ?? null" />
+
                         <div class="mx-5 border-b border-white/15"></div>
 
                         {{-- Nav --}}

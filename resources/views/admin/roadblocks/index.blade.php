@@ -187,7 +187,6 @@
                     <p class="mt-1 text-sm text-gray-500 sm:text-base">Review startup roadblocks and assign experts.</p>
                 </div>
 
-                <x-cohort-filter-dropdown :cohorts="$filterCohorts" :selected="$selectedCohortId" class="ml-auto" />
             </div>
 
             <div class="border-b border-gray-200 mb-6">

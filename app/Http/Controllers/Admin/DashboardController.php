@@ -82,8 +82,11 @@ class DashboardController extends Controller
         $totalStartups = $startupIds->count();
 
         return view('dashboard', [
-            'cohorts' => $cohorts,
-            'selectedCohort' => $selectedCohort,
+            // 'cohorts'/'selectedCohort' no longer passed to the view — the
+            // cohort selector + manage menu now lives in the sidebar (see
+            // components/cohort-sidebar-control.blade.php), fed by its own
+            // View::composer. $selectedCohort above is still used just
+            // above here to scope this page's own stats.
             'readinessStage' => $readinessStage,
             'totalStartups' => $totalStartups,
             'stats' => $this->buildStatCards($startupIds, $totalStartups),

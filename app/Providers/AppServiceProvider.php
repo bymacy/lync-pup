@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Cohort;
 use App\Notifications\NewRoadblockSubmitted;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
@@ -66,6 +67,27 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $view->with('adminSidebarBadges', $badges);
+
+            // App-wide cohort filter + manage control (see
+            // components/cohort-sidebar-control.blade.php) — rendered once
+            // in the sidebar on every admin page, so it needs its data here
+            // rather than threaded through each individual controller.
+            $sidebarCohorts = collect();
+            $sidebarSelectedCohort = null;
+
+            if ($user && $user->isAdmin()) {
+                $sidebarCohorts = Cohort::withCount('startups')
+                    ->orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+                    ->orderBy('number')
+                    ->get();
+                $selectedCohortId = session('selected_cohort_id');
+                $sidebarSelectedCohort = $selectedCohortId
+                    ? $sidebarCohorts->firstWhere('cohort_id', (int) $selectedCohortId)
+                    : null;
+            }
+
+            $view->with('sidebarCohorts', $sidebarCohorts);
+            $view->with('sidebarSelectedCohort', $sidebarSelectedCohort);
         });
     }
 }

@@ -40,7 +40,6 @@
                     <p class="text-gray-500 mt-1">Monitor readiness, detect weak spots, and act on each startup.</p>
                 </div>
 
-                <x-cohort-filter-dropdown :cohorts="$filterCohorts" :selected="$selectedCohortId" class="ml-auto" />
             </div>
 
             {{--

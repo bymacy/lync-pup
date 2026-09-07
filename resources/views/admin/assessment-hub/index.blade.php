@@ -11,8 +11,6 @@
             </div>
 
             <div class="ml-auto flex shrink-0 items-center gap-3">
-                <x-cohort-filter-dropdown :cohorts="$filterCohorts" :selected="$selectedCohortId" />
-
                 {{-- The assessment form(s) further down (TRL/MRL/TMRL/SRL, Document
                      6/7/8, Venture Exit) all mirror their own dirty state into
                      $store.navigation.hasUnsavedChanges. Exporting doesn't touch
