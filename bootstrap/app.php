@@ -19,5 +19,16 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // The only signed route in the app is the emailed verification
+        // link (see routes/auth.php's 'verification.verify'), which expires
+        // after 3 minutes (see VerifyEmailNotification). Laravel's own
+        // handling of an expired/invalid signature is a raw "403 | Invalid
+        // signature." page — replaced here with a friendly explanation and
+        // a way back into the app, scoped to just this route so any other
+        // signed route added later keeps Laravel's default behavior.
+        $exceptions->render(function (\Illuminate\Routing\Exceptions\InvalidSignatureException $e, $request) {
+            if ($request->routeIs('verification.verify')) {
+                return response()->view('auth.verification-expired', [], 403);
+            }
+        });
     })->create();

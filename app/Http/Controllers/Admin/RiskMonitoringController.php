@@ -105,7 +105,17 @@ class RiskMonitoringController extends Controller
         // overall state, clearing their own dot even if it stays lit for
         // other admins who haven't looked yet.
         Cache::forever('risk_monitoring_signature', $signature);
-        auth()->user()->forceFill(['risk_monitoring_seen_signature' => $signature])->save();
+
+        // Best-effort: on a database that hasn't run migration
+        // 0001_01_01_000052 yet (adds this column), this "seen" marker isn't
+        // there to write to. That's a badge-only cosmetic feature, not core
+        // Risk Monitoring — it should never 500 the whole page just because
+        // one admin's environment is a migration behind.
+        try {
+            auth()->user()->forceFill(['risk_monitoring_seen_signature' => $signature])->save();
+        } catch (\Illuminate\Database\QueryException $e) {
+            report($e);
+        }
 
         return view('admin.risk-monitoring.index', [
             'totalStartups' => $startups->count(),

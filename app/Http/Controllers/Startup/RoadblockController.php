@@ -111,9 +111,17 @@ class RoadblockController extends Controller
         User::where('role', 'Admin')->get()
             ->each(fn (User $admin) => $admin->notify(new NewRoadblockSubmitted($roadblock, $startup)));
 
-        return redirect()
+        // RedirectResponse has no when() (that's Conditionable — not used by
+        // this class), which is what actually threw the BadMethodCallException
+        // here despite the roadblock itself having already saved successfully.
+        $redirect = redirect()
             ->route('startup.submissions.index', ['tab' => 'roadblock'])
-            ->with('roadblock_submitted', true)
-            ->when(count($skipped) > 0, fn ($redirect) => $redirect->with('roadblock_skipped_files', $skipped));
+            ->with('roadblock_submitted', true);
+
+        if (count($skipped) > 0) {
+            $redirect->with('roadblock_skipped_files', $skipped);
+        }
+
+        return $redirect;
     }
 }

@@ -17,7 +17,40 @@
 </head>
 <body class="antialiased font-['Poppins'] bg-white">
     <div class="min-h-screen flex items-center justify-center p-6"
-        x-data="{ secondsLeft: 60, init() { this.tick(); }, tick() { setInterval(() => { if (this.secondsLeft > 0) this.secondsLeft--; }, 1000); } }">
+        x-data="{
+            secondsLeft: 60,
+            init() {
+                this.tick();
+                @if (session('status'))
+                    this.pollResetStatus();
+                @endif
+            },
+            tick() {
+                setInterval(() => { if (this.secondsLeft > 0) this.secondsLeft--; }, 1000);
+            },
+            // Catches the case this 'Check your email' page is left open in
+            // one tab while the reset link itself gets clicked and
+            // completed in another (e.g. the email app opened it in a new
+            // tab) — without this, the stale tab just sits here with no
+            // idea the reset already happened. Password::reset() deletes
+            // this email's password_reset_tokens row on success, so once
+            // that row is gone, send this tab to login too.
+            pollResetStatus() {
+                setInterval(async () => {
+                    try {
+                        const res = await fetch('{{ route('password.request.status') }}?email={{ urlencode(old('email', '')) }}', {
+                            headers: { 'Accept': 'application/json' },
+                        });
+                        const data = await res.json();
+                        if (!data.pending) {
+                            window.location = '{{ route('login') }}';
+                        }
+                    } catch (e) {
+                        // Offline or a transient error — just try again next tick.
+                    }
+                }, 4000);
+            },
+        }">
         <div class="w-full max-w-md">
 
             {{--

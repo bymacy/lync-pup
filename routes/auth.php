@@ -9,6 +9,8 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -27,6 +29,20 @@ Route::middleware('guest')->group(function () {
 
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
         ->name('password.email');
+
+    // Polled by the "Check your email" waiting page (forgot-password.blade.php)
+    // so a tab left open there notices, on its own, once the reset link gets
+    // used in ANOTHER tab — same stale-tab problem as verification.status,
+    // just detected differently: Password::reset() deletes this email's row
+    // from password_reset_tokens on success, so its absence (once one was
+    // known to exist) means the reset already went through.
+    Route::get('forgot-password/status', function (Request $request) {
+        $email = $request->query('email');
+
+        return response()->json([
+            'pending' => $email ? DB::table('password_reset_tokens')->where('email', $email)->exists() : false,
+        ]);
+    })->name('password.request.status');
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
         ->name('password.reset');
@@ -66,6 +82,18 @@ Route::middleware('auth')->group(function () {
     Route::post('email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
         ->middleware('throttle:6,1')
         ->name('verification.send');
+
+    // Polled by the waiting page (resources/views/auth/verify-email.blade.php)
+    // so a tab left open on "Verify your email" while the link gets clicked
+    // in ANOTHER tab notices on its own and redirects to login, instead of
+    // sitting there stale until the founder clicks something on it and
+    // trips the already-verified fallback above. Deliberately a plain JSON
+    // read with no redirect logic of its own — the polling tab decides what
+    // to do with the result, so this endpoint can never itself produce the
+    // dashboard-role 403 the other two actions used to.
+    Route::get('email/verification-status', fn () => response()->json([
+        'verified' => request()->user()->hasVerifiedEmail(),
+    ]))->name('verification.status');
 
     Route::get('confirm-password', [ConfirmablePasswordController::class, 'show'])
         ->name('password.confirm');

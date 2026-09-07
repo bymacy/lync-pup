@@ -7,6 +7,8 @@ use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -17,10 +19,32 @@ use Illuminate\View\View;
 class NewPasswordController extends Controller
 {
     /**
-     * Display the password reset view.
+     * Display the password reset view — or, if the link's token is missing,
+     * mismatched, or past its expiry window, a friendly "expired" page
+     * instead. Previously this always rendered the reset form regardless,
+     * so an expired link still looked fully usable right up until
+     * submission (where Password::reset() correctly rejects it, but with
+     * only a generic inline error) — this catches it up front instead.
      */
     public function create(Request $request): View
     {
+        $email = $request->query('email');
+        $token = $request->route('token');
+
+        $config = config('auth.passwords.'.config('auth.defaults.passwords'));
+        $tokenRow = $email
+            ? DB::table($config['table'])->where('email', $email)->first()
+            : null;
+
+        $isValid = $tokenRow
+            && $token
+            && Hash::check($token, $tokenRow->token)
+            && ! Carbon::parse($tokenRow->created_at)->addMinutes($config['expire'])->isPast();
+
+        if (! $isValid) {
+            return view('auth.password-reset-expired');
+        }
+
         return view('auth.reset-password', ['request' => $request]);
     }
 

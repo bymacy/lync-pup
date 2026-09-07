@@ -17,14 +17,71 @@
 </head>
 <body class="antialiased font-['Poppins'] bg-white">
     <div class="min-h-screen flex items-center justify-center p-6"
-        x-data="{ secondsLeft: 60, init() { this.tick(); } , tick() { setInterval(() => { if (this.secondsLeft > 0) this.secondsLeft--; }, 1000); } }">
+        x-data="{
+            secondsLeft: 60,
+            init() {
+                this.tick();
+                this.pollVerification();
+            },
+            tick() {
+                setInterval(() => { if (this.secondsLeft > 0) this.secondsLeft--; }, 1000);
+            },
+            // Catches the case this same 'Verify your email' page is left
+            // open in one tab while the verification link itself gets
+            // clicked in another (e.g. the email app opened it in a new
+            // tab) — without this, the stale tab just sits here, and
+            // clicking Resend/Change email on it used to trip a 403 (see
+            // EmailVerificationNotificationController). Once verified
+            // elsewhere, send this tab to login too rather than leaving it
+            // stranded.
+            pollVerification() {
+                setInterval(async () => {
+                    try {
+                        const res = await fetch('{{ route('verification.status') }}', {
+                            headers: { 'Accept': 'application/json' },
+                        });
+
+                        // Verifying in the OTHER tab also logs that shared
+                        // session out (VerifyEmailController) — since both
+                        // tabs are the same browser/cookie, this tab's own
+                        // session dies with it, and the next poll comes
+                        // back 401 (Accept: application/json makes Laravel
+                        // return JSON here instead of a server-side
+                        // redirect this fetch would otherwise silently
+                        // follow). Treat that the same as "verified".
+                        if (res.status === 401) {
+                            window.location = '{{ route('login') }}';
+                            return;
+                        }
+
+                        const data = await res.json();
+                        if (data.verified) {
+                            window.location = '{{ route('login') }}';
+                        }
+                    } catch (e) {
+                        // Offline or a transient error — just try again next tick.
+                    }
+                }, 4000);
+            },
+        }">
         <div class="w-full max-w-md">
 
-            <a href="{{ route('login') }}" class="inline-flex text-gray-500 hover:text-gray-800 mb-6">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-            </a>
+            {{-- A plain link to /login here would hit it while STILL
+                 authenticated (this page requires auth) — the 'guest'
+                 middleware on /login then bounces an already-logged-in
+                 user off to route('dashboard') instead, which 403s for a
+                 Startup account (Admin-only route) rather than showing
+                 login. Logging out first, via the same action the "Sign
+                 Out" button already uses, guarantees this always lands
+                 cleanly on the real login form. --}}
+            <form method="POST" action="{{ route('logout') }}" class="mb-6">
+                @csrf
+                <button type="submit" class="inline-flex text-gray-500 hover:text-gray-800" aria-label="Back to login">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+            </form>
 
             <h1 class="text-2xl font-bold text-center text-gray-900 mb-2">Verify your email</h1>
             <p class="text-center text-gray-600 mb-8">
@@ -71,17 +128,6 @@
                         <span x-show="secondsLeft > 0">Resend verification email (<span x-text="secondsLeft"></span>s)</span>
                     </button>
                 </div>
-            </form>
-
-            <form method="POST" action="{{ route('verification.change-email') }}">
-                @csrf
-                <button type="submit"
-                    class="w-full border border-rose-200 rounded-lg p-4 text-center text-sm text-gray-600 hover:bg-gray-50 transition flex items-center justify-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                    Change email address
-                </button>
             </form>
         </div>
     </div>
