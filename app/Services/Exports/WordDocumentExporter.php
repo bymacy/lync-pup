@@ -9,39 +9,10 @@ use App\Support\ReadinessRubric;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpWord\TemplateProcessor;
 
-/**
- * Renders a document straight from the REAL PUP-TBIDO Word master instead
- * of a hand-built Blade/DomPDF recreation. Only Document 1 (Startup
- * Information Sheet) has a real master template so far - every other
- * document number falls through (render() returns null) so
- * ExportController can keep using the existing DomPDF/Blade pipeline for
- * those until real masters exist for them too.
- *
- * How this works: storage/app/templates/startup-information-sheet-template.docx
- * is the real master with every fillable value replaced by a "${placeholder}" tag
- * (Word merge-field style) and the three repeating tables (Core Team,
- * Incubation Involvement, L&D Interventions) collapsed down to a single
- * template row each. PHPWord's TemplateProcessor fills the simple
- * placeholders with setValue() and regenerates however many rows those
- * three tables need with cloneRow(). The filled .docx is then converted
- * to PDF by shelling out to LibreOffice - PHPWord's own PDF writer isn't
- * reliable for a layout this complex (real tables, merged cells, a
- * repeating section footer), but LibreOffice renders it exactly as Word
- * would.
- *
- * Requires: `composer require phpoffice/phpword`, and a LibreOffice
- * install reachable at the path in `LIBREOFFICE_PATH` (.env) or one of
- * the common defaults in resolveSofficeBinary() below. Nothing here talks
- * to DomPDF at all.
- */
+
 class WordDocumentExporter
 {
-    /**
-     * Document number -> real master template path (relative to
-     * storage/app/templates). Add an entry here once a real Word master
-     * exists for that document number - everything else in this class is
-     * already generic across documents.
-     */
+    
     private const TEMPLATES = [
         1 => 'startup-information-sheet-template.docx',
         2 => 'startup-tech-assessment-trl-template.docx',
@@ -58,21 +29,13 @@ class WordDocumentExporter
         13 => 'doc13-venture-exit-template.docx',
     ];
 
-    /**
-     * Whether $documentNumber has a real Word master to render from -
-     * lets callers (ExportController's PDF Bundle guard in particular)
-     * check this without actually rendering anything.
-     */
+   
     public function hasTemplate(int $documentNumber): bool
     {
         return isset(self::TEMPLATES[$documentNumber]);
     }
 
-    /**
-     * Renders $documentNumber for $startup as a filled PDF, or returns
-     * null if there's no real master template for that document number
-     * yet (the caller should fall back to the DomPDF/Blade pipeline).
-     */
+    
     public function render(int $documentNumber, Startup $startup): ?string
     {
         if (! isset(self::TEMPLATES[$documentNumber])) {

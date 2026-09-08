@@ -20,6 +20,7 @@ class DevDataSeeder extends Seeder
 {
     public function run(): void
     {
+        $cohort3 = Cohort::where('number', 3)->firstOrFail();
         // Admin account
         User::firstOrCreate(
             ['email' => 'admin@pup.edu.ph'],
@@ -67,31 +68,55 @@ class DevDataSeeder extends Seeder
         );
 
         $sheet->update([
-            'surname' => 'Santos', 'first_name' => 'Maria', 'middle_name' => 'Reyes',
-            'name_extension' => 'N/A', 'height_m' => '1.65', 'weight_kg' => '58', 'blood_type' => 'O+',
-            'gsis_no' => '1234567890', 'pagibig_no' => '1234-5678-9012', 'philhealth_no' => '12-345678901-2',
-            'sss_no' => '12-3456789-0', 'residential_address' => 'B11 L3 Sample St., Mandaluyong City',
-            'permanent_address' => 'B11 L3 Sample St., Mandaluyong City', 'sex' => 'Female',
-            'civil_status' => 'Single', 'citizenship_by_birth' => 'Filipino', 'citizenship_dual' => 'N/A',
-            'place_of_birth' => 'Manila', 'date_of_birth' => '1998-05-14', 'mobile_no' => '09171234567',
+            'surname' => 'Santos',
+            'first_name' => 'Maria',
+            'middle_name' => 'Reyes',
+            'name_extension' => 'N/A',
+            'height_m' => '1.65',
+            'weight_kg' => '58',
+            'blood_type' => 'O+',
+            'gsis_no' => '1234567890',
+            'pagibig_no' => '1234-5678-9012',
+            'philhealth_no' => '12-345678901-2',
+            'sss_no' => '12-3456789-0',
+            'residential_address' => 'B11 L3 Sample St., Mandaluyong City',
+            'permanent_address' => 'B11 L3 Sample St., Mandaluyong City',
+            'sex' => 'Female',
+            'civil_status' => 'Single',
+            'citizenship_by_birth' => 'Filipino',
+            'citizenship_dual' => 'N/A',
+            'place_of_birth' => 'Manila',
+            'date_of_birth' => '1998-05-14',
+            'mobile_no' => '09171234567',
             'founder_email' => 'maria.santos@agrisense.ph',
-            'secondary_school' => 'Manila High School', 'secondary_degree_course' => 'N/A',
-            'secondary_highest_level_unit' => 'N/A', 'secondary_year_graduated' => '2014',
-            'vocational_school' => 'N/A', 'vocational_degree_course' => 'N/A',
-            'vocational_highest_level_unit' => 'N/A', 'vocational_year_graduated' => 'N/A',
+            'secondary_school' => 'Manila High School',
+            'secondary_degree_course' => 'N/A',
+            'secondary_highest_level_unit' => 'N/A',
+            'secondary_year_graduated' => '2014',
+            'vocational_school' => 'N/A',
+            'vocational_degree_course' => 'N/A',
+            'vocational_highest_level_unit' => 'N/A',
+            'vocational_year_graduated' => 'N/A',
             'college_school' => 'Polytechnic University of the Philippines',
-            'college_degree_course' => 'BS Computer Science', 'college_highest_level_unit' => "Bachelor's Degree",
+            'college_degree_course' => 'BS Computer Science',
+            'college_highest_level_unit' => "Bachelor's Degree",
             'college_year_graduated' => '2018',
             'graduate_school' => 'Polytechnic University of the Philippines',
             'graduate_degree_course' => 'Master in Business Administration',
-            'graduate_highest_level_unit' => "Master's Degree", 'graduate_year_graduated' => '2021',
+            'graduate_highest_level_unit' => "Master's Degree",
+            'graduate_year_graduated' => '2021',
             'scholarships_academic_honors' => "Dean's Lister, 2016-2018\nDOST Scholarship Grantee",
-            'sec_registration' => 'CS201812345', 'business_id_number' => 'BID-0098765',
-            'dti_registration_number' => 'DTI-0054321', 'business_tin' => '123-456-789-000',
+            'sec_registration' => 'CS201812345',
+            'business_id_number' => 'BID-0098765',
+            'dti_registration_number' => 'DTI-0054321',
+            'business_tin' => '123-456-789-000',
             'non_academic_distinctions' => 'Best Startup Pitch, PUP Innovation Summit 2023',
             'membership_associations' => 'Philippine Startup Founders Network',
-            'date_accomplished' => '2026-07-10', 'portfolio_manager' => 'Engr. Tristan Velardo',
-            'cohort_no' => 'Cohort 3', 'endorsed_by' => 'Sir Erwin', 'endorsement_date' => '2026-07-11',
+            'date_accomplished' => '2026-07-10',
+            'portfolio_manager' => 'Engr. Tristan Velardo',
+            'cohort_no' => 'Cohort 3',
+            'endorsed_by' => 'Sir Erwin',
+            'endorsement_date' => '2026-07-11',
         ]);
 
         if (TeamMember::where('startup_id', $pending->startup_id)->count() === 0) {
@@ -123,21 +148,109 @@ class DevDataSeeder extends Seeder
         );
         $ecowattFounder->update(['account_status' => 'Active', 'email_verified_at' => now()]);
 
+        
         $needsCoordinator = Startup::firstOrCreate(
             ['company_name' => 'EcoWatt Solutions'],
             [
                 'user_id' => $ecowattFounder->id,
                 'industry_sector' => 'CleanTech',
                 'cohort_number' => 3,
+                'cohort_id' => $cohort3->cohort_id,
                 'contact_phone' => '09181234567',
                 'location' => 'Taguig City, PH',
             ]
         );
-
-        InformationSheet::firstOrCreate(
+        $ecowattSheet = InformationSheet::firstOrCreate(
             ['startup_id' => $needsCoordinator->startup_id],
-            ['approval_status' => 'Approved', 'business_description' => 'Placeholder']
+            ['approval_status' => 'Pending']
         );
+
+        $ecowattSheet->update([
+            'approval_status' => 'Pending',
+            'submission_date' => now()->toDateString(),
+
+            'business_description' => 'EcoWatt Solutions develops affordable solar-powered energy systems for households and small businesses.',
+            'target_market' => 'Households and small businesses in urban and rural communities.',
+            'problem_statement' => 'Many communities experience high electricity costs and unreliable access to electricity.',
+            'solution_offered' => 'Affordable solar energy systems with modular battery storage for homes and small businesses.',
+
+            'surname' => 'Reyes',
+            'first_name' => 'Daniel',
+            'middle_name' => 'Santos',
+            'name_extension' => 'N/A',
+
+            'height_m' => '1.70',
+            'weight_kg' => '65',
+            'blood_type' => 'O+',
+
+            'gsis_no' => '3344556677',
+            'pagibig_no' => '3344-5566-7788',
+            'philhealth_no' => '33-445566778-9',
+            'sss_no' => '33-4455667-8',
+
+            'residential_address' => '25 Bonifacio Street, Taguig City',
+            'permanent_address' => '25 Bonifacio Street, Taguig City',
+
+            'sex' => 'Male',
+            'civil_status' => 'Single',
+            'citizenship_by_birth' => 'Filipino',
+            'citizenship_dual' => 'N/A',
+
+            'place_of_birth' => 'Taguig City',
+            'date_of_birth' => '1997-04-15',
+            'mobile_no' => '09181234567',
+
+            'founder_email' => 'daniel.reyes@ecowatt.ph',
+
+            'secondary_school' => 'Taguig National High School',
+            'secondary_degree_course' => 'N/A',
+            'secondary_highest_level_unit' => 'N/A',
+            'secondary_year_graduated' => '2013',
+
+            'vocational_school' => 'N/A',
+            'vocational_degree_course' => 'N/A',
+            'vocational_highest_level_unit' => 'N/A',
+            'vocational_year_graduated' => 'N/A',
+
+            'college_school' => 'Polytechnic University of the Philippines',
+            'college_degree_course' => 'BS Electrical Engineering',
+            'college_highest_level_unit' => "Bachelor's Degree",
+            'college_year_graduated' => '2018',
+
+            'graduate_school' => 'N/A',
+            'graduate_degree_course' => 'N/A',
+            'graduate_highest_level_unit' => 'N/A',
+            'graduate_year_graduated' => 'N/A',
+
+            'scholarships_academic_honors' => "Dean's Lister, 2016-2018",
+
+            'sec_registration' => 'CS202045678',
+            'business_id_number' => 'BID-0067891',
+            'dti_registration_number' => 'DTI-0087654',
+            'business_tin' => '567-890-234-000',
+
+            'non_academic_distinctions' => 'Finalist, PUP Green Innovation Challenge 2025',
+            'membership_associations' => 'Philippine Renewable Energy Association',
+
+            'date_accomplished' => now()->toDateString(),
+            'portfolio_manager' => 'Engr. Tristan Velardo',
+            'cohort_no' => 'Cohort 3',
+            'endorsed_by' => 'Sir Erwin',
+            'endorsement_date' => now()->toDateString(),
+        ]);
+
+
+        $ecowattEvaluation = EvaluationSchedule::firstOrNew([
+            'startup_id' => $needsCoordinator->startup_id
+        ]);
+
+        $ecowattEvaluation->fill([
+            'evaluation_date' => now()->toDateString(),
+            'start_time' => '21:00',
+            'end_time' => '22:00',
+            'status' => 'Scheduled',
+            'notes' => 'Not-started-yet evaluation test.',
+        ])->save();
 
         if (TeamMember::where('startup_id', $needsCoordinator->startup_id)->count() === 0) {
             TeamMember::factory()->count(2)->create(['startup_id' => $needsCoordinator->startup_id]);
@@ -173,6 +286,7 @@ class DevDataSeeder extends Seeder
                 'user_id' => $greenloopFounder->id,
                 'industry_sector' => 'CleanTech',
                 'cohort_number' => 3,
+                'cohort_id' => $cohort3->cohort_id,
                 'contact_phone' => '09191234567',
                 'location' => 'Pasig City, PH',
             ]
@@ -193,31 +307,54 @@ class DevDataSeeder extends Seeder
             'target_market' => 'Off-grid and peri-urban households in Rizal and Laguna',
             'problem_statement' => 'Rural households spend a large share of income on LPG while wet market food waste goes unprocessed.',
             'solution_offered' => 'A community-scale digester plus a swap-and-refill cartridge network.',
-            'surname' => 'Navarro', 'first_name' => 'Elias', 'middle_name' => 'Bautista',
-            'name_extension' => 'N/A', 'height_m' => '1.72', 'weight_kg' => '68', 'blood_type' => 'B+',
-            'gsis_no' => '2233445566', 'pagibig_no' => '2233-4455-6677', 'philhealth_no' => '22-334455667-8',
-            'sss_no' => '22-3344556-7', 'residential_address' => '24 Kalayaan Ave., Pasig City',
-            'permanent_address' => '24 Kalayaan Ave., Pasig City', 'sex' => 'Male',
-            'civil_status' => 'Single', 'citizenship_by_birth' => 'Filipino', 'citizenship_dual' => 'N/A',
-            'place_of_birth' => 'Pasig City', 'date_of_birth' => '1996-09-08', 'mobile_no' => '09191234567',
+            'surname' => 'Navarro',
+            'first_name' => 'Elias',
+            'middle_name' => 'Bautista',
+            'name_extension' => 'N/A',
+            'height_m' => '1.72',
+            'weight_kg' => '68',
+            'blood_type' => 'B+',
+            'gsis_no' => '2233445566',
+            'pagibig_no' => '2233-4455-6677',
+            'philhealth_no' => '22-334455667-8',
+            'sss_no' => '22-3344556-7',
+            'residential_address' => '24 Kalayaan Ave., Pasig City',
+            'permanent_address' => '24 Kalayaan Ave., Pasig City',
+            'sex' => 'Male',
+            'civil_status' => 'Single',
+            'citizenship_by_birth' => 'Filipino',
+            'citizenship_dual' => 'N/A',
+            'place_of_birth' => 'Pasig City',
+            'date_of_birth' => '1996-09-08',
+            'mobile_no' => '09191234567',
             'founder_email' => 'elias.navarro@greenloop.ph',
-            'secondary_school' => 'Rizal High School', 'secondary_degree_course' => 'N/A',
-            'secondary_highest_level_unit' => 'N/A', 'secondary_year_graduated' => '2012',
-            'vocational_school' => 'N/A', 'vocational_degree_course' => 'N/A',
-            'vocational_highest_level_unit' => 'N/A', 'vocational_year_graduated' => 'N/A',
+            'secondary_school' => 'Rizal High School',
+            'secondary_degree_course' => 'N/A',
+            'secondary_highest_level_unit' => 'N/A',
+            'secondary_year_graduated' => '2012',
+            'vocational_school' => 'N/A',
+            'vocational_degree_course' => 'N/A',
+            'vocational_highest_level_unit' => 'N/A',
+            'vocational_year_graduated' => 'N/A',
             'college_school' => 'Polytechnic University of the Philippines',
             'college_degree_course' => 'BS Mechanical Engineering',
-            'college_highest_level_unit' => "Bachelor's Degree", 'college_year_graduated' => '2017',
-            'graduate_school' => 'N/A', 'graduate_degree_course' => 'N/A',
-            'graduate_highest_level_unit' => 'N/A', 'graduate_year_graduated' => 'N/A',
+            'college_highest_level_unit' => "Bachelor's Degree",
+            'college_year_graduated' => '2017',
+            'graduate_school' => 'N/A',
+            'graduate_degree_course' => 'N/A',
+            'graduate_highest_level_unit' => 'N/A',
+            'graduate_year_graduated' => 'N/A',
             'scholarships_academic_honors' => "CHED Merit Scholar, 2013-2017\nDean's Lister, 2015-2017",
-            'sec_registration' => 'CS201954321', 'business_id_number' => 'BID-0041237',
-            'dti_registration_number' => 'DTI-0071188', 'business_tin' => '456-789-123-000',
+            'sec_registration' => 'CS201954321',
+            'business_id_number' => 'BID-0041237',
+            'dti_registration_number' => 'DTI-0071188',
+            'business_tin' => '456-789-123-000',
             'non_academic_distinctions' => 'Finalist, DOST CleanTech Challenge 2024',
             'membership_associations' => 'Philippine Society of Mechanical Engineers',
             'date_accomplished' => now()->subDays(21)->toDateString(),
             'portfolio_manager' => 'Engr. Tristan Velardo',
-            'cohort_no' => 'Cohort 3', 'endorsed_by' => 'Sir Erwin',
+            'cohort_no' => 'Cohort 3',
+            'endorsed_by' => 'Sir Erwin',
             'endorsement_date' => now()->subDays(20)->toDateString(),
         ]);
 
@@ -256,11 +393,11 @@ class DevDataSeeder extends Seeder
         // rather than "Missed".
         $greenloopEvaluation = EvaluationSchedule::firstOrNew(['startup_id' => $greenloop->startup_id]);
         $greenloopEvaluation->fill([
-            'evaluation_date' => now()->addDays(7)->toDateString(),
+            'evaluation_date' => now()->subDay()->toDateString(),
             'start_time' => '10:00',
             'end_time' => '11:00',
             'status' => 'Scheduled',
-            'notes' => 'Initial evaluation for Cohort 3 endorsement.',
+            'notes' => 'Missed evaluation test.',
         ])->save();
 
         // Sample mentors
@@ -334,7 +471,7 @@ class DevDataSeeder extends Seeder
                 }
             }
 
-            $progress[strtolower($type).'_progress'] = $levels;
+            $progress[strtolower($type) . '_progress'] = $levels;
         }
 
         return $progress;

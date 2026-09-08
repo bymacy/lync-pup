@@ -54,7 +54,7 @@ class ExportController extends Controller
     public function documents(): JsonResponse
     {
         return response()->json([
-            'documents' => collect(self::DOCUMENTS)->map(fn ($doc, $num) => [
+            'documents' => collect(self::DOCUMENTS)->map(fn($doc, $num) => [
                 'number' => $num,
                 'label' => $doc['label'],
                 'form_no' => $doc['form_no'],
@@ -78,10 +78,14 @@ class ExportController extends Controller
         }
 
         $rubricMap = [
-            2 => ['TRL', 'Pre-Assessment'], 3 => ['MRL', 'Pre-Assessment'],
-            4 => ['TMRL', 'Pre-Assessment'], 5 => ['SRL', 'Pre-Assessment'],
-            9 => ['TRL', 'Post-Assessment'], 10 => ['MRL', 'Post-Assessment'],
-            11 => ['TMRL', 'Post-Assessment'], 12 => ['SRL', 'Post-Assessment'],
+            2 => ['TRL', 'Pre-Assessment'],
+            3 => ['MRL', 'Pre-Assessment'],
+            4 => ['TMRL', 'Pre-Assessment'],
+            5 => ['SRL', 'Pre-Assessment'],
+            9 => ['TRL', 'Post-Assessment'],
+            10 => ['MRL', 'Post-Assessment'],
+            11 => ['TMRL', 'Post-Assessment'],
+            12 => ['SRL', 'Post-Assessment'],
         ];
 
         $assessmentsByStage = ReadinessLevelAssessment::where('startup_id', $startup->startup_id)
@@ -132,7 +136,7 @@ class ExportController extends Controller
         $startup = Startup::findOrFail($validated['startup_id']);
 
         $documentNumbers = collect($validated['document_numbers'])
-            ->map(fn ($n) => (int) $n)
+            ->map(fn($n) => (int) $n)
             ->unique()
             ->sort()
             ->values()
@@ -152,7 +156,7 @@ class ExportController extends Controller
         // another one. Blocked here rather than silently dropping the
         // Word-backed document or silently falling back to the old
         // Blade recreation for it.
-        $wordBacked = array_values(array_filter($documentNumbers, fn ($n) => $this->wordExporter->hasTemplate($n)));
+        $wordBacked = array_values(array_filter($documentNumbers, fn($n) => $this->wordExporter->hasTemplate($n)));
 
         // A Word-backed document is a filled .docx now, not a PDF at all
         // (see WordDocumentExporter::renderDocument1() - PDF conversion via
@@ -167,8 +171,8 @@ class ExportController extends Controller
             throw ValidationException::withMessages([
                 'format' => [
                     "\"PDF Bundle\" can't include \"{$label}\" — it now exports as a real .docx from the "
-                    .'PUP-TBIDO Word master, not a PDF, so it has nothing to merge into a PDF bundle. '
-                    .'Choose "Individual PDFs" or "ZIP Archive" instead.',
+                        . 'PUP-TBIDO Word master, not a PDF, so it has nothing to merge into a PDF bundle. '
+                        . 'Choose "Individual PDFs" or "ZIP Archive" instead.',
                 ],
             ]);
         }
@@ -217,8 +221,10 @@ class ExportController extends Controller
 
         $saved = [];
         foreach ($validated['files'] as $file) {
-            if (! str_starts_with($file['file_path'], $expectedPrefix)
-                || ! Storage::disk('public')->exists($file['file_path'])) {
+            if (
+                ! str_starts_with($file['file_path'], $expectedPrefix)
+                || ! Storage::disk('public')->exists($file['file_path'])
+            ) {
                 continue;
             }
 
@@ -236,7 +242,7 @@ class ExportController extends Controller
         }
 
         return response()->json([
-            'saved_reports' => collect($saved)->map(fn (SavedReport $r) => [
+            'saved_reports' => collect($saved)->map(fn(SavedReport $r) => [
                 'saved_report_id' => $r->saved_report_id,
                 'file_name' => $r->file_name,
                 'file_size_label' => $r->file_size_label,
@@ -409,12 +415,12 @@ class ExportController extends Controller
             if ($this->wordExporter->hasTemplate($num)) {
                 throw new \RuntimeException(
                     "Document {$num} is Word-backed and can't be part of a PDF Bundle - this should have "
-                    .'been caught by the validation in generate() before reaching here.'
+                        . 'been caught by the validation in generate() before reaching here.'
                 );
             }
         }
 
-        $sections = array_map(fn ($num) => $this->renderDocumentContent($num, $startup), $documentNumbers);
+        $sections = array_map(fn($num) => $this->renderDocumentContent($num, $startup), $documentNumbers);
         $pdf = Pdf::loadView('admin.exports.bundle', ['sections' => $sections])->setPaper('legal');
         $binary = $pdf->output();
 
@@ -446,7 +452,7 @@ class ExportController extends Controller
             $extension = $this->extensionFor($num);
 
             $label = self::DOCUMENTS[$num]['label'];
-            $fileName = $this->sanitizeFileName("{$baseName} - {$label}").".{$extension}";
+            $fileName = $this->sanitizeFileName("{$startup->company_name} - {$label}") . ".{$extension}";
             $path = "{$dir}/{$fileName}";
             Storage::disk('public')->put($path, $binary);
 
@@ -500,7 +506,9 @@ class ExportController extends Controller
             $totalPages += $extension === 'pdf' ? ($this->pageCount($binary) ?? 0) : 0;
 
             $label = self::DOCUMENTS[$num]['label'];
-            $zip->addFromString($this->sanitizeFileName($label).".{$extension}", $binary);
+            $individualFileName = $this->sanitizeFileName("{$startup->company_name} - {$label}") . ".{$extension}";
+
+            $zip->addFromString($individualFileName, $binary);
         }
 
         $zip->close();
@@ -556,9 +564,9 @@ class ExportController extends Controller
     protected function sizeLabel(int $bytes): string
     {
         if ($bytes >= 1024 * 1024) {
-            return round($bytes / (1024 * 1024), 1).' MB';
+            return round($bytes / (1024 * 1024), 1) . ' MB';
         }
 
-        return round(max($bytes, 1) / 1024, 1).' KB';
+        return round(max($bytes, 1) / 1024, 1) . ' KB';
     }
 }

@@ -622,14 +622,14 @@
                 </div>
 
                 @php
-                    $overallLabel = \App\Support\ReadinessRubric::overallLabel($startup->latestReadinessAssessment->overall_score ?? null);
-                    $overallTone = match ($overallLabel) {
-                        'Ideation' => 'border-violet-300 text-violet-700 bg-violet-50',
-                        'Development' => 'border-rose-300 text-rose-700 bg-rose-50',
-                        'Validation' => 'border-blue-300 text-blue-700 bg-blue-50',
-                        'Growth' => 'border-green-300 text-green-700 bg-green-50',
-                        default => 'border-gray-300 text-gray-500 bg-gray-50',
-                    };
+                $overallLabel = \App\Support\ReadinessRubric::overallLabel($startup->latestReadinessAssessment->overall_score ?? null);
+                $overallTone = match ($overallLabel) {
+                'Ideation' => 'border-violet-300 text-violet-700 bg-violet-50',
+                'Development' => 'border-rose-300 text-rose-700 bg-rose-50',
+                'Validation' => 'border-blue-300 text-blue-700 bg-blue-50',
+                'Growth' => 'border-green-300 text-green-700 bg-green-50',
+                default => 'border-gray-300 text-gray-500 bg-gray-50',
+                };
                 @endphp
                 <div class="flex justify-center mb-2">
                     <span class="rounded-full border px-3 py-1 text-xs font-semibold {{ $overallTone }}">{{ $overallLabel }}</span>
@@ -637,7 +637,9 @@
 
                 <p class="text-center font-bold text-gray-900">{{ $startup->company_name }}</p>
                 <p class="text-center text-xs text-gray-500 mb-3">{{ $startup->industry_sector }} · {{ $startup->batch_label }}</p>
-                <p class="text-xs text-gray-500 line-clamp-3 mb-3">{{ $startup->business_description }}</p>
+                <p class="text-xs text-gray-500 mb-3 whitespace-normal break-words">
+                    {{ $startup->business_description }}
+                </p>
                 <div class="text-xs text-gray-500 flex items-center justify-between border-t pt-3">
                     <span>{{ $startup->location }}</span>
                     @if ($startup->latestReadinessAssessment)

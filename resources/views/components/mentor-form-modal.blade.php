@@ -108,7 +108,7 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                 submit button is untouched by `dirty`.
             --}}
             <form method="POST" action="{{ $action }}" enctype="multipart/form-data"
-                class="flex flex-1 flex-col space-y-3 px-8 pb-6 pt-1"
+                class="flex min-h-0 flex-1 flex-col overflow-y-auto space-y-3 px-8 pb-6 pt-1"
                 x-data="{
                 dirty: false,
                 initial: {},

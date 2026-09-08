@@ -1,4 +1,19 @@
-<x-layouts.admin :title="$startup->company_name">
+@php
+// Same reasoning as Information Sheet's own $cohortReturnUrl (see
+// resources/views/admin/information-sheets/show.blade.php) - switching
+// cohorts while viewing a startup reached from the Assessment Hub's
+// scoring flow should return to that flow (scoped to the new cohort),
+// not stay pinned to this one startup, which may not belong to the
+// newly picked cohort at all.
+$cohortReturnUrl = request('from') === 'assessment-hub'
+? route('admin.assessment-hub.index', array_filter([
+'main' => 'assessment',
+'stage' => request('stage'),
+'assessment_startup' => request('assessment_startup'),
+]))
+: null;
+@endphp
+<x-layouts.admin :title="$startup->company_name" :cohort-return-url="$cohortReturnUrl">
 
     @php
 
@@ -40,9 +55,9 @@
             // exactly which stage/startup the admin was scoring.
             $backUrl = request('from') === 'assessment-hub'
             ? route('admin.assessment-hub.index', array_filter([
-                'main' => 'assessment',
-                'stage' => request('stage'),
-                'assessment_startup' => request('assessment_startup'),
+            'main' => 'assessment',
+            'stage' => request('stage'),
+            'assessment_startup' => request('assessment_startup'),
             ]))
             : route('admin.startups.index', request()->only('tab'));
             @endphp
@@ -86,13 +101,17 @@
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="lg:col-span-2 space-y-6">
-                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                        <h2 class="font-bold text-gray-900 mb-2">About</h2>
+                    <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                        <h2 class="mb-2 font-bold text-gray-900">About</h2>
 
                         @if ($description)
-                        <p class="text-gray-600 text-sm">{{ $description }}</p>
+                        <p class="min-w-0 max-w-full break-words whitespace-normal text-sm leading-relaxed text-gray-600">
+                            {{ $description }}
+                        </p>
                         @else
-                        <p class="text-gray-400 text-sm">This startup hasn't written an overview yet.</p>
+                        <p class="text-sm text-gray-400">
+                            This startup hasn't written an overview yet.
+                        </p>
                         @endif
                     </div>
 
@@ -152,7 +171,7 @@
                             @endforelse
                         </div>
                     </div>
-            
+
                     <div id="assign-coordinator" data-highlight-id="coordinator" class="scroll-mt-24 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                         <h2 class="flex items-center gap-2 font-bold text-gray-900">
                             <span class="{{ $headingIcon }}">{!! $icon('mentorProfile.svg', 'w-4 h-4') !!}</span>

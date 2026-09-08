@@ -53,21 +53,29 @@ $hasSecondAction = in_array($startup->status, ['Assign Coordinator', 'Pending'])
 <div class="flex w-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow duration-150 hover:shadow-md">
 
     {{-- Banner --}}
-    <div class="{{ $bgClass }} relative flex h-28 items-center justify-center">
-        <span class="absolute right-2.5 top-2.5 rounded-full border bg-white px-2.5 py-1 text-[10px] font-semibold {{ $badgeClasses }}">
-            {{ $startup->status }}
-        </span>
-        {{-- Show the startup's own uploaded logo when there is one - the
-             decorative icon below is only a per-startup placeholder for
-             startups that haven't uploaded a logo yet. --}}
+    <div class="{{ $bgClass }} relative h-28 overflow-hidden">
+
         @if ($startup->startup_photo_url)
-            <img src="{{ $startup->startup_photo_url }}" alt="{{ $startup->company_name }} logo"
-                class="h-16 w-16 rounded-xl bg-white object-contain p-1.5 shadow-sm">
+        <img
+            src="{{ $startup->startup_photo_url }}"
+            alt="{{ $startup->company_name }} logo"
+            class="absolute inset-0 h-full w-full object-cover" />
+
+        {{-- Subtle overlay so the status badge remains readable --}}
+        <div class="absolute inset-0 bg-black/10"></div>
         @else
+        <div class="absolute inset-0 flex items-center justify-center">
             <span class="[&>svg]:h-10 [&>svg]:w-10 {{ $iconTone }}">
                 {!! $iconMarkup !!}
             </span>
+        </div>
         @endif
+
+        {{-- Status badge --}}
+        <span class="absolute right-2.5 top-2.5 rounded-full border bg-white px-2.5 py-1 text-[10px] font-semibold {{ $badgeClasses }}">
+            {{ $startup->status }}
+        </span>
+
     </div>
 
     {{-- Body --}}
@@ -99,22 +107,10 @@ $hasSecondAction = in_array($startup->status, ['Assign Coordinator', 'Pending'])
             @endif
         </div>
 
-        {{--
-            grid-cols-2 (not flex + flex-1) keeps both buttons exactly equal
-            width no matter how long a label is — flex-1 alone lets long text
-            refuse to shrink below its min-content size. Falls back to a
-            single full-width column when there's no second action.
-        --}}
+
         <div class="mt-auto grid {{ $hasSecondAction ? 'grid-cols-2' : 'grid-cols-1' }} gap-2 pt-1">
             @if ($startup->status === 'Onboarding')
-            {{-- Onboarding startups haven't been evaluated yet — the actionable
-                 place for an admin to move them forward is the Awaiting
-                 Schedule table in Assessment Hub, not this read-only profile
-                 page. 'highlight' flashes+scrolls to this exact startup's row
-                 there, same "startup-{id}" convention as the Risk Monitoring
-                 pulse links (see RiskEngine::resolveLinks()) — otherwise the
-                 admin lands on Schedule with no indication of which row they
-                 actually clicked. --}}
+
             <a href="{{ route('admin.assessment-hub.index', ['main' => 'information-sheet', 'tab' => 'schedule', 'highlight' => 'startup-'.$startup->startup_id]) }}"
                 class="flex min-h-[2rem] items-center justify-center rounded-lg border border-rose-800 px-2 text-center text-xs font-semibold leading-tight text-rose-900 transition-colors hover:bg-rose-50">
                 View Status

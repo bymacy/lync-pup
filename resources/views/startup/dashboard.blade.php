@@ -1,261 +1,277 @@
 <x-layouts.founder title="Dashboard">
 
     @if (! $startup)
-        <div class="rounded-2xl border border-gray-100 bg-white p-6 text-center text-gray-500 shadow-sm sm:p-8">
-            No startup profile is linked to this account yet.
-        </div>
+    <div class="rounded-2xl border border-gray-100 bg-white p-6 text-center text-gray-500 shadow-sm sm:p-8">
+        No startup profile is linked to this account yet.
+    </div>
     @else
+    @php
+    $cohortSuffix = str_pad((string) $cohortSequence, 3, '0', STR_PAD_LEFT);
+    @endphp
+
+    <div class="mb-5 sm:mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Welcome back, Founder!</h1>
+        <p class="mt-1 text-sm text-gray-500 sm:text-base">{{ $startup->company_name }} &middot; {{ $startup->batch_label }} - {{ $cohortSuffix }}</p>
+    </div>
+
+    {{-- Action Required --}}
+    @if ($needsProfileSetup)
+    <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#6C0E24]/40 bg-[#6C0E24]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div class="flex items-center gap-3 sm:gap-4">
+            <span class="flex shrink-0 items-center justify-center rounded-md bg-[#6C0E24] text-white" style="width: 44px; height: 44px;">
+                <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/warning-circle.svg') }}')"></span>
+            </span>
+            <div class="min-w-0">
+                <p class="text-sm font-bold text-gray-900">Action Required: Startup Profile</p>
+                <p class="text-xs text-gray-600">Complete your Startup Profile before you can fill out the Information Sheet.</p>
+            </div>
+        </div>
+        <a href="{{ route('startup.profile.edit') }}"
+            class="btn-brand-edge inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-md px-4 py-2 text-xs font-semibold text-white transition sm:w-auto">
+            <span class="icon-mask" style="width: 14px; height: 14px; --icon: url('{{ asset('images/icons/info-sheet.svg') }}')"></span>
+            Open Profile
+        </a>
+    </div>
+    @elseif ($needsInformationSheet)
+    <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#6C0E24]/40 bg-[#6C0E24]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div class="flex items-center gap-3 sm:gap-4">
+            <span class="flex shrink-0 items-center justify-center rounded-md bg-[#6C0E24] text-white" style="width: 44px; height: 44px;">
+                <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/warning-circle.svg') }}')"></span>
+            </span>
+            <div class="min-w-0">
+                <p class="text-sm font-bold text-gray-900">Action Required: Startup Information Sheet</p>
+                <p class="text-xs text-gray-600">Complete TBIDO Form No.001 to activate Startup Account.</p>
+            </div>
+        </div>
+        <a href="{{ route('startup.information-sheet.edit') }}"
+            class="btn-brand-edge inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-md px-4 py-2 text-xs font-semibold text-white transition sm:w-auto">
+            <span class="icon-mask" style="width: 14px; height: 14px; --icon: url('{{ asset('images/icons/info-sheet.svg') }}')"></span>
+            Open Form
+        </a>
+    </div>
+    @elseif ($awaitingSheetApproval)
+    @php
+    $scheduledEvaluation = $startup->evaluationSchedules()
+    ->where('status', '!=', 'Cancelled')
+    ->orderByDesc('evaluation_date')
+    ->first();
+    @endphp
+    <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#11386A]/40 bg-[#11386A]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div class="flex items-center gap-3 sm:gap-4">
+            <span class="flex shrink-0 items-center justify-center rounded-md bg-[#11386A] text-white" style="width: 44px; height: 44px;">
+                <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/clock.svg') }}')"></span>
+            </span>
+            <div class="min-w-0">
+                @if ($scheduledEvaluation)
+                <p class="text-sm font-bold text-gray-900">Information Sheet Completed &middot; Evaluation Scheduled</p>
+                <p class="text-xs text-gray-600">Your evaluation is set for {{ $scheduledEvaluation->evaluation_date->format('F j, Y') }}. Your Meeting tab is already open - Submission and Readiness Result unlock once the sheet is approved.</p>
+                @else
+                <p class="text-sm font-bold text-gray-900">Information Sheet Completed &middot; Awaiting Evaluation Schedule</p>
+                <p class="text-xs text-gray-600">TBIDO is reviewing TBIDO Form No.001. Your Meeting tab is already open - Submission and Readiness Result unlock once the sheet is approved.</p>
+                @endif
+            </div>
+        </div>
+    </div>
+    @endif
+
+    @foreach ($updates ?? [] as $update)
+    <div class="{{ $loop->last ? 'mb-5 sm:mb-6' : 'mb-3' }} flex flex-col gap-4 rounded-2xl border border-[#11386A]/40 bg-[#11386A]/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div class="flex items-center gap-3 sm:gap-4">
+            <span class="flex shrink-0 items-center justify-center rounded-md bg-[#11386A] text-white" style="width: 44px; height: 44px;">
+                <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/' . $update['icon']) }}')"></span>
+            </span>
+            <div class="min-w-0">
+                <p class="text-sm font-bold text-gray-900">{{ $update['title'] }}</p>
+                <p class="text-xs text-gray-600">{{ $update['body'] }}</p>
+            </div>
+        </div>
+        <a href="{{ route('startup.notifications.show', $update['id']) }}"
+            class="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-md border border-[#11386A] bg-white px-4 py-2 text-xs font-semibold text-[#11386A] transition hover:bg-[#11386A] hover:text-white sm:w-auto">
+            {{ $update['action'] }}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                <path d="M9 5l7 7-7 7" />
+            </svg>
+        </a>
+    </div>
+    @endforeach
+
+    {{-- Overall Readiness --}}
+    <div class="mb-5 rounded-2xl bg-gradient-to-r from-[#6C0E24] to-[#AE0129] p-5 text-white shadow-sm sm:mb-6 sm:p-6">
+        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-white/80">
+                    Overall Readiness
+                    @if ($readinessStage)
+                    <span class="text-white/60">({{ strtoupper(str_replace('-', ' ', $readinessStage)) }})</span>
+                    @endif
+                </p>
+                <p class="mt-2 text-[34px] font-bold leading-none sm:text-[44px]">
+                    {{ $assessment && $assessment->overall_score !== null ? number_format($assessment->overall_score, 1) : '—' }}
+                    <span class="text-base font-medium text-white/70 sm:text-lg">/9</span>
+                </p>
+                <span class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold sm:mt-4">
+                    <svg style="width: 14px; height: 14px;" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 13l5-5 3 3 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M13 5h4v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    {{ $overallLabel }}
+                </span>
+            </div>
+
+            <div class="grid grid-cols-4 gap-2 sm:gap-3 lg:w-auto">
+                @foreach (\App\Support\ReadinessRubric::TYPES as $type)
+                <div class="flex min-w-0 flex-col items-center justify-center rounded-xl bg-white/15 px-2 py-2 text-center sm:min-w-[118px] sm:px-4 sm:py-2.5">
+                    <p class="text-[10px] font-semibold uppercase tracking-wide text-white/70 sm:text-xs">{{ $type }}</p>
+                    <p class="mt-0.5 text-[26px] font-bold leading-none sm:text-[40px]">
+                        {{ $assessment && $assessment->scoreFor($type) !== null ? number_format($assessment->scoreFor($type), 1) : '—' }}
+                    </p>
+                </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+
+    {{-- Quick links --}}
+    <div class="mb-5 grid grid-cols-1 gap-3 sm:mb-6 sm:gap-4 lg:grid-cols-3 lg:gap-6">
         @php
-            $cohortSuffix = str_pad((string) $cohortSequence, 3, '0', STR_PAD_LEFT);
+        // Same gates the sidebar padlocks and EnsureFounderStage use: Meeting
+        // opens on submission, Submission and Readiness on approval. A card
+        // that leads nowhere yet greys out instead of pretending to work.
+        $profileDone = $startup->isProfileComplete();
+        $sheetSubmitted = $startup->hasSubmittedInformationSheet();
+        $sheetApproved = $startup->hasApprovedInformationSheet();
+
+        $lockUntilSubmission = $sheetSubmitted
+        ? null
+        : (! $profileDone ? 'Complete your Startup Profile to unlock' : 'Submit your Information Sheet to unlock');
+
+        $lockUntilApproval = $sheetApproved
+        ? null
+        : (! $profileDone
+        ? 'Complete your Startup Profile to unlock'
+        : ($sheetSubmitted
+        ? 'Unlocks once your Information Sheet is approved'
+        : 'Submit your Information Sheet - unlocks once it is approved'));
+
+        $quickLinks = [
+        ['route' => 'startup.submissions.index', 'icon' => 'airplane.svg', 'title' => 'Submit Roadblock?', 'description' => "Need an expert? Tell us you're stuck.", 'lock' => $lockUntilApproval],
+        ['route' => 'startup.meetings.index', 'icon' => 'coordProfile.svg', 'title' => 'My Meetings', 'description' => 'Check your schedule and upcoming events.', 'lock' => $lockUntilSubmission],
+        ['route' => 'startup.readiness.index', 'icon' => 'scale.svg', 'title' => 'Readiness Results', 'description' => 'See your TRL/MRL/TMRL/SRL details.', 'lock' => $lockUntilApproval],
+        ];
+        @endphp
+        @foreach ($quickLinks as $link)
+        @php
+        $locked = (bool) $link['lock'];
+
+        $cardClass = 'group flex items-center gap-4 rounded-2xl border p-4 shadow-sm transition duration-200 sm:p-5 lg:block lg:p-6 '
+        . ($locked
+        ? 'cursor-not-allowed select-none border-gray-100 bg-gray-50'
+        : 'border-gray-100 bg-white hover:border-[#E8AFBF] hover:shadow-md lg:hover:-translate-y-0.5');
+        $badgeClass = $locked ? 'bg-gray-100 text-gray-400' : 'bg-rose-50 text-[#6D0D23]';
+        $titleClass = $locked ? 'text-gray-400' : 'text-gray-900';
+        $descClass = $locked ? 'text-gray-400' : 'text-gray-500';
+        $actionClass = $locked
+        ? 'bg-gray-100 text-gray-400'
+        : 'bg-rose-50 text-[#6D0D23] group-hover:bg-[#6D0D23] group-hover:text-white';
         @endphp
 
-        <div class="mb-5 sm:mb-6">
-            <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Welcome back, Founder!</h1>
-            <p class="mt-1 text-sm text-gray-500 sm:text-base">{{ $startup->company_name }} &middot; {{ $startup->batch_label }} - {{ $cohortSuffix }}</p>
-        </div>
-
-        {{-- Action Required --}}
-        @if ($needsProfileSetup)
-            <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#6C0E24]/40 bg-[#6C0E24]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-                <div class="flex items-center gap-3 sm:gap-4">
-                    <span class="flex shrink-0 items-center justify-center rounded-md bg-[#6C0E24] text-white" style="width: 44px; height: 44px;">
-                        <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/warning-circle.svg') }}')"></span>
-                    </span>
-                    <div class="min-w-0">
-                        <p class="text-sm font-bold text-gray-900">Action Required: Startup Profile</p>
-                        <p class="text-xs text-gray-600">Complete your Startup Profile before you can fill out the Information Sheet.</p>
-                    </div>
-                </div>
-                <a href="{{ route('startup.profile.edit') }}"
-                    class="btn-brand-edge inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-md px-4 py-2 text-xs font-semibold text-white transition sm:w-auto">
-                    <span class="icon-mask" style="width: 14px; height: 14px; --icon: url('{{ asset('images/icons/info-sheet.svg') }}')"></span>
-                    Open Profile
-                </a>
-            </div>
-        @elseif ($needsInformationSheet)
-            <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#6C0E24]/40 bg-[#6C0E24]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-                <div class="flex items-center gap-3 sm:gap-4">
-                    <span class="flex shrink-0 items-center justify-center rounded-md bg-[#6C0E24] text-white" style="width: 44px; height: 44px;">
-                        <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/warning-circle.svg') }}')"></span>
-                    </span>
-                    <div class="min-w-0">
-                        <p class="text-sm font-bold text-gray-900">Action Required: Startup Information Sheet</p>
-                        <p class="text-xs text-gray-600">Complete TBIDO Form No.001 to activate Startup Account.</p>
-                    </div>
-                </div>
-                <a href="{{ route('startup.information-sheet.edit') }}"
-                    class="btn-brand-edge inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-md px-4 py-2 text-xs font-semibold text-white transition sm:w-auto">
-                    <span class="icon-mask" style="width: 14px; height: 14px; --icon: url('{{ asset('images/icons/info-sheet.svg') }}')"></span>
-                    Open Form
-                </a>
-            </div>
-        @elseif ($awaitingSheetApproval)
-            @php
-                $scheduledEvaluation = $startup->evaluationSchedules()
-                    ->where('status', '!=', 'Cancelled')
-                    ->orderByDesc('evaluation_date')
-                    ->first();
-            @endphp
-            <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#11386A]/40 bg-[#11386A]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-                <div class="flex items-center gap-3 sm:gap-4">
-                    <span class="flex shrink-0 items-center justify-center rounded-md bg-[#11386A] text-white" style="width: 44px; height: 44px;">
-                        <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/clock.svg') }}')"></span>
-                    </span>
-                    <div class="min-w-0">
-                        @if ($scheduledEvaluation)
-                            <p class="text-sm font-bold text-gray-900">Information Sheet Completed &middot; Evaluation Scheduled</p>
-                            <p class="text-xs text-gray-600">Your evaluation is set for {{ $scheduledEvaluation->evaluation_date->format('F j, Y') }}. Your Meeting tab is already open - Submission and Readiness Result unlock once the sheet is approved.</p>
-                        @else
-                            <p class="text-sm font-bold text-gray-900">Information Sheet Completed &middot; Awaiting Evaluation Schedule</p>
-                            <p class="text-xs text-gray-600">TBIDO is reviewing TBIDO Form No.001. Your Meeting tab is already open - Submission and Readiness Result unlock once the sheet is approved.</p>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        @endif
-
-        @foreach ($updates ?? [] as $update)
-            <div class="{{ $loop->last ? 'mb-5 sm:mb-6' : 'mb-3' }} flex flex-col gap-4 rounded-2xl border border-[#11386A]/40 bg-[#11386A]/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-                <div class="flex items-center gap-3 sm:gap-4">
-                    <span class="flex shrink-0 items-center justify-center rounded-md bg-[#11386A] text-white" style="width: 44px; height: 44px;">
-                        <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/' . $update['icon']) }}')"></span>
-                    </span>
-                    <div class="min-w-0">
-                        <p class="text-sm font-bold text-gray-900">{{ $update['title'] }}</p>
-                        <p class="text-xs text-gray-600">{{ $update['body'] }}</p>
-                    </div>
-                </div>
-                <a href="{{ route('startup.notifications.show', $update['id']) }}"
-                    class="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-md border border-[#11386A] bg-white px-4 py-2 text-xs font-semibold text-[#11386A] transition hover:bg-[#11386A] hover:text-white sm:w-auto">
-                    {{ $update['action'] }}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                        stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
-                        <path d="M9 5l7 7-7 7" />
-                    </svg>
-                </a>
-            </div>
-        @endforeach
-
-        {{-- Overall Readiness --}}
-        <div class="mb-5 rounded-2xl bg-gradient-to-r from-[#6C0E24] to-[#AE0129] p-5 text-white shadow-sm sm:mb-6 sm:p-6">
-            <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-white/80">
-                        Overall Readiness
-                        @if ($readinessStage)
-                            <span class="text-white/60">({{ strtoupper(str_replace('-', ' ', $readinessStage)) }})</span>
-                        @endif
-                    </p>
-                    <p class="mt-2 text-[34px] font-bold leading-none sm:text-[44px]">
-                        {{ $assessment && $assessment->overall_score !== null ? number_format($assessment->overall_score, 1) : '—' }}
-                        <span class="text-base font-medium text-white/70 sm:text-lg">/9</span>
-                    </p>
-                    <span class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold sm:mt-4">
-                        <svg style="width: 14px; height: 14px;" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M3 13l5-5 3 3 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                            <path d="M13 5h4v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        {{ $overallLabel }}
-                    </span>
-                </div>
-
-                <div class="grid grid-cols-4 gap-2 sm:gap-3 lg:w-auto">
-                    @foreach (\App\Support\ReadinessRubric::TYPES as $type)
-                        <div class="flex min-w-0 flex-col items-center justify-center rounded-xl bg-white/15 px-2 py-2 text-center sm:min-w-[118px] sm:px-4 sm:py-2.5">
-                            <p class="text-[10px] font-semibold uppercase tracking-wide text-white/70 sm:text-xs">{{ $type }}</p>
-                            <p class="mt-0.5 text-[26px] font-bold leading-none sm:text-[40px]">
-                                {{ $assessment && $assessment->scoreFor($type) !== null ? number_format($assessment->scoreFor($type), 1) : '—' }}
-                            </p>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        </div>
-
-        {{-- Quick links --}}
-        <div class="mb-5 grid grid-cols-1 gap-3 sm:mb-6 sm:gap-4 lg:grid-cols-3 lg:gap-6">
-            @php
-                // Same gates the sidebar padlocks and EnsureFounderStage use: Meeting
-                // opens on submission, Submission and Readiness on approval. A card
-                // that leads nowhere yet greys out instead of pretending to work.
-                $profileDone = $startup->isProfileComplete();
-                $sheetSubmitted = $startup->hasSubmittedInformationSheet();
-                $sheetApproved = $startup->hasApprovedInformationSheet();
-
-                $lockUntilSubmission = $sheetSubmitted
-                    ? null
-                    : (! $profileDone ? 'Complete your Startup Profile to unlock' : 'Submit your Information Sheet to unlock');
-
-                $lockUntilApproval = $sheetApproved
-                    ? null
-                    : (! $profileDone
-                        ? 'Complete your Startup Profile to unlock'
-                        : ($sheetSubmitted
-                            ? 'Unlocks once your Information Sheet is approved'
-                            : 'Submit your Information Sheet - unlocks once it is approved'));
-
-                $quickLinks = [
-                    ['route' => 'startup.submissions.index', 'icon' => 'airplane.svg', 'title' => 'Submit Roadblock?', 'description' => "Need an expert? Tell us you're stuck.", 'lock' => $lockUntilApproval],
-                    ['route' => 'startup.meetings.index', 'icon' => 'coordProfile.svg', 'title' => 'My Meetings', 'description' => 'Check your schedule and upcoming events.', 'lock' => $lockUntilSubmission],
-                    ['route' => 'startup.readiness.index', 'icon' => 'scale.svg', 'title' => 'Readiness Results', 'description' => 'See your TRL/MRL/TMRL/SRL details.', 'lock' => $lockUntilApproval],
-                ];
-            @endphp
-            @foreach ($quickLinks as $link)
-                @php
-                    $locked = (bool) $link['lock'];
-
-                    $cardClass = 'group flex items-center gap-4 rounded-2xl border p-4 shadow-sm transition duration-200 sm:p-5 lg:block lg:p-6 '
-                        . ($locked
-                            ? 'cursor-not-allowed select-none border-gray-100 bg-gray-50'
-                            : 'border-gray-100 bg-white hover:border-[#E8AFBF] hover:shadow-md lg:hover:-translate-y-0.5');
-                    $badgeClass = $locked ? 'bg-gray-100 text-gray-400' : 'bg-rose-50 text-[#6D0D23]';
-                    $titleClass = $locked ? 'text-gray-400' : 'text-gray-900';
-                    $descClass = $locked ? 'text-gray-400' : 'text-gray-500';
-                    $actionClass = $locked
-                        ? 'bg-gray-100 text-gray-400'
-                        : 'bg-rose-50 text-[#6D0D23] group-hover:bg-[#6D0D23] group-hover:text-white';
-                @endphp
-
-                {{-- Row on phones and tablets (icon, text, chevron); stacked card from lg up.
+        {{-- Row on phones and tablets (icon, text, chevron); stacked card from lg up.
                      The opening tag differs between locked and open - a locked card is not a
                      link at all - so the shared body is written once between the branches. --}}
-                @if ($locked)
-                <div class="{{ $cardClass }}" title="{{ $link['lock'] }}" aria-disabled="true">
-                @else
-                <a href="{{ route($link['route']) }}" class="{{ $cardClass }}">
+        @if ($locked)
+        <div class="{{ $cardClass }}" title="{{ $link['lock'] }}" aria-disabled="true">
+            @else
+            <a href="{{ route($link['route']) }}" class="{{ $cardClass }}">
                 @endif
-                    <span class="flex shrink-0 items-center justify-center rounded-xl {{ $badgeClass }}" style="width: 48px; height: 48px;">
-                        <span class="icon-mask" style="width: 22px; height: 22px; --icon: url('{{ asset('images/icons/' . $link['icon']) }}')"></span>
-                    </span>
-                    <div class="min-w-0 flex-1 lg:mt-4">
-                        <p class="font-bold {{ $titleClass }}">{{ $link['title'] }}</p>
-                        <div class="mt-1 flex items-end justify-between gap-3 sm:gap-4">
-                            <p class="text-sm {{ $descClass }}">{{ $locked ? $link['lock'] : $link['description'] }}</p>
-                            <span
-                                class="flex shrink-0 items-center justify-center rounded-full transition duration-200 {{ $actionClass }}"
-                                style="width: 34px; height: 34px;">
-                                @if ($locked)
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
-                                    <rect x="4" y="10.5" width="16" height="10" rx="2" />
-                                    <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
-                                </svg>
-                                @else
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                                    stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
-                                    <path d="M9 5l7 7-7 7" />
-                                </svg>
-                                @endif
-                            </span>
-                        </div>
+                <span class="flex shrink-0 items-center justify-center rounded-xl {{ $badgeClass }}" style="width: 48px; height: 48px;">
+                    <span class="icon-mask" style="width: 22px; height: 22px; --icon: url('{{ asset('images/icons/' . $link['icon']) }}')"></span>
+                </span>
+                <div class="min-w-0 flex-1 lg:mt-4">
+                    <p class="font-bold {{ $titleClass }}">{{ $link['title'] }}</p>
+                    <div class="mt-1 flex items-end justify-between gap-3 sm:gap-4">
+                        <p class="text-sm {{ $descClass }}">{{ $locked ? $link['lock'] : $link['description'] }}</p>
+                        <span
+                            class="flex shrink-0 items-center justify-center rounded-full transition duration-200 {{ $actionClass }}"
+                            style="width: 34px; height: 34px;">
+                            @if ($locked)
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                                <rect x="4" y="10.5" width="16" height="10" rx="2" />
+                                <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+                            </svg>
+                            @else
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                                stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                                <path d="M9 5l7 7-7 7" />
+                            </svg>
+                            @endif
+                        </span>
                     </div>
-                @if ($locked)
                 </div>
-                @else
-                </a>
-                @endif
-            @endforeach
+                @if ($locked)
         </div>
+        @else
+        </a>
+        @endif
+        @endforeach
+    </div>
 
-        {{-- Startup Onboarding & Graduation Progress --}}
-        <div class="overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
-            <p class="text-base font-bold text-gray-900">Startup Onboarding &amp; Graduation Progress</p>
+    {{-- Startup Onboarding & Graduation Progress --}}
+    <div class="w-full overflow-hidden rounded-2xl border border-gray-100 bg-white px-4 py-5 shadow-sm sm:px-5 sm:py-6">
 
-            <div class="mt-3 border-t border-gray-200 sm:mt-4"></div>
+        <p class="text-base font-bold text-gray-900">
+            Startup Onboarding &amp; Graduation Progress
+        </p>
 
-            {{-- Label sits above the track on phones, beside it from sm up; the
-                 track itself scrolls horizontally when it can't fit. --}}
-            <div class="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:gap-6">
-                <div class="shrink-0">
+        {{-- Divider --}}
+        <div class="mt-4 border-t border-gray-200"></div>
+
+        {{-- Onboarding --}}
+        <div class="grid gap-4 py-5 sm:grid-cols-[100px_minmax(0,1fr)] sm:items-center sm:gap-6">
+
+            {{-- Label --}}
+            <div class="flex items-center">
+                <div>
                     <p class="text-sm font-bold text-gray-900">Onboarding</p>
                     <p class="text-sm text-gray-500">(Information Sheet)</p>
                 </div>
-                <div class="-mx-4 overflow-x-auto pb-1 sm:mx-0 sm:flex-1 sm:pb-0">
-                    <div class="flex min-w-[420px] items-center xl:min-w-[620px]">
-                        <x-step-tracker :steps="$onboardingSteps" />
-                    </div>
+            </div>
+
+            {{-- Tracker --}}
+            <div class="min-w-0 overflow-x-auto">
+                <div class="flex w-full min-w-[520px] items-center justify-center px-2">
+                    <x-step-tracker :steps="$onboardingSteps" />
+                </div>
+            </div>
+        </div>
+
+        @if ($onboardingComplete)
+
+        {{-- Divider --}}
+        <div class="border-t border-gray-200"></div>
+
+        {{-- Graduation --}}
+        <div class="grid gap-4 py-4 sm:grid-cols-[100px_minmax(0,1fr)] sm:items-center sm:gap-6">
+
+            {{-- Label --}}
+            <div class="flex items-center">
+                <p class="text-sm font-bold leading-snug text-gray-900">
+                    Graduation Roadmap
+                </p>
+            </div>
+
+            {{-- Tracker --}}
+            <div class="min-w-0 overflow-x-auto">
+                <div class="flex w-full min-w-[520px] items-center justify-center px-2">
+                    <x-step-tracker :steps="$graduationSteps" />
                 </div>
             </div>
 
-            {{-- Graduation only appears once Onboarding (the Information
-                 Sheet track above) is fully approved - showing an empty
-                 roadmap before then just confuses founders who haven't
-                 started it yet. --}}
-            @if ($onboardingComplete)
-                <div class="border-t border-gray-200"></div>
-
-                <div class="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:gap-6">
-                    <div class="shrink-0 sm:max-w-[100px]">
-                        <p class="text-sm font-bold leading-snug text-gray-900">Graduation Roadmap</p>
-                    </div>
-                    <div class="-mx-4 overflow-x-auto pb-1 sm:mx-0 sm:flex-1 sm:pb-0">
-                        <div class="flex min-w-[520px] items-center xl:min-w-[760px]">
-                            <x-step-tracker :steps="$graduationSteps" />
-                        </div>
-                    </div>
-                </div>
-            @endif
         </div>
+
+        @endif
+    </div>
     @endif
 
 </x-layouts.founder>

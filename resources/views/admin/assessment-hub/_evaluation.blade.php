@@ -5,8 +5,8 @@ $th = 'whitespace-nowrap px-4 py-3 text-center text-sm font-semibold tracking-wi
 $thC = $th;
 $shell = 'w-full border border-gray-200 rounded-xl overflow-hidden bg-white';
 $scroll = 'max-h-[60vh] overflow-y-auto overflow-x-auto';
-$table = 'w-full min-w-[680px] table-fixed text-sm';
-$btn = 'inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg px-4 text-sm font-semibold transition';
+$table = 'w-full min-w-[950px] table-fixed text-sm';
+$btn = 'inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg px-3 text-xs font-semibold transition';
 $avatar = function ($startup) {
 $url = $startup->startup_photo_url ?? null;
 $name = $startup->company_name ?? '?';
@@ -123,7 +123,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                              today's schedule - that is when it was booked - and is overlaid in
                              red instead of being moved somewhere else. --}}
                         @php
-                        $outcome = $item->outcome();   // null while the booked time is still running
+                        $outcome = $item->outcome(); // null while the booked time is still running
                         $missed = $outcome === 'missed';
                         @endphp
                         <tr x-data="{ rescheduleOpen: @js($errors->any() && (string) old('schedule_row_key') === (string) $item->evaluation_schedule_id) }"
@@ -147,45 +147,124 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                             </td>
                             <td class="px-4 py-3 text-center text-gray-600">{{ $item->startup->industry_sector }}</td>
 
-                            {{-- DONE only when the Information Sheet was approved before the
-                                 booked time ran out; MISSED when it wasn't. Nothing to report
-                                 while the slot is still running. --}}
+                            {{-- Evaluation Status --}}
                             <td class="px-4 py-3 text-center whitespace-nowrap">
+
                                 @if ($outcome === 'done')
+
+                                {{-- DONE / APPROVED --}}
                                 <div class="inline-flex flex-col items-start gap-1 rounded-lg border border-dashed border-green-300 bg-green-100 px-3 py-2 text-left">
                                     <span class="flex items-center gap-2">
                                         <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-600 text-white">
-                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="3.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M5 13l4 4L19 7" />
                                             </svg>
                                         </span>
-                                        <span class="text-xs font-bold uppercase tracking-wide text-green-700">Done</span>
+                                        <span class="text-xs font-bold uppercase tracking-wide text-green-700">
+                                            Done
+                                        </span>
                                     </span>
-                                    <span class="text-[11px] text-gray-500">{{ $item->outcomeNote() }}</span>
+
+                                    <span class="text-[11px] text-gray-500">
+                                        {{ $item->outcomeNote() }}
+                                    </span>
                                 </div>
+
                                 @elseif ($outcome === 'missed')
+
+                                {{-- MISSED --}}
                                 <div class="inline-flex flex-col items-start gap-1 rounded-lg border border-dashed border-rose-300 bg-rose-100 px-3 py-2 text-left">
                                     <span class="flex items-center gap-2">
                                         <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-900 text-white">
-                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="3.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M18 6L6 18M6 6l12 12" />
                                             </svg>
                                         </span>
-                                        <span class="text-xs font-bold uppercase tracking-wide text-rose-800">Missed</span>
+                                        <span class="text-xs font-bold uppercase tracking-wide text-rose-800">
+                                            Missed
+                                        </span>
                                     </span>
-                                    <span class="text-[11px] text-gray-500">{{ $item->outcomeNote() }}</span>
+
+                                    <span class="text-[11px] text-gray-500">
+                                        {{ $item->outcomeNote() }}
+                                    </span>
                                 </div>
+
+                                @elseif ($item->hasStarted())
+
+                                {{-- ONGOING --}}
+                                <div class="inline-flex flex-col items-start gap-1 rounded-lg border border-dashed border-yellow-300 bg-yellow-100 px-3 py-2 text-left">
+                                    <span class="flex items-center gap-2">
+                                        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-yellow-500 text-white">
+                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="3">
+                                                <circle cx="12" cy="12" r="9" />
+                                                <path stroke-linecap="round" d="M12 7v5l3 2" />
+                                            </svg>
+                                        </span>
+
+                                        <span class="text-xs font-bold uppercase tracking-wide text-yellow-700">
+                                            Ongoing
+                                        </span>
+                                    </span>
+
+                                    <span class="text-[11px] text-gray-500">
+                                        In progress.
+                                    </span>
+                                </div>
+
                                 @else
-                                <span class="text-gray-400">&mdash;</span>
+
+                                {{-- NOT STARTED YET: Today but scheduled start time has not arrived --}}
+                                <div class="inline-flex flex-col items-start gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-100 px-3 py-2 text-left">
+                                    <span class="flex items-center gap-2">
+                                        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-400 text-white">
+                                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5">
+                                                <circle cx="12" cy="12" r="8" />
+                                            </svg>
+                                        </span>
+                                        <span class="text-xs font-bold uppercase tracking-wide text-gray-600">
+                                            Not Started
+                                        </span>
+                                    </span>
+                                    <span class="text-[11px] text-gray-500">
+                                        Not time yet.
+                                    </span>
+                                </div>
+
                                 @endif
+
                             </td>
 
                             <td class="px-4 py-3 text-center">
                                 <div class="flex justify-center gap-2">
-                                    {{-- A missed row is handled exactly like one in the Missed view:
-                                         outlined View, then Reschedule as the solid rose action. --}}
-                                    @if ($missed)
-                                    <a href="{{ route('admin.information-sheet.show', ['startup' => $item->startup, 'from' => 'assessment-hub', 'tab' => 'evaluation', 'stage' => 'today']) }}"
+
+                                    {{-- DONE: View only. No Start Evaluation and no Reschedule. --}}
+                                    @if ($outcome === 'done')
+
+                                    <a href="{{ route('admin.information-sheet.show', [
+                                        'startup' => $item->startup,
+                                        'from' => 'assessment-hub',
+                                        'tab' => 'evaluation',
+                                        'stage' => 'today'
+                                    ]) }}"
+                                        class="{{ $btn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">
+                                        View
+                                    </a>
+
+                                    {{-- MISSED: View + Reschedule --}}
+                                    @elseif ($missed)
+
+                                    <a href="{{ route('admin.information-sheet.show', [
+                                        'startup' => $item->startup,
+                                        'from' => 'assessment-hub',
+                                        'tab' => 'evaluation',
+                                        'stage' => 'today'
+                                    ]) }}"
                                         class="{{ $btn }} border border-[#6D0D23] text-[#6D0D23] hover:bg-[#6D0D23]/5">
                                         View
                                     </a>
@@ -194,10 +273,18 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                                         class="{{ $btn }} bg-[#6C0E24] text-white hover:opacity-90">
                                         Reschedule
                                     </button>
+
+                                    {{-- ACTIVE / UPCOMING TODAY: Start Evaluation --}}
                                     @else
-                                    <a href="{{ route('admin.information-sheet.show', ['startup' => $item->startup, 'from' => 'assessment-hub', 'tab' => 'evaluation', 'stage' => 'today']) }}"
+
+                                    <a href="{{ route('admin.information-sheet.show', [
+                                        'startup' => $item->startup,
+                                        'from' => 'assessment-hub',
+                                        'tab' => 'evaluation',
+                                        'stage' => 'today'
+                                    ]) }}"
                                         class="{{ $btn }} bg-[#6C0E24] text-white hover:opacity-90">
-                                        {{ $item->hasEnded() ? 'View Sheet' : 'Start Evaluation' }}
+                                        {{ $item->hasEnded() ? 'View Sheet' : 'Evaluate' }}
                                     </a>
 
                                     {{-- Still ahead of its slot, so it can be moved. --}}
@@ -207,16 +294,23 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                                         Reschedule
                                     </button>
                                     @endunless
+
                                     @endif
                                 </div>
 
+                                {{-- Reschedule modal only exists for missed or not-yet-started evaluations --}}
                                 @if (! $item->hasStarted() || $missed)
-                                <div x-show="rescheduleOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;">
+                                <div x-show="rescheduleOpen" x-cloak
+                                    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                                    style="display:none;">
                                     <div class="w-full max-w-3xl overflow-hidden rounded-xl bg-white">
-                                        <x-evaluation-schedule-modal mode="reschedule" :schedule="$item"
+                                        <x-evaluation-schedule-modal
+                                            mode="reschedule"
+                                            :schedule="$item"
                                             close="rescheduleOpen = false"
                                             :action="route('admin.assessment-hub.evaluations.update', $item)"
-                                            :time-slots="$timeSlots" :booked-slots="$bookedSlots" />
+                                            :time-slots="$timeSlots"
+                                            :booked-slots="$bookedSlots" />
                                     </div>
                                 </div>
                                 @endif
@@ -373,7 +467,7 @@ $months = $upcomingEvaluations->pluck('evaluation_date')
                                         Reschedule
                                     </button>
                                 </div>
-    
+
 
                                 <div x-show="rescheduleOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display:none;">
                                     <div class="w-full max-w-3xl overflow-hidden rounded-xl bg-white">

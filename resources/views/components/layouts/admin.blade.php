@@ -106,8 +106,15 @@
                         </div>
 
                         {{-- App-wide cohort filter + manage control — every admin
-                             page shares this one, session-based selection. --}}
-                        <x-cohort-sidebar-control :cohorts="$sidebarCohorts ?? collect()" :selected="$sidebarSelectedCohort ?? null" />
+                             page shares this one, session-based selection.
+                             $cohortReturnUrl is set by pages that drill down
+                             from a hub-style listing (e.g. the Information
+                             Sheet or Startup Profile opened from the
+                             Assessment Hub) so switching cohorts sends the
+                             admin back to that listing, scoped to the new
+                             cohort, instead of leaving them stranded on a
+                             record that may not even belong to it. --}}
+                        <x-cohort-sidebar-control :cohorts="$sidebarCohorts ?? collect()" :selected="$sidebarSelectedCohort ?? null" :return-url="$cohortReturnUrl ?? null" />
 
                         <div class="mx-5 border-b border-white/15"></div>
 

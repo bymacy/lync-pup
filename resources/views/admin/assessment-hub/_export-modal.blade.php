@@ -12,24 +12,24 @@
     what the checklist shows.
 --}}
 @php
-    // Checklist icons come from public/images/icons and are painted in the
-    // chip's text color by the .icon-mask helper in resources/css/app.css.
-    // number => [short label, icon file, chip tone]
-    $exportDocuments = [
-        1 => ['Information Sheet', '3person.svg', 'bg-rose-50 text-rose-500'],
-        2 => ['Pre-TRL', 'scale.svg', 'bg-violet-50 text-violet-500'],
-        3 => ['Pre-MRL', 'stairs.svg', 'bg-blue-50 text-blue-500'],
-        4 => ['Pre-TMRL', 'scale.svg', 'bg-amber-50 text-amber-500'],
-        5 => ['Pre-SRL', 'check-shield.svg', 'bg-emerald-50 text-emerald-500'],
-        6 => ['Startup Growth Strategy', 'riskMon.svg', 'bg-orange-50 text-orange-500'],
-        7 => ['Weekly Updates', 'cal.svg', 'bg-blue-50 text-blue-500'],
-        8 => ['Prototype Validation', 'check-box.svg', 'bg-rose-50 text-rose-500'],
-        9 => ['Post-TRL', 'scale.svg', 'bg-violet-50 text-violet-500'],
-        10 => ['Post-MRL', 'stairs.svg', 'bg-blue-50 text-blue-500'],
-        11 => ['Post-TMRL', 'pire-chart.svg', 'bg-amber-50 text-amber-500'],
-        12 => ['Post-SRL', 'check-shield.svg', 'bg-emerald-50 text-emerald-500'],
-        13 => ['Venture Exit Form', 'sign-out.svg', 'bg-rose-50 text-rose-500'],
-    ];
+// Checklist icons come from public/images/icons and are painted in the
+// chip's text color by the .icon-mask helper in resources/css/app.css.
+// number => [short label, icon file, chip tone]
+$exportDocuments = [
+1 => ['Information Sheet', '3person.svg', 'bg-rose-50 text-rose-500'],
+2 => ['Pre-TRL', 'scale.svg', 'bg-violet-50 text-violet-500'],
+3 => ['Pre-MRL', 'stairs.svg', 'bg-blue-50 text-blue-500'],
+4 => ['Pre-TMRL', 'scale.svg', 'bg-amber-50 text-amber-500'],
+5 => ['Pre-SRL', 'check-shield.svg', 'bg-emerald-50 text-emerald-500'],
+6 => ['Startup Growth Strategy', 'riskMon.svg', 'bg-orange-50 text-orange-500'],
+7 => ['Weekly Updates', 'cal.svg', 'bg-blue-50 text-blue-500'],
+8 => ['Prototype Validation', 'check-box.svg', 'bg-rose-50 text-rose-500'],
+9 => ['Post-TRL', 'scale.svg', 'bg-violet-50 text-violet-500'],
+10 => ['Post-MRL', 'stairs.svg', 'bg-blue-50 text-blue-500'],
+11 => ['Post-TMRL', 'pire-chart.svg', 'bg-amber-50 text-amber-500'],
+12 => ['Post-SRL', 'check-shield.svg', 'bg-emerald-50 text-emerald-500'],
+13 => ['Venture Exit Form', 'sign-out.svg', 'bg-rose-50 text-rose-500'],
+];
 @endphp
 
 <div
@@ -298,8 +298,7 @@
             });
         },
     }"
-    @open-export-modal.window="openModal()"
->
+    @open-export-modal.window="openModal()">
     <input type="hidden" id="export-modal-csrf" value="{{ csrf_token() }}">
 
     <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center">
@@ -392,25 +391,25 @@
 
                     <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                         @foreach ($exportDocuments as $num => [$label, $icon, $tone])
-                            <label
-                                class="flex items-center gap-2.5 rounded-lg border px-3 py-2.5 transition {{ $loop->last ? 'lg:col-start-2' : '' }}"
-                                :class="{
+                        <label
+                            class="flex items-center gap-2.5 rounded-lg border px-3 py-2.5 transition {{ $loop->last ? 'lg:col-start-2' : '' }}"
+                            :class="{
                                     'border-[#6D0D23] bg-[#6D0D23]/[0.04]': selectedDocs.includes({{ $num }}),
                                     'border-gray-200 hover:border-gray-300 cursor-pointer': !selectedDocs.includes({{ $num }}) && canPickDocuments && isDocAvailable({{ $num }}),
                                     'border-gray-100 opacity-40 cursor-not-allowed': !canPickDocuments || !isDocAvailable({{ $num }}),
                                 }">
-                                <input type="checkbox" :checked="selectedDocs.includes({{ $num }})"
-                                    :disabled="!canPickDocuments || !isDocAvailable({{ $num }})"
-                                    @change="toggleDoc({{ $num }})"
-                                    class="h-4 w-4 shrink-0 rounded border-gray-300 text-[#6D0D23] focus:ring-[#6D0D23] disabled:cursor-not-allowed">
-                                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {{ $tone }}">
-                                    <span class="icon-mask h-4 w-4" style="--icon: url('{{ asset('images/icons/'.$icon) }}')"></span>
-                                </span>
-                                <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-700"
-                                    title="{{ $num }}. {{ $label }}">{{ $num }}. {{ $label }}</span>
-                                <span x-show="canPickDocuments && !isDocAvailable({{ $num }})" x-cloak
-                                    class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Not started</span>
-                            </label>
+                            <input type="checkbox" :checked="selectedDocs.includes({{ $num }})"
+                                :disabled="!canPickDocuments || !isDocAvailable({{ $num }})"
+                                @change="toggleDoc({{ $num }})"
+                                class="h-4 w-4 shrink-0 rounded border-gray-300 text-[#6D0D23] focus:ring-[#6D0D23] disabled:cursor-not-allowed">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {{ $tone }}">
+                                <span class="icon-mask h-4 w-4" style="--icon: url('{{ asset('images/icons/'.$icon) }}')"></span>
+                            </span>
+                            <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-700"
+                                title="{{ $num }}. {{ $label }}">{{ $num }}. {{ $label }}</span>
+                            <span x-show="canPickDocuments && !isDocAvailable({{ $num }})" x-cloak
+                                class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Not started</span>
+                        </label>
                         @endforeach
                     </div>
                 </section>
@@ -521,7 +520,6 @@
                                             </svg>
                                         </div>
                                         <div class="text-xs text-gray-500">
-                                            <span x-text="(file.page_count ?? '—') + ' pages'"></span> &middot;
                                             <span x-text="file.file_size_label"></span>
                                         </div>
                                     </div>

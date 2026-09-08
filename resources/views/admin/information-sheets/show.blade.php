@@ -14,7 +14,22 @@
     page won't 500 while you're still wiring the backend. Rename them in ONE place: the
     $url() calls. Nothing else hardcodes a route.
 --}}
-<x-layouts.admin title="Information Sheet">
+@php
+    // The cohort switcher in the sidebar (components/cohort-sidebar-control.blade.php)
+    // needs to know this page was reached from a specific Assessment Hub tab -
+    // switching cohorts here should return to that tab (now scoped to the newly
+    // picked cohort), not just re-append '?cohort=' onto this one startup's own
+    // Information Sheet URL, which may not even belong to the new cohort at all.
+    // Mirrors the $backUrl logic further down this file.
+    $cohortReturnUrl = request('from') === 'assessment-hub'
+        ? route('admin.assessment-hub.index', array_filter([
+            'main' => 'information-sheet',
+            'tab' => request('tab'),
+            'stage' => request('stage'),
+        ]))
+        : null;
+@endphp
+<x-layouts.admin title="Information Sheet" :cohort-return-url="$cohortReturnUrl">
 
     @php
     $sheet = $startup->informationSheet;
@@ -458,7 +473,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                             :class=\"value === o
                                                 ? 'border-[#6C0E24] bg-[#6C0E24]/5 text-[#6C0E24] ring-1 ring-[#6C0E24]'
                                                 : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'\"
-                                            class='flex flex-1 min-w-[9rem] items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60'>
+                                            class='flex flex-1 basis-[8rem] min-w-0 items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60'>
                                             {$person}
                                             <span class='flex-1 text-sm font-medium capitalize' x-text=\"o.toLowerCase()\"></span>
                                             <span :class=\"value === o

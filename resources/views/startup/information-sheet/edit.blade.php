@@ -561,7 +561,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                             :class=\"value === o
                                                 ? 'border-[#6C0E24] bg-[#6C0E24]/5 text-[#6C0E24] ring-1 ring-[#6C0E24]'
                                                 : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'\"
-                                            class='flex flex-1 min-w-[9rem] items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60'>
+                                            class='flex flex-1 basis-[8rem] min-w-0 items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60'>
                                             {$person}
                                             <span class='flex-1 text-sm font-medium capitalize' x-text=\"o.toLowerCase()\"></span>
                                             <span :class=\"value === o

@@ -257,17 +257,28 @@
                         :style="`order: ${pendingSort === 'newest' ? {{ $loop->index }} : {{ $pendingCount - 1 }} - {{ $loop->index }}}`"
                         x-data="{ viewOpen: false, assignOpen: @js($erroredRoadblockId === $roadblock->roadblock_id), previewImage: null }">
 
-                        <div class="relative h-20 flex-shrink-0 bg-gradient-to-r {{ $banners[$roadblock->roadblock_id % count($banners)] }} sm:h-32">
+                        <div class="relative h-20 flex-shrink-0 overflow-hidden bg-gradient-to-r {{ $banners[$roadblock->roadblock_id % count($banners)] }} sm:h-32">
+
+                            @if ($roadblock->startup->startup_photo_url)
+                            <img
+                                src="{{ $roadblock->startup->startup_photo_url }}"
+                                alt="{{ $roadblock->startup->company_name }} logo"
+                                class="absolute inset-0 h-full w-full object-cover" />
+
+                            {{-- Subtle overlay --}}
+                            <div class="absolute inset-0 bg-black/10"></div>
+                            @endif
+
+                            {{-- Category badge --}}
                             <span class="absolute right-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-white px-2 py-0.5 text-[10px] font-medium sm:right-3 sm:top-3 sm:px-3 sm:py-1 sm:text-xs">
                                 {{ $roadblock->display_category }}
                             </span>
+
                         </div>
 
                         <div class="flex flex-1 flex-col p-3 sm:p-4">
                             <p class="text-sm font-bold leading-snug sm:text-base">
                                 {{ $roadblock->startup->company_name }}
-                                <span class="text-rose-900">&bull;</span>
-                                {{ $roadblock->display_category }}
                             </p>
 
                             <p class="mt-1 line-clamp-2 text-xs text-gray-500 sm:text-sm">{{ \Illuminate\Support\Str::limit($roadblock->description, 100) }}</p>
