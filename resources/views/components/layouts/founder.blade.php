@@ -413,12 +413,10 @@
 
                             <button
                                 type="button"
-                                @click="$store.navigation.showLeaveModal = false"
-                                class="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full border border-[#6D0D23] text-[#6D0D23] transition hover:bg-[#6D0D23] hover:text-white"
+                                @click="$store.toast.hide()"
+                                class="flex-shrink-0 text-gray-400 hover:text-gray-700 transition text-xl leading-none"
                                 aria-label="Close">
-                                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
-                                </svg>
+                                &times;
                             </button>
                         </div>
                     </div>
