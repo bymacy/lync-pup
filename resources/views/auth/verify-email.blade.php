@@ -117,15 +117,29 @@
                 </div>
             @endif
 
+            {{-- Own, independent x-data scope (separate from the outer polling
+                 component above) so the button's label is never at the mercy of
+                 whatever else is happening on the page - it's plain text in the
+                 markup by default, and Alpine only ever adds the "(60s)" countdown
+                 suffix on top of it. If Alpine fails to load for any reason, this
+                 still renders as a normal, clickable, correctly-labeled button
+                 instead of silently going blank. --}}
             <form method="POST" action="{{ route('verification.send') }}"
-                @submit="secondsLeft = 60">
+                x-data="{ secondsLeft: 60, counting: false }"
+                x-init="$watch('counting', (v) => {
+                    if (! v) return;
+                    const timer = setInterval(() => {
+                        secondsLeft--;
+                        if (secondsLeft <= 0) { clearInterval(timer); counting = false; }
+                    }, 1000);
+                })"
+                @submit="secondsLeft = 60; counting = true">
                 @csrf
                 <div class="border border-rose-200 rounded-lg p-4 text-center mb-3">
                     <p class="text-sm text-gray-500 mb-1">Didn't receive the email?</p>
-                    <button type="submit" :disabled="secondsLeft > 0"
+                    <button type="submit" x-bind:disabled="counting && secondsLeft > 0"
                         class="text-sm font-semibold text-rose-800 disabled:text-gray-400 disabled:cursor-not-allowed hover:underline">
-                        <span x-show="secondsLeft === 0">Resend verification email</span>
-                        <span x-show="secondsLeft > 0">Resend verification email (<span x-text="secondsLeft"></span>s)</span>
+                        Resend verification email<template x-if="counting && secondsLeft > 0"><span> (<span x-text="secondsLeft"></span>s)</span></template>
                     </button>
                 </div>
             </form>

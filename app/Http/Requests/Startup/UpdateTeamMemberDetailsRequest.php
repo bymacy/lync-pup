@@ -4,17 +4,15 @@ namespace App\Http\Requests\Startup;
 
 /**
  * The saved Core Team rows on the Information Sheet PATCH through this. Same
- * every-column-required rules as adding a new row, so a row cannot be saved
- * complete and then emptied out one cell at a time.
- *
- * full_name is the one exception: this is the only endpoint that enforces
- * the exact "Surname, Firstname[, Middle Name[, Ext]]" shape the Information
- * Sheet's own Core Team Formation column header asks for (rowFullName, not
- * the looser rowPersonName the base class uses). Adding or editing a team
- * member from the Startup Profile side (StoreTeamMemberRequest /
- * UpdateTeamMemberRequest) stays as-is - that screen just asks for a "Full
- * Name" with no comma-format hint - so this override, not a change to the
- * shared base class, is what keeps the two screens' expectations honest.
+ * every-column-required rules as adding a new row (StoreTeamMemberRequest,
+ * which the base class already inherits - both the "+ Add Entry" store
+ * endpoint and this update-details endpoint enforce full_name's exact
+ * "Surname, Firstname[, Middle Name[, Ext]]" shape now, so a row can't be
+ * saved in that format and then edited into something looser, or vice
+ * versa). The rules() override below is a no-op now that the parent already
+ * uses rowFullName - kept only so this class stays explicit about the shape
+ * it depends on. No messages() override anymore: the parent's full_name.regex
+ * message is already short enough to just inherit as-is.
  */
 class UpdateTeamMemberDetailsRequest extends StoreTeamMemberRequest
 {
@@ -22,13 +20,6 @@ class UpdateTeamMemberDetailsRequest extends StoreTeamMemberRequest
     {
         return array_merge(parent::rules(), [
             'full_name' => $this->rowFullName(150),
-        ]);
-    }
-
-    public function messages(): array
-    {
-        return array_merge(parent::messages(), [
-            'full_name.regex' => 'Enter the name as Surname, Firstname — optionally followed by Middle Name and/or Ext, e.g. "Dela Cruz, Juan" or "Dela Cruz, Juan, Santos, Jr." Leave out Middle Name/Ext entirely if there is none - do not type N/A.',
         ]);
     }
 }

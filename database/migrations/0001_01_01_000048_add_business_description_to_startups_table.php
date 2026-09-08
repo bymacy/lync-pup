@@ -31,13 +31,32 @@ return new class extends Migration
         });
 
         // Seed existing startups from whatever their Information Sheet
-        // already has, so nothing looks blank after the split.
+        // already has, so nothing looks blank after the split. Written as a
+        // correlated subquery (rather than Laravel's join()->update(), which
+        // Laravel can only translate into a real SQL UPDATE...JOIN on
+        // MySQL/Postgres) because SQLite has no UPDATE...JOIN at all - on
+        // SQLite, join()->update() silently drops the join from the actual
+        // UPDATE statement and leaves the raw "information_sheets.business_
+        // description" reference in the SET clause dangling, which fails
+        // with "no such column" the moment this migration runs against
+        // SQLite (as it does for every test, since phpunit.xml points the
+        // test database at :memory: SQLite). A correlated subquery is plain
+        // ANSI SQL, so it runs the same way on both.
         if (Schema::hasColumn('startups', 'business_description')) {
-            DB::table('startups')
-                ->join('information_sheets', 'information_sheets.startup_id', '=', 'startups.startup_id')
-                ->whereNull('startups.business_description')
-                ->whereNotNull('information_sheets.business_description')
-                ->update(['startups.business_description' => DB::raw('information_sheets.business_description')]);
+            DB::statement('
+                UPDATE startups
+                SET business_description = (
+                    SELECT information_sheets.business_description
+                    FROM information_sheets
+                    WHERE information_sheets.startup_id = startups.startup_id
+                )
+                WHERE business_description IS NULL
+                AND EXISTS (
+                    SELECT 1 FROM information_sheets
+                    WHERE information_sheets.startup_id = startups.startup_id
+                    AND information_sheets.business_description IS NOT NULL
+                )
+            ');
         }
     }
 

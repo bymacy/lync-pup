@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use App\Models\User;
-use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rules;
@@ -26,7 +26,7 @@ class RegisterFounderRequest extends FormRequest
      * mismatch itself is what failed — any other error leaves both fields
      * exactly as typed.
      */
-    protected function failedValidation(Validator $validator)
+    protected function failedValidation(ValidatorContract $validator)
     {
         $errors = $validator->errors();
 
@@ -37,6 +37,38 @@ class RegisterFounderRequest extends FormRequest
                 ->withInput($this->except($except))
                 ->withErrors($errors, $this->errorBag)
         );
+    }
+
+    /**
+     * If the email is only "taken" because an earlier registration
+     * attempt for it exists but was never verified, swap the generic
+     * "already taken" message for one that points them at logging in
+     * instead - that account is still sitting there waiting to be
+     * verified (see verification.notice / the "resend" button there), and
+     * a founder who abandoned that attempt has no other way to discover
+     * that without this.
+     */
+    public function withValidator(ValidatorContract $validator): void
+    {
+        $validator->after(function (ValidatorContract $validator) {
+            if (! $validator->errors()->has('email')) {
+                return;
+            }
+
+            $existing = User::where('email', $this->input('email'))->first();
+
+            if (! $existing || $existing->hasVerifiedEmail()) {
+                return;
+            }
+
+            $validator->errors()->forget('email');
+            $validator->errors()->add(
+                'email',
+                'This email is already registered but not verified yet. '
+                .'<a href="'.route('login').'" class="underline font-medium hover:text-red-700">Log in</a> '
+                .'to pick up where you left off and verify it.'
+            );
+        });
     }
 
     public function rules(): array

@@ -16,7 +16,14 @@ class WeeklyUpdateTest extends TestCase
     protected function makeFounder(): array
     {
         $user = User::factory()->create(['role' => 'Startup', 'account_status' => 'Active']);
-        $startup = Startup::factory()->create(['user_id' => $user->id]);
+        // Weekly Updates sit behind 'stage:full' (see routes/web.php), which
+        // EnsureFounderStage only opens once the profile is complete -
+        // startup_photo_path is deliberately absent from StartupFactory's
+        // own defaults, so it's set here explicitly.
+        $startup = Startup::factory()->create([
+            'user_id' => $user->id,
+            'startup_photo_path' => 'startups/photo.jpg',
+        ]);
         InformationSheet::factory()->create(['startup_id' => $startup->startup_id, 'approval_status' => 'Approved']);
 
         return [$user, $startup];

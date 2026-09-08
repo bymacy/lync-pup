@@ -26,33 +26,28 @@ class StoreLdInterventionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Letters, numbers, spaces, and . , - / & ( ) - and it has to
-            // contain an actual letter, so "1234" or a run of punctuation
-            // can't pass as a title.
+            // Letters, numbers, spaces, and . , - / & ( ) - and letters
+            // have to actually outnumber digits (meaningfulText()), so
+            // neither "1234" nor "1234567890a" can pass as a title. min:5
+            // rules out a short junk answer clearing the letter check on
+            // a technicality.
             'title' => [
-                'required', 'string', 'max:255',
+                'required', 'string', 'max:255', 'min:5',
                 'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\,\-\/\&\(\)]*$/iu',
-                function ($attribute, $value, $fail) {
-                    if (is_string($value) && ! preg_match('/\p{L}/u', $value)) {
-                        $fail('Please enter a valid title.');
-                    }
-                },
+                $this->meaningfulText('Please enter a valid title.'),
             ],
             'date_from' => ['required', 'date', 'after:1900-01-01'],
             'date_to' => ['required', 'date', 'after_or_equal:date_from'],
             // A whole, positive number of hours - no decimals, no N/A.
             'number_of_hours' => ['required', 'integer', 'min:1'],
             // Free-form text - only markup characters are blocked, same as
-            // the sheet's other prose fields - but it still has to contain
-            // an actual letter, not just symbols.
+            // the sheet's other prose fields - but letters still have to
+            // outnumber digits (meaningfulText()), and min:5 rules out a
+            // short junk answer on its own.
             'conducted_sponsored_by' => [
-                'required', 'string', 'max:255',
+                'required', 'string', 'max:255', 'min:5',
                 'regex:/^[^<>{}|\\^~]*$/u',
-                function ($attribute, $value, $fail) {
-                    if (is_string($value) && ! preg_match('/\p{L}/u', $value)) {
-                        $fail('Please enter a valid entry for who conducted or sponsored the program.');
-                    }
-                },
+                $this->meaningfulText('Please enter a valid entry for who conducted or sponsored the program.'),
             ],
         ];
     }
@@ -62,6 +57,7 @@ class StoreLdInterventionRequest extends FormRequest
         return $this->rowMessages([
             'title.required' => 'Please enter the title of the training or program.',
             'title.regex' => 'Please enter a valid title.',
+            'title.min' => 'Please enter a valid title.',
             'date_from.required' => 'Please enter the start date.',
             'date_from.date' => 'Please enter a valid start date.',
             'date_from.after' => 'Please enter a valid start date.',
@@ -73,6 +69,7 @@ class StoreLdInterventionRequest extends FormRequest
             'number_of_hours.min' => 'Hours must be greater than 0.',
             'conducted_sponsored_by.required' => 'Please enter who conducted or sponsored the program.',
             'conducted_sponsored_by.regex' => 'Please enter a valid entry for who conducted or sponsored the program.',
+            'conducted_sponsored_by.min' => 'Please enter a valid entry for who conducted or sponsored the program.',
             // Catch-all for this row, replacing SheetRowRules' generic
             // "Type N/A if it does not apply" fallback - nothing in this
             // row accepts N/A, so that wording never applies here.

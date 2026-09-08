@@ -58,8 +58,17 @@
         this.dirty = this._initial !== null && this.snapshot() !== this._initial;
     },
 
-    newRows: { team: [], inc: [], ld: [], ref: [] },
-    nextRowId: 1,
+    // Core Team must have at least one entry (see validateInfoSheetForms()'s
+    // needs-at-least-one-entry rule), and an empty None-listed-yet
+    // message gave a founder nothing to actually click into or highlight red
+    // when that rule fails. Starting with 4 blank, ready-to-fill rows already
+    // in edit mode - same idea as Educational Background always showing its
+    // 4 rows - fixes both: there's something to type into immediately, and
+    // something for the blank-required-field check to flag if left empty.
+    // Only seeded when the startup has no real team members saved yet; once
+    // at least one is saved, this never seeds again.
+    newRows: { team: {{ $startup->teamMembers->isEmpty() ? '[{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]' : '[]' }}, inc: [], ld: [], ref: [] },
+    nextRowId: {{ $startup->teamMembers->isEmpty() ? 5 : 1 }},
 
     addRow(section) {
         this.newRows[section].push({ id: this.nextRowId++ });
@@ -131,31 +140,56 @@ pendingRemoval: [],
     },
 
     async saveAll() {
-        // Nothing leaves the browser until every required box holds something.
-        // Without this the main sheet could save while a table row is broken,
-        // leaving half the form in and half out.
-        const problems = window.validateInfoSheetForms(this.$root, {
+        // One clear, right here, at the very top - nothing below clears
+        // again. Clearing separately inside validateInfoSheetForms() and
+        // submitInfoSheetForms() used to mean the second one always wiped out
+        // whatever the first one had just painted, which is what made a
+        // badly-FORMATTED (not blank) field - digits typed into a
+        // letters-only box, for example - invisible on the first Save: the
+        // client-side blank-field check ran, found nothing (the box wasn't
+        // blank), so the request went to the server; but the server was only
+        // ever reached once every client-side problem was already fixed on a
+        // LATER save, because the early return below stopped this function
+        // before that request ever went out. Now both checks always run
+        // together and their results are merged, so every problem anywhere
+        // on the sheet - blank or badly formatted, client-caught or
+        // server-caught - shows up on the very first click.
+        window.clearInfoSheetFieldErrors();
+
+        // Instant, no round trip: blank required fields, and Core Team's
+        // at-least-one-row rule (nothing server-side can catch that one -
+        // Core Team rows are submitted as separate per-row requests, so a
+        // save with zero rows simply has nothing to submit for that section).
+        const clientProblems = window.validateInfoSheetForms(this.$root, {
             team: this.remainingRows('team'),
             inc: this.remainingRows('inc'),
             ld: this.remainingRows('ld'),
             ref: this.remainingRows('ref'),
         });
 
-        if (problems > 0) {
-            Alpine.store('toast').error(
-                'Save Failed',
-                problems === 1
-                    ? '1 field needs fixing - see the message on the form.'
-                    : problems + ' fields need fixing - see the messages on the form.'
-            );
-            return;
-        }
-
         this.saving = true;
- 
+
         try {
-            const result = await window.submitInfoSheetForms(this.$root);
- 
+            // The server dry-run always runs too, even when the client
+            // already found something wrong - only the actual persist step
+            // is skipped in that case (dryRunOnly). That way a format error
+            // the browser can't check on its own still gets flagged
+            // alongside the client-side ones, on this same click.
+            const result = await window.submitInfoSheetForms(this.$root, {
+                dryRunOnly: clientProblems > 0,
+            });
+
+            if (clientProblems > 0) {
+                this.saving = false;
+                Alpine.store('toast').error(
+                    'Save Failed',
+                    clientProblems === 1
+                        ? '1 field needs fixing - see the message on the form.'
+                        : clientProblems + ' fields need fixing - see the messages on the form.'
+                );
+                return;
+            }
+
             // Clear the guard before anything navigates, or beforeunload prompts
             // on a save the user just confirmed.
             this.dirty = false;
@@ -189,11 +223,20 @@ pendingRemoval: [],
                 ? window.showInfoSheetFieldErrors(e.validation)
                 : false;
 
+            // Total across both the client-side pass above and this
+            // server-side one, so a mixed case (a blank field AND a badly
+            // formatted one elsewhere) reports an accurate count instead of
+            // just the server's half of it.
+            const serverProblems = e?.validation ? Object.keys(e.validation).length : (shown ? 1 : 0);
+            const totalProblems = clientProblems + serverProblems;
+
             Alpine.store('toast').error(
                 'Save Failed',
-                shown
-                    ? (e?.message || 'Please fix the highlighted fields.')
-                    : (e?.message || 'Something went wrong while saving. Please try again.')
+                totalProblems > 1
+                    ? totalProblems + ' fields need fixing - see the messages on the form.'
+                    : shown
+                        ? (e?.message || 'Please fix the highlighted fields.')
+                        : (e?.message || 'Something went wrong while saving. Please try again.')
             );
         }
     },
@@ -344,9 +387,9 @@ pendingRemoval: [],
                     'place_of_birth' => 'City or municipality',
                     'mobile_no' => 'e.g. 09171234567',
                     'founder_email' => 'e.g. name@email.com',
-                    'sec_registration' => 'e.g. CS201812345',
-                    'business_id_number' => 'e.g. BID-0098765',
-                    'dti_registration_number' => 'e.g. DTI-0054321',
+                    'sec_registration' => 'e.g. CS202412345',
+                    'business_id_number' => 'e.g. 123456789',
+                    'dti_registration_number' => 'e.g. 123456789012',
                     'business_tin' => 'e.g. 123-456-789-000',
                     'portfolio_manager' => 'Full name',
                     'cohort_no' => 'e.g. Cohort 3',
@@ -628,12 +671,33 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                         </thead>
                         <tbody>
                             @foreach (['secondary' => 'SECONDARY', 'vocational' => 'VOCATIONAL/TRADE COURSE', 'college' => 'COLLEGE', 'graduate' => 'GRADUATE STUDIES'] as $key => $label)
-                            <tr>
+                            @php
+                                // Efficiency shortcut: once "Name of School" for a row
+                                // is literally "N/A", the rest of that row can only
+                                // ever be "N/A" too - so auto-fill and lock them
+                                // instead of making the founder retype "N/A" three
+                                // more times. Computed here so a row that was already
+                                // saved as all-N/A renders locked immediately, not
+                                // only after the school field is touched.
+                                $rowSchoolNA = strtoupper(trim((string) old("{$key}_school", $sheet?->{"{$key}_school"}))) === 'N/A' ? 'true' : 'false';
+                            @endphp
+                            <tr x-data="{ schoolNA: {{ $rowSchoolNA }} }"
+                                x-effect="
+                                    if (schoolNA) {
+                                        $refs.{{ $key }}Degree.value = 'N/A';
+                                        $refs.{{ $key }}Unit.value = 'N/A';
+                                        $refs.{{ $key }}Year.value = 'N/A';
+                                    } else if ($refs.{{ $key }}Degree.value.trim().toUpperCase() === 'N/A') {
+                                        $refs.{{ $key }}Degree.value = '';
+                                        $refs.{{ $key }}Unit.value = '';
+                                        $refs.{{ $key }}Year.value = '';
+                                    }
+                                ">
                                 <td class="border px-3 py-2 font-medium text-xs align-top">{{ $label }}</td>
-                                <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="School name" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
-                                <td class="border p-1"><textarea name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="Degree or course" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
-                                <td class="border p-1"><textarea name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="Highest level / units earned" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
-                                <td class="border p-1"><textarea name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="e.g. 2018" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
+                                <td class="border p-1"><textarea name="{{ $key }}_school" rows="1" form="info-sheet-form" required :readonly="!editing" placeholder="e.g. Polytechnic University of the Philippines" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el); schoolNA = $el.value.trim().toUpperCase() === 'N/A'" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_school", $sheet?->{"{$key}_school"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Degree" name="{{ $key }}_degree_course" rows="1" form="info-sheet-form" required :readonly="!editing || schoolNA" placeholder="e.g. BS Computer Science" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_degree_course", $sheet?->{"{$key}_degree_course"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Unit" name="{{ $key }}_highest_level_unit" rows="1" form="info-sheet-form" required :readonly="!editing || schoolNA" placeholder="e.g. 4th Year" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_highest_level_unit", $sheet?->{"{$key}_highest_level_unit"}) }}</textarea></td>
+                                <td class="border p-1"><textarea x-ref="{{ $key }}Year" name="{{ $key }}_year_graduated" rows="1" form="info-sheet-form" required :readonly="!editing || schoolNA" placeholder="e.g. 2018" x-init="autoGrow($el)" @keydown.enter.prevent @input="dirty = true; autoGrow($el)" class="w-full resize-none overflow-hidden border-0 bg-transparent px-2 py-1.5 text-sm leading-snug disabled:bg-transparent disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-400 placeholder:text-gray-300 focus:outline-none">{{ old("{$key}_year_graduated", $sheet?->{"{$key}_year_graduated"}) }}</textarea></td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -782,25 +846,25 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     :class="isRemoving('{{ $rowKey }}') && 'js-skip'">
                                     @csrf @method('PATCH')
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[0]['w'] }}">
-                                        <textarea name="full_name" placeholder="Name" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->full_name }}</textarea>
+                                        <textarea name="full_name" placeholder="Dela Cruz, Juan, Santos, Jr." :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->full_name }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[1]['w'] }}">
-                                        <textarea name="designation" placeholder="Designation" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->designation }}</textarea>
+                                        <textarea name="designation" placeholder="Chief Executive Officer" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->designation }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[2]['w'] }}">
-                                        <textarea name="phone" placeholder="Phone" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->phone }}</textarea>
+                                        <textarea name="phone" placeholder="09171234567" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->phone }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[3]['w'] }}">
-                                        <textarea name="address" placeholder="Address" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->address ?? '' }}</textarea>
+                                        <textarea name="address" placeholder="123 Rizal St., Brgy. San Antonio, Quezon City" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->address ?? '' }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
                                         <input type="date" name="date_of_birth" value="{{ $member->date_of_birth?->format('Y-m-d') }}" min="{{ $dobMin }}" max="{{ $dobMax }}" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
-                                        <input type="email" name="email" value="{{ $member->email }}" placeholder="Email" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
+                                        <input type="email" name="email" value="{{ $member->email }}" placeholder="juan.delacruz@gmail.com" :readonly="!editing" class="{{ $teamCell }}" @input="dirty = true">
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[6]['w'] }}">
-                                        <textarea name="citizenship" placeholder="Citizenship" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->citizenship ?? '' }}</textarea>
+                                        <textarea name="citizenship" placeholder="Filipino" :readonly="!editing" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $member->citizenship ?? '' }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
                                         <div class="px-2 py-1.5">
@@ -838,7 +902,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                 </div>
                             </div>
                             @empty
-                            <p class="text-sm text-gray-400 px-3 py-3">None listed yet.</p>
+                            {{-- Hidden once the 4 starter rows below exist, so this
+                                 empty-state text and the actual blank rows to fill
+                                 in are never both showing at the same time. --}}
+                            <p class="text-sm text-gray-400 px-3 py-3" x-show="!editing">None listed yet.</p>
                             @endforelse
 
                             {{-- Add new --}}
@@ -849,25 +916,25 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                         class="js-subform js-addform flex items-stretch text-sm">
                                         @csrf
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[0]['w'] }}">
-                                            <textarea name="full_name" placeholder="Name" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="full_name" placeholder="Dela Cruz, Juan, Santos, Jr." class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[1]['w'] }}">
-                                            <textarea name="designation" placeholder="Designation" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="designation" placeholder="Chief Executive Officer" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[2]['w'] }}">
-                                            <textarea name="phone" placeholder="Phone" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="phone" placeholder="09171234567" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[3]['w'] }}">
-                                            <textarea name="address" placeholder="Address" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="address" placeholder="123 Rizal St., Brgy. San Antonio, Quezon City" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[4]['w'] }}">
                                             <input type="date" name="date_of_birth" min="{{ $dobMin }}" max="{{ $dobMax }}" class="{{ $teamCell }}" @input="dirty = true">
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[5]['w'] }}">
-                                            <input type="email" name="email" placeholder="Email" class="{{ $teamCell }}" @input="dirty = true">
+                                            <input type="email" name="email" placeholder="juan.delacruz@gmail.com" class="{{ $teamCell }}" @input="dirty = true">
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[6]['w'] }}">
-                                            <textarea name="citizenship" placeholder="Citizenship" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="citizenship" placeholder="Filipino" class="{{ $teamCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 border-r border-gray-200 {{ $teamCols[7]['w'] }}">
                                             <div class="px-2 py-1.5">
@@ -965,7 +1032,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     @method('PATCH')
                                     <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[0] }}">
                                         <textarea name="organization_name_address"
-                                            placeholder="Organization Name & Address" :readonly="!editing" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->organization_name_address }}</textarea>
+                                            placeholder="e.g. PUP Technology Business Incubator, Sta. Mesa, Manila" :readonly="!editing" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->organization_name_address }}</textarea>
                                     </div>
                                     <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[1] }}">
                                         <input type="date" name="date_from" value="{{ $item->date_from?->format('Y-m-d') }}"
@@ -977,11 +1044,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     </div>
                                     <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[3] }}">
                                         <textarea name="number_of_hours"
-                                            placeholder="Hours" :readonly="!editing" class="{{ $incCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->number_of_hours }}</textarea>
+                                            placeholder="e.g. 120" :readonly="!editing" class="{{ $incCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->number_of_hours }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 {{ $incubationCols[4] }}">
                                         <textarea name="incubation_program_focus"
-                                            placeholder="Program/Focus" :readonly="!editing" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->incubation_program_focus }}</textarea>
+                                            placeholder="e.g. Technology Business Incubation" :readonly="!editing" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->incubation_program_focus }}</textarea>
                                     </div>
                                 </form>
 
@@ -1027,7 +1094,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                         class="js-subform js-addform flex">
                                         @csrf
                                         <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[0] }}">
-                                            <textarea name="organization_name_address" placeholder="Organization Name & Address" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="organization_name_address" placeholder="e.g. PUP Technology Business Incubator, Sta. Mesa, Manila" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[1] }}">
                                             <input type="date" name="date_from" class="{{ $incCell }}" @input="dirty = true">
@@ -1036,10 +1103,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                             <input type="date" name="date_to" class="{{ $incCell }}" @input="dirty = true">
                                         </div>
                                         <div class="border-r border-gray-200 flex-shrink-0 {{ $incubationCols[3] }}">
-                                            <textarea name="number_of_hours" placeholder="Hours" class="{{ $incCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="number_of_hours" placeholder="e.g. 120" class="{{ $incCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 {{ $incubationCols[4] }}">
-                                            <textarea name="incubation_program_focus" placeholder="Program/Focus" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="incubation_program_focus" placeholder="e.g. Technology Business Incubation" class="{{ $incCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                     </form>
                                     <div class="w-10 flex-shrink-0 flex items-center justify-center">
@@ -1116,7 +1183,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     @method('PATCH')
                                     <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[0] }}">
                                         <textarea name="title"
-                                            placeholder="Title" :readonly="!editing" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->title }}</textarea>
+                                            placeholder="e.g. Startup Bootcamp on Financial Literacy" :readonly="!editing" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->title }}</textarea>
                                     </div>
                                     <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[1] }}">
                                         <input type="date" name="date_from" value="{{ $item->date_from?->format('Y-m-d') }}"
@@ -1128,11 +1195,11 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                     </div>
                                     <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[3] }}">
                                         <textarea name="number_of_hours"
-                                            placeholder="Hours" :readonly="!editing" class="{{ $ldCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->number_of_hours }}</textarea>
+                                            placeholder="e.g. 8" :readonly="!editing" class="{{ $ldCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->number_of_hours }}</textarea>
                                     </div>
                                     <div class="flex-shrink-0 {{ $ldCols[4] }}">
                                         <textarea name="conducted_sponsored_by"
-                                            placeholder="Conducted/Sponsored By" :readonly="!editing" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->conducted_sponsored_by }}</textarea>
+                                            placeholder="e.g. PUP-TBIDO" :readonly="!editing" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent>{{ $item->conducted_sponsored_by }}</textarea>
                                     </div>
                                 </form>
 
@@ -1166,7 +1233,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                         class="js-subform js-addform flex">
                                         @csrf
                                         <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[0] }}">
-                                            <textarea name="title" placeholder="Title" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="title" placeholder="e.g. Startup Bootcamp on Financial Literacy" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[1] }}">
                                             <input type="date" name="date_from" class="{{ $ldCell }}" @input="dirty = true">
@@ -1175,10 +1242,10 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                                             <input type="date" name="date_to" class="{{ $ldCell }}" @input="dirty = true">
                                         </div>
                                         <div class="border-r border-gray-200 flex-shrink-0 {{ $ldCols[3] }}">
-                                            <textarea name="number_of_hours" placeholder="Hours" class="{{ $ldCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="number_of_hours" placeholder="e.g. 8" class="{{ $ldCell }} text-center" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                         <div class="flex-shrink-0 {{ $ldCols[4] }}">
-                                            <textarea name="conducted_sponsored_by" placeholder="Conducted/Sponsored By" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
+                                            <textarea name="conducted_sponsored_by" placeholder="e.g. PUP-TBIDO" class="{{ $ldCell }} resize-none overflow-hidden leading-snug" @input="dirty = true; autoGrow($el)" rows="1" x-init="autoGrow($el)" @keydown.enter.prevent></textarea>
                                         </div>
                                     </form>
                                     <div class="w-10 flex-shrink-0 flex items-center justify-center">
@@ -1779,6 +1846,21 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 }
                 if (! control) return;
 
+                // A blank required field was very likely already caught (and
+                // already has its own message showing) by
+                // validateInfoSheetForms()'s client-side pass before this
+                // server dry-run ever went out - both checks genuinely run on
+                // every save, on purpose, so format errors the browser can't
+                // catch still show up alongside blank-field ones on the same
+                // click. But when the SAME field trips both checks, that's
+                // one problem, not two: stacking a second "required" message
+                // under the one already there is just noise. One line per
+                // field - keep whichever got there first.
+                if (control.hasAttribute('data-field-invalid')) {
+                    candidates.push(control);
+                    return;
+                }
+
                 flag(control);
 
                 const note = document.createElement('p');
@@ -1853,19 +1935,45 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
         window.validateInfoSheetForms = function (root, remaining) {
             root = root || document;
 
-            window.clearInfoSheetFieldErrors();
-
+            // No clear here - saveAll() clears once, up front, before calling
+            // this AND submitInfoSheetForms(). Clearing again here used to
+            // wipe out whatever submitInfoSheetForms()'s dry run had just
+            // painted (or vice versa), which is how a badly-formatted field's
+            // error and a blank-field error ended up unable to show together.
             let count = 0;
             let first = null;
 
             const blank = (el) => (el.value || '').trim() === '';
 
-            // "Type N/A" only makes sense for the free-text boxes. A date or
-            // email input cannot hold N/A - the server rejects it there too -
-            // so those get wording that matches what they actually accept.
+            // "Type N/A" only makes sense for the free-text boxes that
+            // actually accept it. A date or email input cannot hold N/A -
+            // the server rejects it there too - so those get wording that
+            // matches what they actually accept. Core Team is a further
+            // exception: none of its columns accept N/A at all (see
+            // StoreTeamMemberRequest / SheetRowRules), so suggesting it
+            // there would just be wrong. And on the main sheet itself, a
+            // handful of Section I fields dropped N/A as a valid answer
+            // (see UpdateInformationSheetRequest's $properName, $address,
+            // $citizenshipByBirth and $place closures) - surname and first
+            // name always did, height/weight/mobile/email never accepted it
+            // to begin with (their own type/format already rules it out),
+            // and residential/permanent address, citizenship by birth and
+            // place of birth just joined them. Everything else on the main
+            // sheet (middle name, GSIS/Pag-IBIG/PhilHealth/SSS, dual
+            // citizenship, the Educational Background table, etc.) still
+            // genuinely accepts N/A, so those keep the fallback wording.
+            const noNAFields = [
+                'surname', 'first_name', 'height_input', 'weight_input',
+                'residential_address', 'permanent_address',
+                'citizenship_by_birth', 'place_of_birth', 'mobile_no',
+                'sex', 'civil_status',
+            ];
+
             const requiredMessage = (el, fallback) => {
                 if (el.type === 'date') return 'Select a date.';
                 if (el.type === 'email') return 'Enter a valid email address.';
+                if (el.closest('form')?.getAttribute('action')?.includes('team-members')) return 'Required.';
+                if (noNAFields.includes(el.name)) return 'This field is required.';
                 return fallback;
             };
 
@@ -1914,44 +2022,79 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
 
             // 2. Table rows. Every column of a row must be answered. A row that
             //    is completely blank is dropped before saving rather than
-            //    flagged, matching the skip in submitInfoSheetForms().
+            //    flagged, matching the skip in submitInfoSheetForms() - with
+            //    one exception: Core Team. A blank Core Team row is left
+            //    sitting in the table on purpose (it's one of the 4 starter
+            //    rows, or one the founder added and hasn't gotten to yet),
+            //    and the founder always has a one-click way to say "I don't
+            //    want this row" - the x button (discardRow()/toggleRemoval())
+            //    - so silently dropping an untouched blank row instead of
+            //    flagging it would let an incomplete team pass review with
+            //    no error at all. Incubation, L&D and References stay
+            //    optional, so a blank "add new" row there is still skipped.
             const rowIsBlank = (form) => Array.from(form.elements)
                 .filter((el) => el.name && ! ['_token', '_method'].includes(el.name))
                 .every(blank);
 
+            // Tracked so loop 3 below can tell whether a Core Team row
+            // already got its own per-field messages here - if so, the
+            // generic "needs at least one entry" line underneath would just
+            // be repeating what every cell in that row already says.
+            let teamRowFlagged = false;
+
             Array.from(root.querySelectorAll('form.js-subform')).forEach((form) => {
                 if (form.classList.contains('js-deleteform')) return;
                 if (form.classList.contains('js-skip')) return;
-                if (form.classList.contains('js-addform') && rowIsBlank(form)) return;
+
+                const isTeamForm = form.action.includes('team-members');
+
+                if (! isTeamForm && form.classList.contains('js-addform') && rowIsBlank(form)) return;
 
                 Array.from(form.elements).forEach((el) => {
                     if (! el.name || ['_token', '_method'].includes(el.name)) return;
                     if (! blank(el)) return;
+                    if (isTeamForm) teamRowFlagged = true;
                     flag(el, requiredMessage(el, 'Required. Type N/A if it does not apply.'));
                 });
             });
 
             // 3. Core Team keeps at least one row - a startup always has at
             //    least its founder. Sections III, IV and 35 are optional and may
-            //    be left empty. The count comes from Alpine, the only place that
-            //    knows about rows marked with the x but not deleted yet.
-            const tables = {
-                team: 'Core Team Formation',
-            };
+            //    be left empty.
+            //
+            //    Loop 2 above now flags every blank Core Team row's fields
+            //    individually (it no longer skips them the way it still does
+            //    for Incubation/L&D/References), so in the normal case a
+            //    blank starter row already stops the save on its own. This
+            //    check is the backstop for the one case loop 2 can't catch:
+            //    every row - saved or new - actually removed via
+            //    toggleRemoval()/discardRow(), leaving nothing in the DOM
+            //    for loop 2 to even iterate over. Row COUNT alone
+            //    (remaining.team) still isn't enough for that: a discarded
+            //    new row is gone entirely, but a removed *saved* row is
+            //    still counted by remainingRows() until the save actually
+            //    goes through (see canRemoveRow()) - so counting only the
+            //    NON-blank, NON-removed forms still on the page is what
+            //    correctly tells the two apart.
+            const teamForms = Array.from(root.querySelectorAll('form.js-subform'))
+                .filter((f) => f.action.includes('team-members') && ! f.classList.contains('js-skip'));
+            const teamFilled = teamForms.some((f) => ! rowIsBlank(f));
 
-            Object.keys(tables).forEach((section) => {
-                if (! remaining || remaining[section] === undefined) return;
-                if (remaining[section] > 0) return;
+            // Don't pile this generic line on top of the per-field messages
+            // loop 2 already put on every cell of every blank row - only the
+            // "everything got removed, nothing left to flag" case actually
+            // needs it.
+            if (! teamFilled && ! teamRowFlagged) {
+                const slot = document.querySelector('[data-table-error="team"]');
 
-                const slot = document.querySelector('[data-table-error="' + section + '"]');
-                if (! slot) return;
+                if (slot) {
+                    slot.textContent = 'Core Team Formation needs at least one entry.';
+                    slot.classList.remove('hidden');
 
-                slot.textContent = tables[section] + ' needs at least one entry.';
-                slot.classList.remove('hidden');
-
-                count++;
-                if (! first) first = slot;
-            });
+                    count++;
+                    if (! first) first = slot;
+                }
+            }
 
             if (first) {
                 first.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1961,10 +2104,12 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             return count;
         };
 
-        window.submitInfoSheetForms = async function(root) {
+        window.submitInfoSheetForms = async function(root, opts) {
             root = root || document;
+            const dryRunOnly = !!(opts && opts.dryRunOnly);
 
-            window.clearInfoSheetFieldErrors();
+            // No clear here either - see the comment in validateInfoSheetForms()
+            // above. The caller (saveAll()) is the only place that clears now.
 
             const isBlank = (form) => {
                 const data = new FormData(form);
@@ -2042,18 +2187,33 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                 // showInfoSheetFieldErrors would have no way to tell which row's
                 // control to flag - it would always flag the first row on the
                 // page no matter which row's request actually failed.
+                //
+                // form.action alone doesn't actually do that job for a brand
+                // new row, though: every unsaved "add new" row in the same
+                // table posts to the exact same create URL (there's no row ID
+                // yet), so field + action was still identical across all of
+                // them - three blank Core Team rows failing on "email" all
+                // produced the SAME key, so the second and third silently
+                // overwrote the first's entry instead of adding to it, and
+                // those earlier rows' errors just vanished. Only an already-
+                // saved row (PATCHing its own /team-members/{id}) had a
+                // genuinely unique action, so this only ever surfaced with
+                // multiple new rows at once - exactly the 4 blank Core Team
+                // starter rows this sheet now always shows. The row's actual
+                // position in nonDeleteForms is what's actually unique here,
+                // so that's what the key uses now.
                 const combinedValidation = {};
                 let firstHardError = null;
                 let created = 0;
 
-                for (const form of nonDeleteForms) {
+                for (const [formIndex, form] of nonDeleteForms.entries()) {
                     try {
                         const saved = await submitOne(form, dryRun);
                         if (! dryRun && saved.classList.contains('js-addform')) created++;
                     } catch (error) {
                         if (error.status === 422 && error.validation) {
                             Object.entries(error.validation).forEach(([field, messages]) => {
-                                const key = field + '@' + form.action;
+                                const key = field + '@' + formIndex;
                                 combinedValidation[key] = { field, messages, form };
                             });
                         } else if (! firstHardError) {
@@ -2091,6 +2251,14 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
             // below ever runs — so a typo in one row can no longer leave a
             // correct edit in another row (or the main sheet) saved on its own.
             await attemptAll(true);
+
+            // Called with dryRunOnly (saveAll() does this when the client-side
+            // check already found something wrong elsewhere on the sheet) -
+            // this section validated clean, but nothing here is the reason to
+            // actually persist anything yet. Report back and stop.
+            if (dryRunOnly) {
+                return { created: 0, removed: 0 };
+            }
 
             // Phase 2 — every section validated clean above, so it's now safe
             // to actually persist all of them.

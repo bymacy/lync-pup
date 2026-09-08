@@ -3,9 +3,12 @@
 namespace Tests\Feature\Startup;
 
 use App\Models\Startup;
+use App\Models\StartupTeamMember;
 use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class StartupProfileTest extends TestCase
@@ -48,16 +51,26 @@ class StartupProfileTest extends TestCase
 
     public function test_founder_can_update_own_profile(): void
     {
+        Storage::fake('public');
         [$user, $startup] = $this->makeFounderWithStartup();
+
+        // UpdateStartupProfileRequest requires every field
+        // Startup::isProfileComplete() checks, plus (via its withValidator()
+        // guard) at least 3 Core Team members and - since this startup has
+        // no stored photo yet - an uploaded startup_photo.
+        StartupTeamMember::create(['startup_id' => $startup->startup_id, 'full_name' => 'Member One']);
+        StartupTeamMember::create(['startup_id' => $startup->startup_id, 'full_name' => 'Member Two']);
+        StartupTeamMember::create(['startup_id' => $startup->startup_id, 'full_name' => 'Member Three']);
 
         $response = $this->actingAs($user)->patch(route('startup.profile.update'), [
             'company_name' => 'Updated Co',
             'industry_sector' => 'FinTech',
-            'business_description' => 'New description',
+            'business_description' => 'A platform that connects local farmers directly with urban buyers, improving margins for everyone involved.',
             'founder_name' => 'Updated Founder',
             'contact_phone' => '09171112222',
             'website' => 'https://updated.ph',
             'location' => 'Makati City',
+            'startup_photo' => UploadedFile::fake()->image('photo.jpg'),
         ]);
 
         $response->assertRedirect(route('startup.profile.edit'));
@@ -69,12 +82,24 @@ class StartupProfileTest extends TestCase
     {
         [$user, $startup] = $this->makeFounderWithStartup();
 
+        // This route is shared with the Information Sheet's own Core Team
+        // "add row" form (see StartupProfileController::storeTeamMember()),
+        // so it validates the same full biographical row as
+        // TeamMemberValidationTest, not just a bare name.
         $response = $this->actingAs($user)->post(route('startup.team-members.store'), [
-            'full_name' => 'New Member',
+            'full_name' => 'Dela Cruz, Juan, Santos, Jr.',
+            'designation' => 'Chief Executive Officer',
+            'phone' => '09171234567',
+            'address' => '123 Rizal St., Brgy. San Antonio, Quezon City',
+            'date_of_birth' => '1995-05-15',
+            'email' => 'juan.delacruz@gmail.com',
+            'citizenship' => 'Filipino',
+            'sex' => 'MALE',
+            'civil_status' => 'SINGLE',
         ]);
 
         $response->assertRedirect(route('startup.profile.edit'));
-        $this->assertDatabaseHas('team_members', ['startup_id' => $startup->startup_id, 'full_name' => 'New Member']);
+        $this->assertDatabaseHas('team_members', ['startup_id' => $startup->startup_id, 'full_name' => 'Dela Cruz, Juan, Santos, Jr.']);
     }
 
     public function test_founder_cannot_delete_another_startups_team_member(): void

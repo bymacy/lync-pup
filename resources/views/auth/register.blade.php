@@ -75,7 +75,8 @@
                             placeholder="founder@startup.ph"
                             class="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-800 focus:border-rose-800">
                     </div>
-                    @error('email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    {{-- Rendered unescaped: the only source of this message is RegisterFounderRequest, which sometimes embeds a "Log in" link (see withValidator() there). No user input ever reaches it. --}}
+                    @error('email') <p class="mt-1 text-sm text-red-600">{!! $message !!}</p> @enderror
                 </div>
 
                 <div>

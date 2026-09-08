@@ -27,7 +27,14 @@ class RoadblockNotificationTest extends TestCase
         $admin1 = User::factory()->create(['role' => 'Admin']);
         $admin2 = User::factory()->create(['role' => 'Admin']);
 
-        $founder = User::factory()->create(['role' => 'Startup']);
+        // account_status must be set explicitly - actingAs() keeps using this
+        // exact in-memory model for every request in the test, and Eloquent
+        // never re-fetches a model after create() to learn what default a
+        // column got at the database level, so an omitted account_status
+        // reads back as null in PHP even though the row itself says
+        // 'Active', which the 'approved' middleware then treats as not
+        // approved and redirects to /login.
+        $founder = User::factory()->create(['role' => 'Startup', 'account_status' => 'Active']);
         $startup = Startup::factory()->create([
             'user_id' => $founder->id,
             'startup_photo_path' => 'startups/photo.jpg',

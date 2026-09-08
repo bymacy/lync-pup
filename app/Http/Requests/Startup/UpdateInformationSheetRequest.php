@@ -8,9 +8,29 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateInformationSheetRequest extends FormRequest
 {
+    /**
+     * These lock checks used to live in the controller, run only after
+     * validation passed - but with every field on the sheet required, an
+     * incomplete/locked-out save attempt would fail validation first and
+     * never reach them, surfacing a generic "fix these fields" redirect
+     * instead of the specific "this is locked" message. Checking here
+     * instead runs before rules() at all, so a locked sheet always gets a
+     * clean 403 regardless of what the payload contains.
+     */
     public function authorize(): bool
     {
-        return $this->user()->isStartup();
+        if (! $this->user()->isStartup()) {
+            return false;
+        }
+
+        $startup = $this->user()->startup;
+        $sheet = $startup?->informationSheet;
+
+        abort_unless($startup?->isProfileComplete(), 403, 'Please complete your Startup Profile first before filling out the Information Sheet.');
+        abort_if($sheet && $sheet->approval_status === 'Approved', 403, 'This Information Sheet is approved and locked. Contact your Coordinator for changes.');
+        abort_if($startup->evaluationDayLockActive(), 403, 'This Information Sheet is locked for today - your evaluation is scheduled today. It reopens tomorrow if the evaluation does not push through.');
+
+        return true;
     }
 
     /**
@@ -114,29 +134,99 @@ class UpdateInformationSheetRequest extends FormRequest
     }
 
     /**
-     * Once this startup has a scheduled evaluation, fields that already
-     * hold a value can be replaced but not cleared — see
-     * InformationSheet::blankedFields() and Startup::hasScheduledEvaluation().
+     * Two independent cross-field checks that no single column's own rule
+     * can express on its own — see each guard method's doc comment.
      */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
-            $startup = $this->user()->startup;
-            $sheet = $startup?->informationSheet;
-
-            if (! $sheet || ! $startup->hasScheduledEvaluation()) {
-                return;
-            }
-
-            $data = collect($validator->getData())->except(['_token', '_method'])->all();
-
-            foreach ($sheet->blankedFields($data) as $field) {
-                $validator->errors()->add(
-                    $field,
-                    'This field cannot be cleared once an evaluation has been scheduled — please keep or replace the existing value.'
-                );
-            }
+            $this->guardScheduledEvaluationFields($validator);
+            $this->guardEducationalBackgroundConsistency($validator);
         });
+    }
+
+    /**
+     * Once this startup has a scheduled evaluation, fields that already
+     * hold a value can be replaced but not cleared — see
+     * InformationSheet::blankedFields() and Startup::hasScheduledEvaluation().
+     */
+    private function guardScheduledEvaluationFields(Validator $validator): void
+    {
+        $startup = $this->user()->startup;
+        $sheet = $startup?->informationSheet;
+
+        if (! $sheet || ! $startup->hasScheduledEvaluation()) {
+            return;
+        }
+
+        $data = collect($validator->getData())->except(['_token', '_method'])->all();
+
+        foreach ($sheet->blankedFields($data) as $field) {
+            $validator->errors()->add(
+                $field,
+                'This field cannot be cleared once an evaluation has been scheduled — please keep or replace the existing value.'
+            );
+        }
+    }
+
+    /**
+     * Item 22, Educational Background: "Name of School" is the switch for
+     * its whole row. N/A there means the founder never reached that level,
+     * so the other three columns are auto-filled with N/A and locked on the
+     * page itself (see the schoolNA Alpine state in edit.blade.php) — this
+     * is the server-side half of that same rule, since a direct POST could
+     * otherwise bypass the locked inputs entirely. Checked both ways: a row
+     * with a real school name can't leave degree/units/year as N/A, and a
+     * row genuinely marked N/A can't sneak a real value into one of the
+     * other three (which would contradict "I never attended this level").
+     */
+    private function guardEducationalBackgroundConsistency(Validator $validator): void
+    {
+        $data = $validator->getData();
+
+        $levels = [
+            'secondary' => 'secondary school',
+            'vocational' => 'vocational course',
+            'college' => 'college',
+            'graduate' => 'graduate studies',
+        ];
+
+        $isNA = function ($value) {
+            return is_string($value) && strcasecmp(trim($value), 'N/A') === 0;
+        };
+
+        foreach ($levels as $key => $label) {
+            $schoolField = $key.'_school';
+            $otherFields = [$key.'_degree_course', $key.'_highest_level_unit', $key.'_year_graduated'];
+
+            if (! array_key_exists($schoolField, $data)) {
+                continue;
+            }
+
+            $schoolIsNA = $isNA($data[$schoolField] ?? null);
+
+            foreach ($otherFields as $field) {
+                if (! array_key_exists($field, $data)) {
+                    continue;
+                }
+
+                $fieldIsNA = $isNA($data[$field] ?? null);
+
+                if (! $schoolIsNA && $fieldIsNA) {
+                    $validator->errors()->add(
+                        $field,
+                        "You entered a {$label} name, so this can't be N/A — please provide a value or clear the school name too."
+                    );
+                }
+
+                if ($schoolIsNA && ! $fieldIsNA) {
+                    $validator->errors()->add(
+                        $field,
+                        "The {$label} name is N/A, so this must be N/A too."
+                    );
+                }
+            }
+        }
     }
 
     /**
@@ -168,21 +258,11 @@ class UpdateInformationSheetRequest extends FormRequest
             'regex:/^(n\/a|[\p{L}][\p{L}\s\.\-\x{2019}\']*)$/iu',
         ];
 
-        // The business TIN: digits and hyphens only - no spaces, no letters -
-        // e.g. 123-456-789-000. This is the only field left using this shape;
-        // GSIS/Pag-IBIG/PhilHealth/SSS moved to $govId below for their exact
-        // digit counts.
-        $idNumber = fn (int $max) => [
-            'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[0-9][0-9\-]*)$/i',
-        ];
-
-        // A Philippine government ID number: digits and hyphens only - no
-        // spaces - that must total an exact digit count once the hyphens are
-        // stripped out. Each agency's number has a fixed, well-known length:
-        // GSIS 11, Pag-IBIG 12, PhilHealth 12, SSS 10. Stricter than
-        // $idNumber above, which is still used for numbers without a fixed
-        // length (e.g. the business TIN).
+        // A Philippine government/business ID number: digits and hyphens
+        // only - no spaces - that must total an exact digit count once the
+        // hyphens are stripped out. Each agency's number has a fixed,
+        // well-known length: GSIS 11, Pag-IBIG 12, PhilHealth 12, SSS 10,
+        // business TIN 12 (matching the "123-456-789-000" placeholder).
         $govId = fn (int $digits, string $label) => [
             'required', 'string', 'max:20',
             'regex:/^(n\/a|[0-9\-]+)$/i',
@@ -201,17 +281,49 @@ class UpdateInformationSheetRequest extends FormRequest
 
         // Words only: letters plus the punctuation that shows up inside real
         // words (spaces, hyphens, apostrophes, periods). Used for answers that
-        // are never numeric — sex, civil status, citizenship.
+        // are never numeric — civil status wording, dual citizenship. N/A is
+        // a real answer here (not everyone has a dual citizenship).
         $words = fn (int $max) => [
             'required', 'string', 'max:'.$max,
             'regex:/^(n\/a|[\p{L}][\p{L}\s\.\-\x{2019}\']*)$/iu',
         ];
 
+        // Same shape as $words, but N/A is not a real answer: everyone has a
+        // citizenship by birth, so this is only used for citizenship_by_birth.
+        $citizenshipByBirth = fn (int $max) => [
+            'required', 'string', 'max:'.$max,
+            'regex:/^[\p{L}][\p{L}\s\.\-\x{2019}\']*$/iu',
+        ];
+
+        // A single "contains a letter" check still lets something like
+        // "1234567890a" through - one letter tacked onto a run of digits
+        // long enough to clear a min: length. Real prose is made mostly of
+        // letters, with a digit here and there (a house number, a year)
+        // rather than the other way around, so this fails whenever digits
+        // actually outnumber letters - "Sta. Mesa, Manila" or "123 Rizal
+        // St." pass; "1234567890" or "1234567890a" do not. N/A itself is
+        // unaffected wherever N/A is a real answer - "N/A" has letters in
+        // it, so it always passes this check on its own merits.
+        $meaningfulText = function ($attribute, $value, $fail) {
+            if (! is_string($value)) {
+                return;
+            }
+
+            $letters = preg_match_all('/\p{L}/u', $value);
+            $digits = preg_match_all('/\p{N}/u', $value);
+
+            if ($letters === 0 || $digits > $letters) {
+                $fail('Enter a real answer, not just numbers or symbols.');
+            }
+        };
+
         // Place names: words, digits and commas - some barangays and streets are
         // numbered, e.g. "Sta. Mesa, Manila" or "Barangay 176, Caloocan".
+        // N/A is not a real answer here - everyone was born somewhere.
         $place = fn (int $max) => [
             'required', 'string', 'max:'.$max,
-            'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\,\-\x{2019}\']*)$/iu',
+            'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\,\-\x{2019}\']*$/iu',
+            $meaningfulText,
         ];
 
         // Addresses: words and house/unit numbers, plus the punctuation an
@@ -219,9 +331,11 @@ class UpdateInformationSheetRequest extends FormRequest
         // address is never this short, so a minimum length is what actually
         // keeps out "N/A" and other non-answers - the character class alone
         // wouldn't, since digits, letters and / are all valid address text.
+        // N/A is not a real answer here - everyone has an address to declare.
         $address = fn (int $max) => [
             'required', 'string', 'max:'.$max, 'min:10',
-            'regex:/^(n\/a|[\p{L}\p{N}\#][\p{L}\p{N}\s\.\,\-\#\/\(\)\&\x{2019}\']*)$/iu',
+            'regex:/^[\p{L}\p{N}\#][\p{L}\p{N}\s\.\,\-\#\/\(\)\&\x{2019}\']*$/iu',
+            $meaningfulText,
         ];
 
         // Name of School: letters, numbers, spaces, and . - ' & ( ) - no
@@ -230,6 +344,7 @@ class UpdateInformationSheetRequest extends FormRequest
         $schoolName = fn (int $max) => [
             'required', 'string', 'max:'.$max,
             'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\-\&\(\)\x{2019}\']*)$/iu',
+            $meaningfulText,
         ];
 
         // Degree / Course: letters, numbers, spaces, and . - / & ( ) - no
@@ -239,6 +354,7 @@ class UpdateInformationSheetRequest extends FormRequest
         $degreeCourse = fn (int $max) => [
             'required', 'string', 'max:'.$max,
             'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\&\(\)]*)$/iu',
+            $meaningfulText,
         ];
 
         // Highest Level / Unit: letters, numbers, spaces, and . - / ( ) plus an
@@ -247,6 +363,7 @@ class UpdateInformationSheetRequest extends FormRequest
         $highestLevelUnit = fn (int $max) => [
             'required', 'string', 'max:'.$max,
             'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\(\)\x{2019}\']*)$/iu',
+            $meaningfulText,
         ];
 
         // Blood type: A, B, AB or O with a + or - sign.
@@ -258,10 +375,30 @@ class UpdateInformationSheetRequest extends FormRequest
         // The startup overview: letters, numbers, spaces and common
         // punctuation . , ! ? ' - ( ) only - no emoji, no HTML/code, no other
         // symbols. Must start with a letter or number, so a string of bare
-        // punctuation can't pass as a description.
+        // punctuation can't pass as a description. This is the one prose
+        // field where N/A is never a real answer - every startup has
+        // something to say about what it does - so a closure backstops the
+        // regex above: "N/A" itself already fails that regex (no slash in
+        // the character class), but spacing/punctuation variants like "NA",
+        // "N.A." or "N / A" would otherwise still read as ordinary letters
+        // and slip through.
+        $notApplicableOverview = function ($attribute, $value, $fail) {
+            if (! is_string($value)) {
+                return;
+            }
+
+            $lettersOnly = strtoupper(preg_replace('/[^\p{L}]/u', '', $value));
+
+            if (in_array($lettersOnly, ['NA', 'NONE', 'NOTAPPLICABLE'], true)) {
+                $fail('Please describe the startup — N/A is not accepted here.');
+            }
+        };
+
         $prose = fn (int $max) => [
-            'required', 'string', 'max:'.$max,
+            'required', 'string', 'max:'.$max, 'min:50',
             'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\,\!\?\'\-\(\)]*$/u',
+            $notApplicableOverview,
+            $meaningfulText,
         ];
 
         // Items 31 and 34 (Non-Academic Distinctions, Membership in
@@ -270,8 +407,9 @@ class UpdateInformationSheetRequest extends FormRequest
         // turns a blank into "N/A" before this even runs. Anything actually
         // typed is restricted to letters, numbers, spaces and . , & ' - ( ) /.
         $optionalProse = fn (int $max) => [
-            'nullable', 'string', 'max:'.$max,
+            'nullable', 'string', 'max:'.$max, 'min:3',
             'regex:/^(n\/a|[\p{L}\p{N}][\p{L}\p{N}\s\.\,\&\'\-\(\)\/]*)$/iu',
+            $meaningfulText,
         ];
 
         // Item 23 is a packed list (see the row-table widget in the view) -
@@ -351,9 +489,74 @@ class UpdateInformationSheetRequest extends FormRequest
         // "DTI-0054321", "07000123". Letters, digits and hyphens only - no
         // spaces, no slash, no period - so a junk entry (or a code typed with
         // stray punctuation) can't pass as one.
+        //
+        // The exact official SEC / DTI / Business-ID formats aren't pinned
+        // down anywhere in this codebase (web lookup wasn't available while
+        // writing this), so unlike $govId above this can't check a fixed
+        // digit count or a rigid pattern. What it can still catch, without
+        // guessing at a format: a length shorter than any real registration
+        // number ("11111" — 5 characters), and a value that's just one
+        // character repeated over and over ("11111111111111111",
+        // "AAAAAAAAAAAAA") — no real SEC/DTI/Business ID number is a
+        // single digit or letter typed many times. A plain min: length rule
+        // would also catch "N/A" itself, which is a real answer here, so
+        // both checks live in a closure that skips N/A explicitly.
         $code = fn (int $max) => [
             'required', 'string', 'max:'.$max,
             'regex:/^(n\/a|[A-Za-z0-9][A-Za-z0-9\-]*)$/i',
+            function ($attribute, $value, $fail) {
+                if (! is_string($value) || strcasecmp(trim($value), 'N/A') === 0) {
+                    return;
+                }
+
+                $trimmed = trim($value);
+
+                if (strlen($trimmed) < 7) {
+                    $fail('Please enter a valid ID number, or N/A.');
+                    return;
+                }
+
+                $stripped = str_replace('-', '', $trimmed);
+
+                if ($stripped !== '' && preg_match('/^(.)\1*$/u', $stripped)) {
+                    $fail('Please enter a valid ID number, or N/A.');
+                }
+            },
+        ];
+
+        // SEC registration numbers are a confirmed letter+digit mix, e.g.
+        // "CS202412345" - so on top of $code's length and repeated-character
+        // checks, a real one must contain at least one letter AND at least
+        // one digit. This is stricter than $code (used by business_id_number,
+        // which is allowed to be pure numeric) but still doesn't pin down an
+        // exact length, since SEC only confirmed "alphanumeric", not a fixed
+        // digit count.
+        $secCode = fn (int $max) => [
+            'required', 'string', 'max:'.$max,
+            'regex:/^(n\/a|[A-Za-z0-9][A-Za-z0-9\-]*)$/i',
+            function ($attribute, $value, $fail) {
+                if (! is_string($value) || strcasecmp(trim($value), 'N/A') === 0) {
+                    return;
+                }
+
+                $trimmed = trim($value);
+
+                if (strlen($trimmed) < 7) {
+                    $fail('Please enter a valid SEC registration number, or N/A.');
+                    return;
+                }
+
+                $stripped = str_replace('-', '', $trimmed);
+
+                if ($stripped !== '' && preg_match('/^(.)\1*$/u', $stripped)) {
+                    $fail('Please enter a valid SEC registration number, or N/A.');
+                    return;
+                }
+
+                if (! preg_match('/[A-Za-z]/', $stripped) || ! preg_match('/[0-9]/', $stripped)) {
+                    $fail('SEC registration number must contain both letters and numbers, e.g. CS202412345.');
+                }
+            },
         ];
 
 
@@ -408,7 +611,7 @@ class UpdateInformationSheetRequest extends FormRequest
             // exports. SheetOptions is the single source of truth for both.
             'sex' => ['required', 'string', 'in:'.implode(',', SheetOptions::sexes())],
             'civil_status' => ['required', 'string', 'in:'.implode(',', SheetOptions::civilStatuses())],
-            'citizenship_by_birth' => $words(100),
+            'citizenship_by_birth' => $citizenshipByBirth(100),
             'citizenship_dual' => $words(100),
             'place_of_birth' => $place(150),
             // The picker is capped at the same bounds (see $dobMin / $dobMax in the
@@ -441,10 +644,10 @@ class UpdateInformationSheetRequest extends FormRequest
                 $scholarshipEntry,
             ],
 
-            'sec_registration' => $code(100),
+            'sec_registration' => $secCode(100),
             'business_id_number' => $code(100),
-            'dti_registration_number' => $code(100),
-            'business_tin' => $idNumber(100),
+            'dti_registration_number' => $govId(12, 'DTI registration number'),
+            'business_tin' => $govId(12, 'business TIN'),
             'non_academic_distinctions' => $optionalProse(2000),
             'membership_associations' => $optionalProse(2000),
 
@@ -484,29 +687,32 @@ class UpdateInformationSheetRequest extends FormRequest
             'blood_type.required' => 'Please enter your blood type or N/A.',
 
             'gsis_no.required' => 'Please enter your GSIS ID number or N/A.',
-            'gsis_no.regex' => 'Please enter a valid GSIS ID number.',
+            'gsis_no.regex' => 'Please enter a valid GSIS ID number, or N/A.',
             'pagibig_no.required' => 'Please enter your PAG-IBIG number or N/A.',
-            'pagibig_no.regex' => 'Please enter a valid PAG-IBIG number.',
+            'pagibig_no.regex' => 'Please enter a valid PAG-IBIG number, or N/A.',
             'philhealth_no.required' => 'Please enter your PhilHealth number or N/A.',
-            'philhealth_no.regex' => 'Please enter a valid PhilHealth number.',
+            'philhealth_no.regex' => 'Please enter a valid PhilHealth number, or N/A.',
             'sss_no.required' => 'Please enter your SSS number or N/A.',
-            'sss_no.regex' => 'Please enter a valid SSS number.',
+            'sss_no.regex' => 'Please enter a valid SSS number, or N/A.',
 
             'residential_address.required' => 'Please enter your residential address.',
-            'residential_address.regex' => 'Use letters, numbers and normal address punctuation only (. , - # / & ).',
+            'residential_address.regex' => 'Letters, numbers and . , - # / & only. N/A not accepted.',
             'residential_address.min' => 'Please enter your complete residential address.',
-            'permanent_address.regex' => 'Use letters, numbers and normal address punctuation only (. , - # / & ).',
+            'permanent_address.regex' => 'Letters, numbers and . , - # / & only. N/A not accepted.',
             'permanent_address.min' => 'Please enter your complete permanent address.',
-            'blood_type.regex' => 'Enter a blood type such as O+, A-, AB+.',
+            'blood_type.regex' => 'E.g. O+, A-, AB+, or N/A.',
             'sex.in' => 'Choose Male or Female.',
             'civil_status.in' => 'Choose one of the listed civil statuses.',
-            'citizenship_by_birth.regex' => 'Use letters only, for example Filipino.',
+            'citizenship_by_birth.regex' => 'Letters only, e.g. Filipino. N/A not accepted.',
             'citizenship_dual.regex' => 'Use letters only, or N/A if there is none.',
-            'place_of_birth.regex' => 'Use letters, numbers, commas and periods only, for example Sta. Mesa, Manila.',
+            'place_of_birth.regex' => 'Letters, numbers, commas and periods only. N/A not accepted.',
             'scholarships_academic_honors.regex' => 'Remove the < > { } | \\ ^ ~ characters.',
             'non_academic_distinctions.regex' => 'Please enter a valid distinction, recognition, or eligibility.',
+            'non_academic_distinctions.min' => 'Please enter a valid distinction, recognition, or eligibility.',
             'membership_associations.regex' => 'Please enter a valid organization or association.',
+            'membership_associations.min' => 'Please enter a valid organization or association.',
             'startup_overview.regex' => 'Please enter a valid startup overview.',
+            'startup_overview.min' => 'Please describe the startup in at least 50 characters.',
             'permanent_address.required' => 'Please enter your permanent address.',
             'sex.required' => 'Please select your sex.',
             'civil_status.required' => 'Please select your civil status.',
@@ -518,7 +724,7 @@ class UpdateInformationSheetRequest extends FormRequest
             'date_of_birth.before' => 'Please enter a valid date of birth.',
             'date_of_birth.after' => 'Please enter a valid date of birth.',
 
-            'mobile_no.required' => 'Please enter your mobile number or N/A.',
+            'mobile_no.required' => 'Please enter your mobile number.',
             'mobile_no.regex' => 'Please enter a valid mobile number (e.g., 09171234567).',
             'founder_email.required' => 'Please enter your email address.',
             'founder_email.email' => 'Please enter a valid email address.',
@@ -528,10 +734,10 @@ class UpdateInformationSheetRequest extends FormRequest
             'business_id_number.required' => 'Enter the business ID number, or N/A if there is none.',
             'dti_registration_number.required' => 'Enter the DTI registration number, or N/A if not registered.',
             'business_tin.required' => 'Enter the business TIN, or N/A if there is none.',
-            'business_tin.regex' => 'Please enter a valid TIN.',
+            'business_tin.regex' => 'Digits and hyphens only, or N/A.',
             'sec_registration.regex' => 'Please enter a valid SEC registration number.',
             'business_id_number.regex' => 'Please enter a valid business ID number.',
-            'dti_registration_number.regex' => 'Please enter a valid DTI registration number.',
+            'dti_registration_number.regex' => 'Digits only, or N/A.',
 
             // Long-form entries
             'startup_overview.required' => 'Describe what the startup does.',

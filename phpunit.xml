@@ -29,6 +29,16 @@
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
+        <!-- Laravel's default JSON session serialization drops the
+             ViewErrorBag back into a plain array as soon as the kernel
+             calls save() - fine in a real request (the next request's
+             loadSession() converts it back), but feature tests inspect
+             the session right after save() with no next request to do
+             that, so assertSessionHasErrors()/assertRedirect() crash on
+             "Call to a member function all() on array". PHP's native
+             serialization (used only for this in-memory test session,
+             never persisted anywhere real) keeps the object intact. -->
+        <env name="SESSION_SERIALIZATION" value="php"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Startup;
 
+use App\Models\InformationSheet;
 use App\Models\Startup;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,7 +25,20 @@ class RoadblockTest extends TestCase
         // itself says 'Active', which the 'approved' middleware then
         // treats as not approved and redirects to /login.
         $user = User::factory()->create(['role' => 'Startup', 'account_status' => 'Active']);
-        Startup::factory()->create(['user_id' => $user->id]);
+        // Roadblocks sit behind 'stage:full' (see routes/web.php), which
+        // EnsureFounderStage only opens once the profile is complete AND
+        // the Information Sheet is Approved — startup_photo_path is
+        // deliberately absent from StartupFactory's own defaults, and a
+        // fresh Startup has no InformationSheet at all, so both are set
+        // here explicitly.
+        $startup = Startup::factory()->create([
+            'user_id' => $user->id,
+            'startup_photo_path' => 'startups/photo.jpg',
+        ]);
+        InformationSheet::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'approval_status' => 'Approved',
+        ]);
 
         return $user;
     }

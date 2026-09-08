@@ -71,7 +71,49 @@ php artisan storage:link
 
 Easy to forget, and the symptom is usually "images/downloads are broken" everywhere.
 
-## 6. Build frontend assets
+## 6. Word document templates (not in git)
+
+The Word/PDF export feature (`WordDocumentExporter`) fills real `.docx`
+master templates that live in `storage/app/templates/`. That folder is
+gitignored (`storage/app/.gitignore` blocks everything under
+`storage/app/` except `private/` and `public/`), so a fresh clone has an
+**empty** `templates/` folder and every export will fail until you add
+these files yourself.
+
+Grab **`word-templates.zip`** (all 13 files bundled) from the team drive:
+
+> **Link: `<TODO - paste the shared Drive/Slack link here>`**
+>
+> (Macy: upload `word-templates.zip` — already sitting in `storage/app/`
+> on your machine, gitignored so it won't show up in `git status` — to
+> wherever the team keeps shared files, then replace the line above with
+> the real link.)
+
+Unzip it into `storage/app/templates/`, keeping the exact filenames:
+
+- `startup-information-sheet-template.docx`
+- `startup-tech-assessment-trl-template.docx`
+- `startup-tech-assessment-mrl-template.docx`
+- `startup-tech-assessment-tmrl-template.docx`
+- `startup-tech-assessment-srl-template.docx`
+- `startup-post-tech-assessment-trl-template.docx`
+- `startup-post-tech-assessment-mrl-template.docx`
+- `startup-post-tech-assessment-tmrl-template.docx`
+- `startup-post-tech-assessment-srl-template.docx`
+- `doc6-startup-growth-strategy-template.docx`
+- `doc7-weekly-checkins-template.docx`
+- `doc8-prototype-validation-template.docx`
+- `doc13-venture-exit-template.docx`
+
+The code matches filenames exactly (see `TEMPLATES` in
+`app/Services/Exports/WordDocumentExporter.php`), so don't rename them.
+
+No LibreOffice install needed — there's a `convertToPdf()` method that
+shells out to LibreOffice, but it's currently unused (disabled after
+`soffice.bin` kept crashing on Macy's machine). Every export just returns
+the filled `.docx` directly.
+
+## 7. Build frontend assets
 
 ```bash
 npm run build
@@ -79,7 +121,7 @@ npm run build
 
 (Use `npm run dev` instead if you want Vite to auto-rebuild while you're actively working on the frontend.)
 
-## 7. Run the app
+## 8. Run the app
 
 ```bash
 php artisan serve
@@ -93,7 +135,7 @@ If you'd rather run the dev server, Vite, and the log viewer together in one ter
 composer run dev
 ```
 
-## 8. Testing email verification
+## 9. Testing email verification
 
 Register a new Founder account through the app using any real email address you can check — the verification email actually delivers there (mail is already configured, no setup needed).
 
@@ -102,6 +144,7 @@ Register a new Founder account through the app using any real email address you 
 - Forgot to `cp .env.example .env` at all → app won't boot, or uses stale settings.
 - Copied `.env.example` but never edited the DB values → migrations fail.
 - Skipped `php artisan storage:link` → uploaded/exported files 404 or show as broken images.
+- Didn't copy the Word templates into `storage/app/templates/` (see step 6) → document exports fail or error out.
 - Skipped `php artisan key:generate` → "no application encryption key has been specified" error.
 - MySQL not actually running, or `lync` database doesn't exist yet → migration errors on step 4.
 - Verification email doesn't arrive at all (not even spam) → the shared sending account may have been flagged/locked by Google; let Argee know so it can be reset.

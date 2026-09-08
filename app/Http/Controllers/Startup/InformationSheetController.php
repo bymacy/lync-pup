@@ -47,12 +47,12 @@ class InformationSheetController extends Controller
 
     public function update(UpdateInformationSheetRequest $request): RedirectResponse|Response
     {
+        // Profile-completeness, approval-lock and evaluation-day-lock are
+        // all checked in UpdateInformationSheetRequest::authorize() now, so
+        // they run before field validation and always produce a clean 403
+        // rather than getting masked by a "fix these fields" redirect.
         $startup = auth()->user()->startup;
         $sheet = $startup->informationSheet()->firstOrCreate(['startup_id' => $startup->startup_id]);
-
-        abort_unless($startup->isProfileComplete(), 403, 'Please complete your Startup Profile first before filling out the Information Sheet.');
-        abort_if($sheet->approval_status === 'Approved', 403, 'This Information Sheet is approved and locked. Contact your Coordinator for changes.');
-        abort_if($startup->evaluationDayLockActive(), 403, 'This Information Sheet is locked for today - your evaluation is scheduled today. It reopens tomorrow if the evaluation does not push through.');
 
         // The Information Sheet page submits every section (this main form,
         // every Core Team row, every Incubation/L&D/Reference row) as its own
@@ -61,7 +61,7 @@ class InformationSheetController extends Controller
         // fires every request in "dry run" mode (validation only, nothing
         // persisted) and only re-fires for real once every section comes
         // back clean. _dry_run short-circuits here, after the request's own
-        // validation and lock checks above have already run, so a locked
+        // authorization and validation above have already run, so a locked
         // sheet or an invalid field still fails the dry run exactly like a
         // real save would.
         if ($request->boolean('_dry_run')) {

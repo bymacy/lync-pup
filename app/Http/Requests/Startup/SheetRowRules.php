@@ -66,10 +66,59 @@ trait SheetRowRules
         return ['required', 'string', 'max:20', 'regex:/^(n\/a|\d+(\.\d+)?)$/i'];
     }
 
-    /** Same PH mobile shape the founder's own contact number uses. */
+    /**
+     * A Philippine mobile number in exactly one of two shapes - 09XXXXXXXXX
+     * or +639XXXXXXXXX - digits only, no spaces, dashes or any other
+     * punctuation. Stricter than the founder's own mobile_no field on the
+     * Information Sheet itself, which still tolerates spacing.
+     */
     protected function rowPhone(): array
     {
-        return ['required', 'string', 'max:20', 'regex:/^(\+63|0)9\d{2}[ -]?\d{3}[ -]?\d{4}$/'];
+        return ['required', 'string', 'max:13', 'regex:/^(?:09\d{9}|\+639\d{9})$/'];
+    }
+
+    /**
+     * Fails only on the literal answer "N/A" (any case, surrounding
+     * whitespace trimmed). A few of the shapes below - rowDesignation and
+     * rowAddress - allow a forward slash for genuine reasons ("Marketing /
+     * Sales Lead", "123 Rizal St. / Unit 4"), which means their character
+     * class alone can't tell a real slash from the one in "N/A": both are
+     * just letters plus an allowed slash to the regex. This closure is the
+     * explicit backstop those two rules append themselves - see each one's
+     * own doc comment.
+     */
+    protected function notNA(): \Closure
+    {
+        return function ($attribute, $value, $fail) {
+            if (is_string($value) && strcasecmp(trim($value), 'N/A') === 0) {
+                $fail('N/A is not accepted here.');
+            }
+        };
+    }
+
+    /**
+     * A single "contains a letter" check still lets something like
+     * "1234567890a" through - one letter tacked onto a run of digits long
+     * enough to clear a min: length. Real prose is made mostly of letters,
+     * with a digit here and there (a unit number, a year) rather than the
+     * other way around, so this fails whenever digits actually outnumber
+     * letters - "123 Rizal St." (3 digits, 10 letters) passes; "1234567890a"
+     * or a bare phone number typed into a name/address field does not.
+     */
+    protected function meaningfulText(string $message): \Closure
+    {
+        return function ($attribute, $value, $fail) use ($message) {
+            if (! is_string($value)) {
+                return;
+            }
+
+            $letters = preg_match_all('/\p{L}/u', $value);
+            $digits = preg_match_all('/\p{N}/u', $value);
+
+            if ($letters === 0 || $digits > $letters) {
+                $fail($message);
+            }
+        };
     }
 
     /**
@@ -106,22 +155,48 @@ trait SheetRowRules
         return ['required', 'string', 'max:'.$max, 'regex:/^'.$part.'(?:,\s*'.$part.'){1,3}$/iu'];
     }
 
-    /** A job title or role: letters, numbers, spaces, and . - / & - no N/A. */
+    /**
+     * A job title or role: letters, numbers, spaces, and . - / & - no N/A.
+     * The slash is allowed for real designations ("Marketing / Sales
+     * Lead"), so notNA() is appended to actually catch the literal "N/A"
+     * that character class alone would otherwise let through.
+     */
     protected function rowDesignation(int $max): array
     {
-        return ['required', 'string', 'max:'.$max, 'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\&]*$/iu'];
+        return [
+            'required', 'string', 'max:'.$max, 'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\-\/\&]*$/iu',
+            $this->notNA(),
+            $this->meaningfulText('Enter a real designation, not just numbers.'),
+        ];
     }
 
-    /** A real address: letters, numbers, spaces, and , . - # / - no N/A. */
+    /**
+     * A real address: letters, numbers, spaces, and , . - # / - no N/A.
+     * Same slash caveat as rowDesignation() above - notNA() is what
+     * actually blocks the literal "N/A".
+     */
     protected function rowAddress(int $max): array
     {
-        return ['required', 'string', 'max:'.$max, 'regex:/^[\p{L}\p{N}\#][\p{L}\p{N}\s\.\,\-\#\/]*$/iu'];
+        // A real address is never this short - min:10 matches the same
+        // floor the founder's own residential/permanent address already
+        // uses on the main sheet. meaningfulText() catches what min: alone
+        // can't: a run of digits long enough to clear that floor on its own.
+        return [
+            'required', 'string', 'max:'.$max, 'min:10',
+            'regex:/^[\p{L}\p{N}\#][\p{L}\p{N}\s\.\,\-\#\/]*$/iu',
+            $this->notNA(),
+            $this->meaningfulText('Please enter a real address, not just numbers.'),
+        ];
     }
 
-    /** A citizenship/nationality: letters, spaces, and . - ' only - no N/A. */
+    /**
+     * A citizenship/nationality: letters, spaces, and . - ' only - no N/A.
+     * min:3 blocks a stray single letter ("r") from passing as one -
+     * no real demonym in common use is shorter than that.
+     */
     protected function rowCitizenship(int $max): array
     {
-        return ['required', 'string', 'max:'.$max, 'regex:/^[\p{L}][\p{L}\s\.\-\x{2019}\']*$/iu'];
+        return ['required', 'string', 'max:'.$max, 'min:3', 'regex:/^[\p{L}][\p{L}\s\.\-\x{2019}\']*$/iu'];
     }
 
     /**

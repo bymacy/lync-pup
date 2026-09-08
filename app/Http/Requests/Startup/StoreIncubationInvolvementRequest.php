@@ -25,17 +25,15 @@ class StoreIncubationInvolvementRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Letters, numbers, spaces, and . , - / & ( ) - and it has to
-            // contain an actual letter, so "1234" or a run of punctuation
-            // can't pass as an organization name.
+            // Letters, numbers, spaces, and . , - / & ( ) - and letters
+            // have to actually outnumber digits (meaningfulText()), so
+            // neither "1234" nor "1234567890a" can pass as an organization
+            // name. min:10 on top of that: a combined name-and-address is
+            // never genuinely this short.
             'organization_name_address' => [
-                'required', 'string', 'max:255',
+                'required', 'string', 'max:255', 'min:10',
                 'regex:/^[\p{L}\p{N}][\p{L}\p{N}\s\.\,\-\/\&\(\)]*$/iu',
-                function ($attribute, $value, $fail) {
-                    if (is_string($value) && ! preg_match('/\p{L}/u', $value)) {
-                        $fail('Please enter a valid organization name and address.');
-                    }
-                },
+                $this->meaningfulText('Please enter a valid organization name and address.'),
             ],
             'date_from' => ['required', 'date', 'after:1900-01-01'],
             'date_to' => ['required', 'date', 'after_or_equal:date_from'],
@@ -44,16 +42,13 @@ class StoreIncubationInvolvementRequest extends FormRequest
             // always has to report a real figure.
             'number_of_hours' => ['required', 'integer', 'min:1'],
             // Free-form description - only markup characters are blocked,
-            // same as the sheet's other prose fields - but it still has to
-            // contain an actual letter, not just symbols.
+            // same as the sheet's other prose fields - but letters still
+            // have to outnumber digits (meaningfulText()), and min:5 rules
+            // out a short junk answer like "h1" on its own.
             'incubation_program_focus' => [
-                'required', 'string', 'max:255',
+                'required', 'string', 'max:255', 'min:5',
                 'regex:/^[^<>{}|\\^~]*$/u',
-                function ($attribute, $value, $fail) {
-                    if (is_string($value) && ! preg_match('/\p{L}/u', $value)) {
-                        $fail('Please enter a valid incubation program or focus.');
-                    }
-                },
+                $this->meaningfulText('Please enter a valid incubation program or focus.'),
             ],
         ];
     }
@@ -63,6 +58,7 @@ class StoreIncubationInvolvementRequest extends FormRequest
         return $this->rowMessages([
             'organization_name_address.required' => 'Please enter the organization name and address.',
             'organization_name_address.regex' => 'Please enter a valid organization name and address.',
+            'organization_name_address.min' => 'Please enter the complete organization name and address.',
             'date_from.required' => 'Please enter the start date.',
             'date_from.date' => 'Please enter a valid start date.',
             'date_from.after' => 'Please enter a valid start date.',
@@ -74,6 +70,7 @@ class StoreIncubationInvolvementRequest extends FormRequest
             'number_of_hours.min' => 'Hours must be greater than 0.',
             'incubation_program_focus.required' => 'Please enter the incubation program or focus.',
             'incubation_program_focus.regex' => 'Please enter a valid incubation program or focus.',
+            'incubation_program_focus.min' => 'Please enter a valid incubation program or focus.',
             // Catch-all for this row, replacing SheetRowRules' generic
             // "Type N/A if it does not apply" fallback - nothing in this
             // row accepts N/A, so that wording never applies here.
