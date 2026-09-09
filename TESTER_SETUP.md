@@ -71,25 +71,20 @@ php artisan storage:link
 
 Easy to forget, and the symptom is usually "images/downloads are broken" everywhere.
 
-## 6. Word document templates (not in git)
+## 6. Word document templates
 
 The Word/PDF export feature (`WordDocumentExporter`) fills real `.docx`
-master templates that live in `storage/app/templates/`. That folder is
-gitignored (`storage/app/.gitignore` blocks everything under
-`storage/app/` except `private/` and `public/`), so a fresh clone has an
-**empty** `templates/` folder and every export will fail until you add
-these files yourself.
+master templates that live in `resources/document-templates/` and are
+committed to git — a fresh clone gets them automatically, no manual step
+needed.
 
-Grab **`word-templates.zip`** (all 13 files bundled) from the team drive:
+(This used to live in `storage/app/templates/`, which is gitignored, so
+every fresh clone needed someone to manually pass around a
+`word-templates.zip`. Moved to `resources/` — which git does track — so
+that workaround is no longer necessary.)
 
-> **Link: `<TODO - paste the shared Drive/Slack link here>`**
->
-> (Macy: upload `word-templates.zip` — already sitting in `storage/app/`
-> on your machine, gitignored so it won't show up in `git status` — to
-> wherever the team keeps shared files, then replace the line above with
-> the real link.)
-
-Unzip it into `storage/app/templates/`, keeping the exact filenames:
+The 13 files, matched exactly by name in `TEMPLATES` in
+`app/Services/Exports/WordDocumentExporter.php` — don't rename them:
 
 - `startup-information-sheet-template.docx`
 - `startup-tech-assessment-trl-template.docx`
@@ -104,9 +99,6 @@ Unzip it into `storage/app/templates/`, keeping the exact filenames:
 - `doc7-weekly-checkins-template.docx`
 - `doc8-prototype-validation-template.docx`
 - `doc13-venture-exit-template.docx`
-
-The code matches filenames exactly (see `TEMPLATES` in
-`app/Services/Exports/WordDocumentExporter.php`), so don't rename them.
 
 No LibreOffice install needed — there's a `convertToPdf()` method that
 shells out to LibreOffice, but it's currently unused (disabled after
@@ -144,7 +136,7 @@ Register a new Founder account through the app using any real email address you 
 - Forgot to `cp .env.example .env` at all → app won't boot, or uses stale settings.
 - Copied `.env.example` but never edited the DB values → migrations fail.
 - Skipped `php artisan storage:link` → uploaded/exported files 404 or show as broken images.
-- Didn't copy the Word templates into `storage/app/templates/` (see step 6) → document exports fail or error out.
+- Document exports fail or error out → check `resources/document-templates/` actually has all 13 `.docx` files (see step 6); if it's empty something went wrong with the clone.
 - Skipped `php artisan key:generate` → "no application encryption key has been specified" error.
 - MySQL not actually running, or `lync` database doesn't exist yet → migration errors on step 4.
 - Verification email doesn't arrive at all (not even spam) → the shared sending account may have been flagged/locked by Google; let Argee know so it can be reset.

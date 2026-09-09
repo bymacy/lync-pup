@@ -64,7 +64,10 @@ class WordDocumentExporter
     {
         $sheet = $startup->informationSheet;
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[1]);
+        // Tracked in git under resources/document-templates/ (unlike
+        // storage/app, resources/ isn't gitignored) so these masters ship
+        // with every clone instead of needing a manual out-of-band copy.
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[1]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
@@ -216,7 +219,7 @@ class WordDocumentExporter
 
     /**
      * Document 2: Pre-Assessment TRL ("Technology Assessment Form"). Same
-     * real-master approach as renderDocument1() - storage/app/templates/
+     * real-master approach as renderDocument1() - resources/document-templates/
      * startup-tech-assessment-trl-template.docx has every fillable value
      * replaced by a "${placeholder}" tag, including the checkbox glyphs
      * (each one individually wrapped in its own structured document tag in
@@ -244,7 +247,7 @@ class WordDocumentExporter
         $overview = $assessment?->trl_overview ?? [];
         $progress = $assessment?->progressFor('TRL') ?? [];
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[2]);
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[2]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
@@ -395,7 +398,7 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('MRL') ?? [];
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[3]);
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[3]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
@@ -459,7 +462,7 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('TMRL') ?? [];
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[4]);
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[4]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
@@ -524,7 +527,7 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('SRL') ?? [];
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[5]);
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[5]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
@@ -588,7 +591,7 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('TRL') ?? [];
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[9]);
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[9]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
@@ -652,7 +655,7 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('MRL') ?? [];
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[10]);
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[10]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
@@ -711,7 +714,7 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('TMRL') ?? [];
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[11]);
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[11]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
@@ -770,7 +773,7 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('SRL') ?? [];
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[12]);
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[12]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
@@ -857,7 +860,7 @@ class WordDocumentExporter
 
         $data = $document?->data ?? [];
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[6]);
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[6]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
@@ -940,7 +943,7 @@ class WordDocumentExporter
 
         $data = $document?->data ?? [];
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[7]);
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[7]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
@@ -1003,7 +1006,7 @@ class WordDocumentExporter
 
         $data = $document?->data ?? [];
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[8]);
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[8]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
@@ -1086,7 +1089,7 @@ class WordDocumentExporter
 
         $data = $document?->data ?? [];
 
-        $templatePath = storage_path('app/templates/'.self::TEMPLATES[13]);
+        $templatePath = resource_path('document-templates/'.self::TEMPLATES[13]);
         $processor = new TemplateProcessor($templatePath);
 
         $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
