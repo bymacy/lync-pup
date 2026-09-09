@@ -48,9 +48,17 @@ $iconMarkup = $icons[$startup->startup_id % count($icons)];
 $iconTone = $bgClass === 'bg-gray-100' ? 'text-blue-600' : 'text-white';
 
 $hasSecondAction = in_array($startup->status, ['Assign Coordinator', 'Pending']);
+
+// Drives which 3-dot menu items show — a startup with no coordinator yet
+// already has the big "Assign Coordinator" button below for that job, so
+// the menu itself only offers Delete until one exists.
+$hasCoordinator = (bool) $startup->activeCoordinatorAssignment;
 @endphp
 
-<div class="flex w-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow duration-150 hover:shadow-md">
+<div
+    x-data="{ menuOpen: false, confirmingDelete: false, deleting: false }"
+    @click.outside="menuOpen = false"
+    class="relative flex w-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow duration-150 hover:shadow-md">
 
     {{-- Banner --}}
     <div class="{{ $bgClass }} relative h-28 overflow-hidden">
@@ -80,9 +88,43 @@ $hasSecondAction = in_array($startup->status, ['Assign Coordinator', 'Pending'])
 
     {{-- Body --}}
     <div class="flex flex-1 flex-col gap-2 p-3.5">
-        <div>
-            <p class="text-sm font-bold leading-snug text-gray-900">{{ $startup->company_name }}</p>
-            <p class="text-[11px] text-gray-500">{{ $startup->industry_sector }} &middot; Cohort {{ $startup->cohort_number }}</p>
+        <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+                <p class="text-sm font-bold leading-snug text-gray-900">{{ $startup->company_name }}</p>
+                <p class="text-[11px] text-gray-500">{{ $startup->industry_sector }} &middot; Cohort {{ $startup->cohort_number }}</p>
+            </div>
+
+            <div class="relative shrink-0">
+                <button type="button" @click="menuOpen = !menuOpen"
+                    class="flex h-6 w-6 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                    aria-label="Startup actions">
+                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 4a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
+                    </svg>
+                </button>
+
+                <div x-show="menuOpen" x-cloak x-transition
+                    class="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl"
+                    style="display: none;">
+                    @if ($hasCoordinator)
+                    <button type="button"
+                        @click="menuOpen = false; $dispatch('open-coordinator-modal-{{ $startup->startup_id }}')"
+                        class="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-semibold text-gray-800 transition hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Edit Coordinator
+                    </button>
+                    @endif
+                    <button type="button" @click="menuOpen = false; confirmingDelete = true"
+                        class="flex w-full items-center gap-2.5 border-t border-gray-100 px-4 py-2.5 text-left text-sm font-semibold text-rose-800 transition hover:border-transparent hover:bg-gradient-to-r hover:from-[#6D0D23] hover:to-[#11386A] hover:text-white">
+                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0-1 12a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7h12z" />
+                        </svg>
+                        Delete Startup
+                    </button>
+                </div>
+            </div>
         </div>
 
         <p class="min-h-[1.75rem] flex-1 text-[11px] leading-relaxed text-gray-500 line-clamp-2">
@@ -134,6 +176,86 @@ $hasSecondAction = in_array($startup->status, ['Assign Coordinator', 'Pending'])
                 View Information Sheet
             </a>
             @endif
+        </div>
+    </div>
+
+    @if ($hasCoordinator)
+    {{-- Own isolated x-data scope (see the component itself) — opened
+         externally by the 3-dot menu's "Edit Coordinator" button above via
+         a namespaced window event, since it has no room for its own
+         inline trigger on a card this size. --}}
+    <x-coordinator-assign-modal :startup="$startup" :hide-trigger="true" />
+    @endif
+
+    {{-- ============ DELETE STARTUP MODAL ============ --}}
+    <div x-show="confirmingDelete" x-cloak x-data="{ reason: '', confirmText: '' }"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="display: none;"
+        @click.self="confirmingDelete = false">
+        <div class="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl">
+            <div class="flex items-center justify-between bg-gradient-to-r from-[#6D0D23] to-[#11386A] px-6 py-5 text-white">
+                <div class="flex items-center gap-3">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20H4a2 2 0 01-2-2V6a2 2 0 012-2h5l2 2h9a2 2 0 012 2v10a2 2 0 01-2 2h-1" />
+                    </svg>
+                    <h3 class="text-base font-bold">Delete Startup</h3>
+                </div>
+                <button type="button" @click="confirmingDelete = false"
+                    class="flex h-6 w-6 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23]"
+                    aria-label="Close">
+                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <form method="POST" action="{{ route('admin.startups.destroy', $startup) }}" class="px-6 pb-6 pt-5"
+                @submit="deleting = true">
+                @csrf
+                @method('DELETE')
+                <input type="hidden" name="tab" value="{{ request()->query('tab') }}">
+
+                <div class="mb-4 flex justify-center">
+                    <div class="flex h-14 w-14 items-center justify-center rounded-full bg-rose-50">
+                        <svg class="h-7 w-7 text-rose-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007M10.29 3.86 1.82 18a1.5 1.5 0 001.28 2.25h17.8a1.5 1.5 0 001.28-2.25L13.71 3.86a1.5 1.5 0 00-2.42 0Z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <p class="text-center text-lg font-bold text-gray-900">Delete Startup Account</p>
+                <p class="mt-1 text-center text-sm text-gray-500">
+                    Are you sure you want to delete this startup?<br>This action is permanent and cannot be undone.
+                </p>
+
+                <p class="mt-4 text-sm font-semibold text-gray-700">Startup:</p>
+                <p class="text-base font-bold text-gray-900">{{ $startup->company_name }}</p>
+
+                <label class="mt-4 block text-sm font-medium text-gray-700 mb-1">
+                    Reason for Deletion <span class="text-red-600">*</span>
+                </label>
+                <input type="text" name="reason" x-model="reason" required placeholder="Enter reason here"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                @error('reason') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+
+                <label class="mt-4 block text-sm font-medium text-gray-700 mb-1">
+                    Type <span class="font-bold text-rose-800">DELETE</span> to confirm
+                </label>
+                <input type="text" name="confirm" x-model="confirmText" required placeholder="DELETE"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                @error('confirm') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+
+                <div class="mt-5 flex gap-3">
+                    <button type="button" @click="confirmingDelete = false" :disabled="deleting"
+                        class="flex-1 rounded-lg border border-gray-300 bg-white py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50">
+                        Cancel
+                    </button>
+                    <button type="submit" :disabled="deleting || confirmText !== 'DELETE'"
+                        class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-sm font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-40">
+                        <span x-show="!deleting">Confirm Deletion</span>
+                        <span x-show="deleting">Processing…</span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

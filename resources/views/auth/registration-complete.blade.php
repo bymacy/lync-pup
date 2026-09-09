@@ -33,34 +33,34 @@
                 </div>
             </div>
 
-            <h1 class="text-2xl font-bold text-center text-gray-900 mb-2">Account created!</h1>
+            <h1 class="text-2xl font-bold text-center text-gray-900 mb-2">Your account is now activated!</h1>
             <p class="text-center text-gray-600 mb-8">
-                Your Founder account has been<br>successfully verified and registered.
+                Your email has been verified and your startup account is now open. You can start completing your startup profile and move forward with the incubation process.
             </p>
 
             <div class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-8">
-                <p class="font-semibold text-gray-900 mb-3">What's next?</p>
-                <ul class="space-y-2 text-sm text-gray-700">
-                    <li class="flex items-center gap-2">
-                        <svg class="w-4 h-4 shrink-0 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <circle cx="12" cy="12" r="9" />
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4" />
-                        </svg>
-                        Our team will review your account.
+                <p class="font-semibold text-gray-900 mb-4">What's next?</p>
+                <ul class="space-y-4">
+                    <li class="flex items-start gap-3">
+                        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rose-900 text-white text-sm font-semibold">1</span>
+                        <div>
+                            <p class="font-semibold text-gray-900 text-sm">Complete Your Profile</p>
+                            <p class="text-sm text-gray-600">Go to Startup Profile Tab and fill in your startup's details and team information.</p>
+                        </div>
                     </li>
-                    <li class="flex items-center gap-2">
-                        <svg class="w-4 h-4 shrink-0 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <circle cx="12" cy="12" r="9" />
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4" />
-                        </svg>
-                        You will be notified once approved.
+                    <li class="flex items-start gap-3">
+                        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rose-900 text-white text-sm font-semibold">2</span>
+                        <div>
+                            <p class="font-semibold text-gray-900 text-sm">Fill Out the Information Sheet</p>
+                            <p class="text-sm text-gray-600">Provide the required startup information and add your supporting documents in the Information Sheet Tab.</p>
+                        </div>
                     </li>
-                    <li class="flex items-center gap-2">
-                        <svg class="w-4 h-4 shrink-0 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <circle cx="12" cy="12" r="9" />
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4" />
-                        </svg>
-                        Sign in after approval.
+                    <li class="flex items-start gap-3">
+                        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rose-900 text-white text-sm font-semibold">3</span>
+                        <div>
+                            <p class="font-semibold text-gray-900 text-sm">Wait for Evaluation Schedule</p>
+                            <p class="text-sm text-gray-600">Once all required fields are completed, admin will schedule your startup for evaluation.</p>
+                        </div>
                     </li>
                 </ul>
             </div>

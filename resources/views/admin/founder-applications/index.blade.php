@@ -1,4 +1,4 @@
-<x-layouts.admin title="Founder Application">
+<x-layouts.admin title="Founder Registrations">
 
     @php
         // Same recolorable-icon helper used by the Startup Profile page, so
@@ -25,63 +25,21 @@
         // Whole-number percentage of $total, safe against division by zero.
         $pct = fn ($count, $total) => $total > 0 ? round(($count / $total) * 100) : 0;
 
-        // One definition per card, same shape as the Startup Profile page's
-        // $stats array, so a future layout tweak happens once, not four times.
         $stats = [
-            // 1person.svg is a solo full-bleed silhouette (no badge), unlike the
-            // other three icons where the person only fills their glyph's upper-left
-            // ~65%x85% (the rest is reserved for the status badge). Rendered at the
-            // same box, it looked bigger and lower than the rest. Wrapping it in a
-            // same-size (w-24 h-24) positioning box and shrinking + pinning it to the
-            // top-right makes its person glyph line up with the others' head/shoulder
-            // position instead.
-            ['label' => 'Total Application', 'value' => $totals['total'], 'iconSvg' => '<div class="stat-icon-box-total-app relative w-24 h-24">'.$statIcon('1person.svg', 'stat-icon-total-app absolute top-[2px] right-[8px] w-[88px] h-[88px]').'</div>', 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]', 'breakdown' => $cohortBreakdown],
-            ['label' => 'Pending', 'value' => $totals['pending'], 'iconSvg' => $statIcon('person-loading.svg'), 'border' => 'border-[#FFE2AA]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['pending'], $totals['total']).'% application is under evaluation'],
-            ['label' => 'Approved', 'value' => $totals['approved'], 'iconSvg' => $statIcon('person-check.svg'), 'border' => 'border-[#AAFFBC]', 'bg' => 'bg-[#F2FFF2]', 'note' => $pct($totals['approved'], $totals['total']).'% application approved'],
-            ['label' => 'Rejected', 'value' => $totals['rejected'], 'iconSvg' => $statIcon('person-x.svg'), 'border' => 'border-[#FFD6E1]', 'bg' => 'bg-[#FFF7F7]', 'note' => $pct($totals['rejected'], $totals['total']).'% application rejected'],
+            ['label' => 'Total Sign-Ups', 'value' => $totals['total'], 'iconSvg' => '<div class="stat-icon-box-total-app relative w-24 h-24">'.$statIcon('1person.svg', 'stat-icon-total-app absolute top-[2px] right-[8px] w-[88px] h-[88px]').'</div>', 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]'],
+            ['label' => 'Verified', 'value' => $totals['verified'], 'iconSvg' => $statIcon('person-check.svg'), 'border' => 'border-[#AAFFBC]', 'bg' => 'bg-[#F2FFF2]', 'note' => $pct($totals['verified'], $totals['total']).'% have verified their email'],
+            ['label' => 'Not Verified', 'value' => $totals['unverified'], 'iconSvg' => $statIcon('person-loading.svg'), 'border' => 'border-[#FFE2AA]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['unverified'], $totals['total']).'% still awaiting email verification'],
         ];
     @endphp
 
     <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-bold text-gray-900">Founder Application</h1>
-            <p class="text-gray-500 mt-1">Review and manage founder account applications.</p>
+            <h1 class="text-3xl font-bold text-gray-900">Founder Registrations</h1>
+            <p class="text-gray-500 mt-1">Every founder sign-up so far. Acceptance into the incubation program happens later, from the Assessment Hub, once a startup's evaluation has been held.</p>
         </div>
     </div>
 
-    {{--
-        Phone-width tightening: these 4 stat cards sit 2-up even below the sm
-        breakpoint (same treatment as the Dashboard's stat cards and readiness
-        boxes), so the large h-24 watermark icon and 4xl absolute number
-        (tuned for a wider layout) need to shrink to fit a narrow column on a
-        phone. Plain scoped CSS rather than Tailwind classes because this
-        app's CSS bundle is pre-compiled and these exact sizes/media queries
-        aren't already present in it.
-    --}}
-    <style>
-        @media (max-width: 639px) {
-            .founder-stat-card { padding: 12px !important; }
-            .founder-stat-card .stat-watermark-lg svg:not(.stat-icon-total-app) { width: 56px !important; height: 56px !important; }
-            .founder-stat-card .stat-icon-box-total-app { width: 56px !important; height: 56px !important; }
-            .founder-stat-card .stat-icon-total-app { width: 51px !important; height: 51px !important; top: 1px !important; right: 5px !important; }
-            .founder-stat-card .stat-text-wrap { padding-right: 44px !important; }
-            .founder-stat-card .stat-value-lg { font-size: 1.35rem !important; }
-        }
-        /* Tablets/foldables (Surface Duo, iPad, Galaxy Fold unfolded, etc.) sit
-           in this range while the grid is still 2-up (matches grid-cols-2's
-           xl:grid-cols-4 switch below) - the full 96px watermark looks
-           oversized against a narrower 2-up column here, so step it down.
-           Total Application's icon is excluded from the plain svg rule and
-           scaled via its own box/offset rule instead (see above comment on
-           the markup) so it doesn't drift out of position. */
-        @media (min-width: 640px) and (max-width: 1279px) {
-            .founder-stat-card .stat-watermark-lg svg:not(.stat-icon-total-app) { width: 72px !important; height: 72px !important; }
-            .founder-stat-card .stat-icon-box-total-app { width: 72px !important; height: 72px !important; }
-            .founder-stat-card .stat-icon-total-app { width: 66px !important; height: 66px !important; top: 2px !important; right: 6px !important; }
-        }
-    </style>
-
-    <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-8">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
         @foreach ($stats as $stat)
             {{-- relative + overflow-hidden let the silhouette bleed off the card
                  edge without spilling into the grid gap. --}}
@@ -89,7 +47,7 @@
 
                 {{-- Watermark. aria-hidden because it carries no meaning — the label and
                      number already say everything. black/10 rather than a tinted color so
-                     the same value reads correctly on all four card backgrounds. --}}
+                     the same value reads correctly on all three card backgrounds. --}}
                 <span aria-hidden="true" class="stat-watermark-lg pointer-events-none absolute bottom-0 right-0 text-black/10">
                     {!! $stat['iconSvg'] !!}
                 </span>
@@ -97,20 +55,7 @@
                 {{-- relative lifts the text above the watermark without needing z-index
                      on the watermark itself. --}}
                 <div class="relative h-full">
-                    @if (! empty($stat['breakdown']) && $stat['breakdown']->isNotEmpty())
-                        <div class="stat-text-wrap" style="padding-right: 70px;">
-                            <p class="text-gray-600 text-sm font-semibold">{{ $stat['label'] }}</p>
-                            <div class="mt-1.5 space-y-0.5">
-                                @foreach ($stat['breakdown'] as $b)
-                                    <p class="text-sm leading-tight">
-                                        <span class="font-semibold text-[#6D0D23] inline-block text-right" style="min-width: 26px;">{{ $b['count'] }}</span>
-                                        <span class="text-gray-500">&middot; {{ $b['label'] }}</span>
-                                    </p>
-                                @endforeach
-                            </div>
-                        </div>
-                        <p class="stat-value-lg absolute text-4xl font-bold" style="top: 50%; right: 0; transform: translateY(-50%);">{{ $stat['value'] }}</p>
-                    @elseif (! empty($stat['note']))
+                    @if (! empty($stat['note']))
                         <div class="stat-text-wrap" style="padding-right: 70px;">
                             <p class="text-gray-600 text-sm font-semibold">{{ $stat['label'] }}</p>
                             <p class="text-sm text-[#6D0D23] mt-1 leading-snug">{{ $stat['note'] }}</p>
@@ -129,8 +74,8 @@
 
     <div class="border-b border-gray-300 mb-6">
         <nav class="flex overflow-x-auto overflow-y-hidden whitespace-nowrap">
-            @foreach (['all' => 'All', 'pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $key => $label)
-                <a href="{{ route('admin.founder-applications.index', ['tab' => $key, 'per_page' => $perPage, 'cohort' => $selectedCohortId]) }}"
+            @foreach (['all' => 'All', 'verified' => 'Verified', 'unverified' => 'Not Verified'] as $key => $label)
+                <a href="{{ route('admin.founder-applications.index', ['tab' => $key, 'per_page' => $perPage]) }}"
                     class="px-6 sm:px-10 lg:px-16 py-3 text-sm font-medium border-b-2 -mb-px transition-colors duration-200
                         {{ $activeTab === $key ? 'border-[#6D0D23] text-[#6D0D23]' : 'border-transparent text-gray-700 hover:text-[#6D0D23]' }}">
                     {{ $label }}
@@ -144,28 +89,19 @@
         <table class="w-full text-sm">
             <thead>
                 <tr class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-center">
-                    @if ($activeTab === 'pending')
-                        <th class="px-4 py-3 font-semibold">#</th>
-                    @endif
                     <th class="px-4 py-3 font-semibold text-left" style="padding-left: 24px;">Applicant</th>
                     <th class="px-4 py-3 font-semibold">Startup Name</th>
                     <th class="px-4 py-3 font-semibold">Email</th>
-                    <th class="px-4 py-3 font-semibold">Date Applied</th>
-                    @if ($activeTab === 'approved')
-                        <th class="px-4 py-3 font-semibold">Date Approved</th>
-                    @elseif ($activeTab === 'rejected')
-                        <th class="px-4 py-3 font-semibold">Date Rejected</th>
-                    @elseif ($activeTab === 'all')
-                        <th class="px-4 py-3 font-semibold">Status</th>
-                    @endif
+                    <th class="px-4 py-3 font-semibold">Date Signed Up</th>
+                    <th class="px-4 py-3 font-semibold">Verified</th>
                     <th class="px-4 py-3 font-semibold">Action</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
-                @forelse ($applications as $i => $application)
+                @forelse ($applications as $application)
                     @php
                         $founder = $application->user;
-                        $isPending = $founder->isPendingApproval();
+                        $isUnverified = ! $founder->hasVerifiedEmail();
 
                         // Renders one of the bundled icon files as an inline,
                         // recolorable SVG (fill/stroke swapped to currentColor)
@@ -195,247 +131,53 @@
                             return $svg;
                         };
                     @endphp
-                    <tr x-data="{
-                            step: null,
-                            remarks: @js($application->admin_remarks ?? ''),
-                            reason: '',
-                            cohortId: '',
-                            coordinatorId: '{{ optional($application->activeCoordinatorAssignment)->coordinator_id }}',
-                            submitting: false,
-                        }">
-                        @if ($activeTab === 'pending')
-                            <td class="px-4 py-3 text-gray-500 text-center">{{ $applications->firstItem() + $i }}</td>
-                        @endif
+                    <tr x-data="{ step: null, submitting: false }">
                         <td class="px-4 py-3 font-medium text-gray-900 text-left" style="padding-left: 24px;">{{ $founder->name }}</td>
                         <td class="px-4 py-3 text-gray-600 text-center">{{ $application->company_name }}</td>
                         <td class="px-4 py-3 text-gray-600 text-center">{{ $founder->email }}</td>
                         <td class="px-4 py-3 text-gray-600 text-center">{{ $founder->created_at->format('M j, Y g:i A') }}</td>
-
-                        @if ($activeTab === 'approved')
-                            <td class="px-4 py-3 text-gray-600 text-center">{{ optional($application->application_decided_at)->format('M j, Y g:i A') ?? '—' }}</td>
-                        @elseif ($activeTab === 'rejected')
-                            <td class="px-4 py-3 text-gray-600 text-center">{{ optional($application->application_decided_at)->format('M j, Y g:i A') ?? '—' }}</td>
-                        @elseif ($activeTab === 'all')
-                            <td class="px-4 py-3 text-center">
-                                @php
-                                    $badge = match ($founder->account_status) {
-                                        'Active' => ['Approved', 'border-green-300 text-green-800'],
-                                        'Rejected' => ['Rejected', 'border-red-300 text-red-800'],
-                                        default => ['Pending', 'border-amber-300 text-amber-800'],
-                                    };
-                                @endphp
-                                <span class="rounded-full border px-2.5 py-1 text-[11px] font-semibold {{ $badge[1] }}">{{ $badge[0] }}</span>
-                            </td>
-                        @endif
+                        <td class="px-4 py-3 text-center">
+                            @if ($founder->hasVerifiedEmail())
+                                <span class="rounded-full border border-green-300 text-green-800 px-2.5 py-1 text-[11px] font-semibold">Verified</span>
+                            @else
+                                <span class="rounded-full border border-amber-300 text-amber-800 px-2.5 py-1 text-[11px] font-semibold">Not Verified</span>
+                            @endif
+                        </td>
 
                         <td class="px-4 py-3">
-                            @if ($isPending)
-                                <div class="flex items-center justify-center gap-2">
-                                    <button type="button" @click="step = 'review'"
-                                        class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white text-xs font-semibold rounded-lg px-4 py-2 hover:opacity-90 transition">
-                                        Review
-                                    </button>
-                                    <button type="button" @click="step = 'delete'" title="Delete application"
+                            <div class="flex items-center justify-center gap-2">
+                                <button type="button" @click="step = 'view'"
+                                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md border border-[#6D0D23] px-4 py-1 text-sm font-semibold text-[#6D0D23] transition hover:bg-[#6D0D23]/5">
+                                    View
+                                </button>
+                                @if ($isUnverified)
+                                    <button type="button" @click="step = 'delete'" title="Delete signup"
                                         class="border border-gray-300 text-gray-500 hover:text-red-700 hover:border-red-300 rounded-lg p-2 transition">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0-1 12a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7h12z" />
                                         </svg>
                                     </button>
-                                </div>
-                            @else
-                                <div class="flex items-center justify-center">
-                                    <button type="button" @click="step = 'view'"
-                                        class="inline-flex items-center justify-center whitespace-nowrap rounded-md border border-[#6D0D23] px-4 py-1 text-sm font-semibold text-[#6D0D23] transition hover:bg-[#6D0D23]/5">
-                                        View
-                                    </button>
-                                </div>
-                            @endif
+                                @endif
+                            </div>
 
                             {{-- Modals live inside this same <td> (not as siblings of it) —
                                  a <tr> may only contain <td>/<th> elements per the HTML spec,
                                  so any <div> placed directly under <tr> gets silently "foster
                                  parented" out in front of the whole <table> by the browser,
-                                 disconnecting it from this row's Alpine x-data scope. --}}
-                            @if ($isPending)
-                                {{-- ============ REVIEW MODAL ============ --}}
-                            <div x-show="step === 'review'" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style="display: none;">
-                                <div class="relative bg-white rounded-xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col" @click.outside="step = null">
-                                    <div class="bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between flex-shrink-0">
-                                        <h3 class="font-bold">Review Founder Application</h3>
-                                        <button type="button" @click="step = null" class="text-white/80 hover:text-white text-xl leading-none">&times;</button>
-                                    </div>
+                                 disconnecting it from this row's Alpine x-data scope.
 
-                                    <div class="p-6 overflow-y-auto space-y-6">
-                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div class="border border-gray-200 rounded-lg p-4">
-                                                <h4 class="font-bold text-sm text-gray-900 mb-3">Applicant Information</h4>
-                                                <dl class="space-y-2 text-sm">
-                                                    <div><dt class="text-gray-500 text-xs">Full Name</dt><dd class="font-medium">{{ $founder->name }}</dd></div>
-                                                    <div><dt class="text-gray-500 text-xs">Email</dt><dd class="font-medium">{{ $founder->email }}</dd></div>
-                                                    <div><dt class="text-gray-500 text-xs">Startup</dt><dd class="font-medium">{{ $application->company_name }}</dd></div>
-                                                </dl>
-                                            </div>
-                                            <div class="border border-gray-200 rounded-lg p-4">
-                                                <h4 class="font-bold text-sm text-gray-900 mb-3">Account Information</h4>
-                                                <dl class="space-y-2 text-sm">
-                                                    <div class="flex items-center justify-between">
-                                                        <dt class="text-gray-500 text-xs">Email Verified</dt>
-                                                        <dd>
-                                                            @if ($founder->hasVerifiedEmail())
-                                                                <span class="rounded-full border border-green-300 text-green-700 text-[11px] font-semibold px-2 py-0.5">● Verified</span>
-                                                            @else
-                                                                <span class="rounded-full border border-gray-300 text-gray-500 text-[11px] font-semibold px-2 py-0.5">Not Verified</span>
-                                                            @endif
-                                                        </dd>
-                                                    </div>
-                                                    <div><dt class="text-gray-500 text-xs">Date Applied</dt><dd class="font-medium">{{ $founder->created_at->format('M j, Y g:i A') }}</dd></div>
-                                                    <div><dt class="text-gray-500 text-xs">Application ID</dt><dd class="font-medium">{{ $application->application_id }}</dd></div>
-                                                </dl>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <h4 class="font-bold text-sm text-gray-900 mb-2">Status History</h4>
-                                            <x-founder-application-timeline :startup="$application" />
-                                        </div>
-
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Admin Remarks <span class="text-gray-400 font-normal">(Optional)</span></label>
-                                            <textarea x-model="remarks" rows="3" placeholder="Add remarks here..."
-                                                class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex flex-col gap-2 px-6 py-4 border-t border-gray-100 flex-shrink-0">
-                                        @unless ($founder->hasVerifiedEmail())
-                                        <p class="text-center text-xs text-amber-700">This founder hasn't verified their email yet — Approve is disabled until they do.</p>
-                                        @endunless
-                                        <div class="flex gap-3">
-                                            <button type="button" @click="step = null" class="flex-1 border rounded-lg py-2.5 text-sm font-medium text-gray-700">Cancel</button>
-                                            <button type="button" @click="step = 'reject'" class="flex-1 bg-rose-900 hover:bg-rose-950 text-white rounded-lg py-2.5 text-sm font-medium transition">Reject Application</button>
-                                            <button type="button" @click="step = 'approve'" @if (! $founder->hasVerifiedEmail()) disabled title="Email not verified yet" @endif
-                                                class="flex-1 bg-green-700 hover:bg-green-800 text-white rounded-lg py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-green-700">
-                                                Approve Application
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {{-- ============ APPROVE MODAL ============ --}}
-                            <div x-show="step === 'approve'" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style="display: none;">
-                                <div class="relative bg-white rounded-xl w-full max-w-md overflow-hidden" @click.outside="step = 'review'">
-                                    <div class="bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between">
-                                        <h3 class="font-bold">Approve Application</h3>
-                                        <button type="button" @click="step = 'review'" class="text-white/80 hover:text-white text-xl leading-none">&times;</button>
-                                    </div>
-
-                                    <form method="POST" action="{{ route('admin.founder-applications.approve', $application) }}" class="p-6 space-y-4"
-                                        @submit="submitting = true">
-                                        @csrf
-                                        <input type="hidden" name="tab" value="{{ $activeTab }}">
-                                        <input type="hidden" name="per_page" value="{{ $perPage }}">
-                                        <input type="hidden" name="cohort" value="{{ $selectedCohortId }}">
-                                        <input type="hidden" name="admin_remarks" x-bind:value="remarks">
-
-                                        <div class="flex justify-center">
-                                            <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                                                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            </div>
-                                        </div>
-                                        <p class="text-center font-bold text-lg text-gray-900">Approve Founder Application</p>
-                                        <p class="text-center text-sm text-gray-500">Are you sure you want to approve this founder application?</p>
-
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Assign to Cohort <span class="text-red-600">*</span></label>
-                                            <select name="cohort_id" x-model="cohortId" required class="w-full border rounded-lg px-3 py-2 text-sm">
-                                                <option value="">Select cohort</option>
-                                                @foreach ($cohorts as $cohort)
-                                                    <option value="{{ $cohort->cohort_id }}">{{ $cohort->display_label }}</option>
-                                                @endforeach
-                                            </select>
-                                            @error('cohort_id') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-                                        </div>
-
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Assign Portfolio Coordinator <span class="text-gray-400 font-normal">(Optional)</span></label>
-                                            <select name="coordinator_id" x-model="coordinatorId" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                                <option value="">Select coordinator</option>
-                                                @foreach ($coordinators as $coordinator)
-                                                    <option value="{{ $coordinator->coordinator_id }}">{{ $coordinator->display_name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-
-                                        <div class="flex gap-3 pt-2">
-                                            <button type="button" @click="step = 'review'" :disabled="submitting" class="flex-1 border rounded-lg py-2.5 text-sm font-medium text-gray-700 disabled:opacity-50">Cancel</button>
-                                            <button type="submit" :disabled="submitting"
-                                                class="flex-1 bg-green-700 hover:bg-green-800 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg py-2.5 text-sm font-medium transition">
-                                                <span x-show="!submitting">Confirm Approve</span>
-                                                <span x-show="submitting">Processing…</span>
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-
-                            {{-- ============ REJECT MODAL ============ --}}
-                            <div x-show="step === 'reject'" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style="display: none;">
-                                <div class="relative bg-white rounded-xl w-full max-w-md overflow-hidden" @click.outside="step = 'review'">
-                                    <div class="bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between">
-                                        <h3 class="font-bold">Reject Application</h3>
-                                        <button type="button" @click="step = 'review'" class="text-white/80 hover:text-white text-xl leading-none">&times;</button>
-                                    </div>
-
-                                    <form method="POST" action="{{ route('admin.founder-applications.reject', $application) }}" class="p-6 space-y-4"
-                                        @submit="submitting = true">
-                                        @csrf
-                                        <input type="hidden" name="tab" value="{{ $activeTab }}">
-                                        <input type="hidden" name="per_page" value="{{ $perPage }}">
-                                        <input type="hidden" name="cohort" value="{{ $selectedCohortId }}">
-
-                                        <div class="flex justify-center">
-                                            <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-                                                <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
-                                                </svg>
-                                            </div>
-                                        </div>
-                                        <p class="text-center font-bold text-lg text-gray-900">Reject Founder Application</p>
-                                        <p class="text-center text-sm text-gray-500">Are you sure you want to reject this application?<br>This applicant will be notified about your decision.</p>
-
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Reason for Rejection <span class="text-red-600">*</span></label>
-                                            <input type="text" name="rejection_reason" x-model="reason" required placeholder="Enter reason here"
-                                                class="w-full border rounded-lg px-3 py-2 text-sm">
-                                            @error('rejection_reason') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-                                        </div>
-
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Additional Remarks <span class="text-gray-400 font-normal">(Optional)</span></label>
-                                            <textarea name="admin_remarks" x-model="remarks" rows="2" placeholder="Add remarks here"
-                                                class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
-                                        </div>
-
-                                        <div class="flex gap-3 pt-2">
-                                            <button type="button" @click="step = 'review'" :disabled="submitting" class="flex-1 border rounded-lg py-2.5 text-sm font-medium text-gray-700 disabled:opacity-50">Cancel</button>
-                                            <button type="submit" :disabled="submitting"
-                                                class="flex-1 bg-rose-900 hover:bg-rose-950 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg py-2.5 text-sm font-medium transition">
-                                                <span x-show="!submitting">Confirm Rejection</span>
-                                                <span x-show="submitting">Processing…</span>
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-
-                            {{-- ============ DELETE MODAL ============ --}}
+                                 Approve/Reject no longer happen here — accepting a startup
+                                 into the incubation program now happens later, via the
+                                 evaluation Accept/Reject on the Information Sheet (Assessment
+                                 Hub), once an evaluation has actually been held. This page is
+                                 read-only: a list of who's signed up, plus a Delete for
+                                 still-unverified junk/test signups. --}}
+                            @if ($isUnverified)
+                                {{-- ============ DELETE MODAL ============ --}}
                             <div x-show="step === 'delete'" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style="display: none;">
                                 <div class="relative bg-white rounded-xl w-full max-w-md overflow-hidden" @click.outside="step = null">
                                     <div class="bg-gradient-to-r from-rose-950 to-blue-950 text-white px-6 py-4 flex items-center justify-between">
-                                        <h3 class="font-bold">Delete Application</h3>
+                                        <h3 class="font-bold">Delete Signup</h3>
                                         <button type="button" @click="step = null" class="text-white/80 hover:text-white text-xl leading-none">&times;</button>
                                     </div>
 
@@ -445,7 +187,6 @@
                                         @method('DELETE')
                                         <input type="hidden" name="tab" value="{{ $activeTab }}">
                                         <input type="hidden" name="per_page" value="{{ $perPage }}">
-                                        <input type="hidden" name="cohort" value="{{ $selectedCohortId }}">
 
                                         <div class="flex justify-center">
                                             <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
@@ -454,7 +195,7 @@
                                                 </svg>
                                             </div>
                                         </div>
-                                        <p class="text-center font-bold text-lg text-gray-900">Delete this application?</p>
+                                        <p class="text-center font-bold text-lg text-gray-900">Delete this signup?</p>
                                         <p class="text-center text-sm text-gray-500">This permanently removes <strong>{{ $founder->name }}</strong>'s account and startup entry ({{ $application->company_name }}). This can't be undone, and no notification is sent.</p>
 
                                         <div class="flex gap-3 pt-2">
@@ -468,18 +209,19 @@
                                     </form>
                                 </div>
                             </div>
-                        @else
-                            {{-- ============ VIEW MODAL (read-only, decided applications) ============ --}}
+                            @endif
+
+                            {{-- ============ VIEW MODAL (read-only, every row) ============ --}}
                             <div x-show="step === 'view'" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style="display: none;">
-                                <div class="relative bg-white rounded-xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col">
+                                <div class="relative bg-white rounded-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
                                     <div class="bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white px-6 py-4 flex items-center justify-between flex-shrink-0">
                                         <div class="flex items-center gap-3">
                                             <svg class="h-8 w-8 shrink-0 text-white" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fill-rule="evenodd" d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" clip-rule="evenodd" />
                                             </svg>
                                             <div>
-                                                <h3 class="font-bold">Founder Application Details</h3>
-                                                <p class="text-xs text-white/70">View and manage founder application information</p>
+                                                <h3 class="font-bold">Signup Details</h3>
+                                                <p class="text-xs text-white/70">View founder sign-up information</p>
                                             </div>
                                         </div>
                                         <button type="button" @click="step = null"
@@ -541,53 +283,21 @@
                                                     </div>
                                                     <div class="flex items-center gap-3 py-3">
                                                         <span class="text-gray-400">{!! $fieldIcon('cal.svg') !!}</span>
-                                                        <div><dt class="text-gray-500 text-xs">Date Applied</dt><dd class="font-medium">{{ $founder->created_at->format('M j, Y g:i A') }}</dd></div>
+                                                        <div><dt class="text-gray-500 text-xs">Date Signed Up</dt><dd class="font-medium">{{ $founder->created_at->format('M j, Y g:i A') }}</dd></div>
                                                     </div>
-                                                    <div class="flex items-center gap-3 py-3">
-                                                        <span class="text-gray-400">{!! $fieldIcon('assessmentHub.svg') !!}</span>
-                                                        <div><dt class="text-gray-500 text-xs">Application ID</dt><dd class="font-medium">{{ $application->application_id }}</dd></div>
-                                                    </div>
-                                                    @if ($founder->isApprovedAccount())
+                                                    @if ($founder->hasVerifiedEmail())
                                                         <div class="flex items-center gap-3 py-3">
-                                                            <span class="text-gray-400">{!! $fieldIcon('3person.svg') !!}</span>
-                                                            <div><dt class="text-gray-500 text-xs">Cohort</dt><dd class="font-medium">{{ $application->cohort?->display_label ?? ('Cohort '.$application->cohort_number) }}</dd></div>
-                                                        </div>
-                                                        <div class="flex items-center gap-3 py-3">
-                                                            <span class="text-gray-400">{!! $fieldIcon('coordProfile.svg') !!}</span>
-                                                            <div><dt class="text-gray-500 text-xs">Portfolio Coordinator</dt><dd class="font-medium">{{ optional($application->activeCoordinatorAssignment?->coordinator)->display_name ?? '—' }}</dd></div>
+                                                            <span class="text-gray-400">{!! $fieldIcon('check-shield.svg') !!}</span>
+                                                            <div><dt class="text-gray-500 text-xs">Date Verified</dt><dd class="font-medium">{{ $founder->email_verified_at->format('M j, Y g:i A') }}</dd></div>
                                                         </div>
                                                     @endif
+                                                    <div class="flex items-center gap-3 py-3">
+                                                        <span class="text-gray-400">{!! $fieldIcon('assessmentHub.svg') !!}</span>
+                                                        <div><dt class="text-gray-500 text-xs">Signup ID</dt><dd class="font-medium">{{ $application->startup_id }}</dd></div>
+                                                    </div>
                                                 </dl>
                                             </div>
                                         </div>
-
-                                        <div>
-                                            <h4 class="flex items-center gap-2 font-bold text-sm text-gray-900 mb-2">
-                                                <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                                                    <circle cx="10" cy="10" r="7.25" />
-                                                    <path d="M10 6v4l2.5 2.5" />
-                                                </svg>
-                                                Status History
-                                            </h4>
-                                            <x-founder-application-timeline :startup="$application" />
-                                        </div>
-
-                                        @if ($founder->isRejected())
-                                            <div>
-                                                <h4 class="font-bold text-sm text-gray-900 mb-2">Reason for Rejection</h4>
-                                                <div class="border border-gray-200 rounded-lg p-4 text-sm text-gray-700">{{ $application->rejection_reason }}</div>
-                                            </div>
-                                        @endif
-
-                                        @if ($application->admin_remarks)
-                                            <div>
-                                                <h4 class="font-bold text-sm text-gray-900 mb-2">Additional Remarks</h4>
-                                                <div class="border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
-                                                    {{ $application->admin_remarks }}
-                                                    <p class="text-xs text-gray-400 mt-2">{{ optional($application->application_decided_at)->format('M j, Y g:i A') }}</p>
-                                                </div>
-                                            </div>
-                                        @endif
                                     </div>
 
                                     <div class="flex justify-end border-t border-gray-100 px-6 py-4 flex-shrink-0">
@@ -598,12 +308,11 @@
                                     </div>
                                 </div>
                             </div>
-                            @endif
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-10 text-center text-gray-500">No applications found for this filter.</td>
+                        <td colspan="6" class="px-4 py-10 text-center text-gray-500">No sign-ups found for this filter.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -639,7 +348,6 @@
 
                 <form method="GET" class="flex items-center gap-2">
                     <input type="hidden" name="tab" value="{{ $activeTab }}">
-                    <input type="hidden" name="cohort" value="{{ $selectedCohortId }}">
                     <label for="per_page" class="text-xs text-gray-500">Items per page</label>
                     <select id="per_page" name="per_page" onchange="this.form.submit()"
                         class="rounded-md border border-gray-300 py-1 pl-2 pr-6 text-xs text-gray-700">
@@ -652,16 +360,7 @@
         @endif
     </div>
 
-    @if (session('application_result'))
-        @php $result = session('application_result'); @endphp
-        <div
-            x-data
-            x-init="$store.toast.success(
-                @js($result['type'] === 'approved' ? 'Application Approved' : 'Application Processed'),
-                @js($result['type'] === 'approved'
-                    ? 'The founder has been successfully accepted into the cohort, and their welcome notification has been sent.'
-                    : 'The applicant has been moved to the rejected list and notified.')
-            )">
-        </div>
+    @if (session('status'))
+        <div x-data x-init="$store.toast.success('Deleted', @js(session('status')))"></div>
     @endif
 </x-layouts.admin>

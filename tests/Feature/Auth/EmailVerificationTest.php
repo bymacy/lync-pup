@@ -25,7 +25,7 @@ class EmailVerificationTest extends TestCase
 
     public function test_email_can_be_verified(): void
     {
-        $user = User::factory()->unverified()->create();
+        $user = User::factory()->unverified()->create(['account_status' => 'Pending']);
         $user->forceFill(['email_verification_token' => 'test-token'])->save();
 
         Event::fake();
@@ -41,12 +41,16 @@ class EmailVerificationTest extends TestCase
         Event::assertDispatched(Verified::class);
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
 
-        // Unlike Breeze's default (straight into the dashboard), a
-        // self-registered Founder still needs admin approval after
-        // verifying, so VerifyEmailController logs them out and sends them
-        // back to login with that context in a flash message instead.
+        // Email verification is now the only gate on signing in — there's no
+        // separate manual "Founder Application approval" step anymore (see
+        // VerifyEmailController), so the account activates immediately.
+        $this->assertEquals('Active', $user->fresh()->account_status);
+
+        // Unlike Breeze's default (straight into the dashboard), this app
+        // sends a self-registered Founder to a dedicated "Account created!"
+        // page instead — see resources/views/auth/registration-complete.blade.php.
         $this->assertGuest();
-        $response->assertRedirect(route('login', absolute: false));
+        $response->assertRedirect(route('registration.complete', absolute: false));
     }
 
     /**
@@ -158,8 +162,9 @@ class EmailVerificationTest extends TestCase
         $response = $this->get($verificationUrl);
 
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
+        $this->assertEquals('Active', $user->fresh()->account_status);
         $this->assertGuest();
-        $response->assertRedirect(route('login', absolute: false));
+        $response->assertRedirect(route('registration.complete', absolute: false));
     }
 
     /**
@@ -183,7 +188,7 @@ class EmailVerificationTest extends TestCase
 
         $response = $this->actingAs($otherUser)->get($verificationUrl);
 
-        $response->assertRedirect(route('login', absolute: false));
+        $response->assertRedirect(route('registration.complete', absolute: false));
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
         $this->assertFalse($otherUser->fresh()->hasVerifiedEmail());
     }

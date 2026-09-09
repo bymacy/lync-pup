@@ -94,6 +94,8 @@ Route::middleware(['auth', 'role:Admin', 'select-cohort'])->prefix('admin')->nam
         ->name('information-sheet.show');
     Route::patch('startups/{startup}/information-sheet/approve', [InformationSheetController::class, 'approve'])
         ->name('information-sheet.approve');
+    Route::patch('startups/{startup}/information-sheet/reject', [InformationSheetController::class, 'reject'])
+        ->name('information-sheet.reject');
     Route::patch('startups/{startup}/information-sheet', [InformationSheetController::class, 'update'])
         ->name('information-sheet.update');
 
@@ -135,6 +137,8 @@ Route::middleware(['auth', 'role:Admin', 'select-cohort'])->prefix('admin')->nam
 
     Route::post('startups/{startup}/request-pitch-deck', [StartupProfileController::class, 'requestPitchDeck'])
         ->name('startups.request-pitch-deck');
+    Route::delete('startups/{startup}', [StartupProfileController::class, 'destroy'])
+        ->name('startups.destroy');
 
     Route::get('/notifications/{notification}', [\App\Http\Controllers\Admin\NotificationController::class, 'show'])
         ->name('notifications.show');
@@ -163,9 +167,9 @@ Route::middleware(['auth', 'role:Admin', 'select-cohort'])->prefix('admin')->nam
     Route::get('/exports/{savedReport}/download', [ExportController::class, 'download'])->name('exports.download');
     Route::delete('/exports/{savedReport}', [ExportController::class, 'destroy'])->name('exports.destroy');
 
+    // approve/reject routes removed — acceptance now happens later via the
+    // evaluation Accept/Reject on the Information Sheet (Assessment Hub).
     Route::get('/founder-applications', [FounderApplicationController::class, 'index'])->name('founder-applications.index');
-    Route::post('/founder-applications/{startup}/approve', [FounderApplicationController::class, 'approve'])->name('founder-applications.approve');
-    Route::post('/founder-applications/{startup}/reject', [FounderApplicationController::class, 'reject'])->name('founder-applications.reject');
     Route::delete('/founder-applications/{startup}', [FounderApplicationController::class, 'destroy'])->name('founder-applications.destroy');
 
     // No standalone "index" page/route — cohort CRUD is handled entirely

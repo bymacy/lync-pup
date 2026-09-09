@@ -1,4 +1,4 @@
-@props(['startup'])
+@props(['startup', 'hideTrigger' => false])
 
 {{--
     ASSIGN / EDIT PORTFOLIO COORDINATOR
@@ -139,9 +139,20 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
         },
     }"
             x-init="maybeAutoOpen()"
-            @keydown.escape.window="open = false">
+            @keydown.escape.window="open = false"
+            {{-- Lets an external trigger (e.g. the Startup Profile card's
+                 3-dot menu, which has its own separate x-data scope) open
+                 this component's modal without merging Alpine scopes —
+                 namespaced per-startup so opening one card's menu never
+                 pops open every other card's modal on the page. --}}
+            @open-coordinator-modal-{{ $startup->startup_id }}.window="show()">
 
-            @if ($current)
+            @if ($hideTrigger)
+            {{-- Rendered on the compact card grid: the modal + Alpine state
+                 above are still fully present, just triggered externally
+                 instead of by this component's own inline button/chip,
+                 which has no room on a card this size. --}}
+            @elseif ($current)
             <div class="mt-3 flex items-center gap-2">
                 <span class="{{ $avatarBox }} h-8 w-8">
                     @if ($photoUrl($current))
@@ -344,6 +355,15 @@ $svg = preg_replace('/<svg([^>]*)>/', '<svg$1 class="' . $class . ' block">', $s
                         <form method="POST" action="{{ $actionUrl }}">
                             @csrf
                             <input type="hidden" name="coordinator_id" :value="selected">
+                            {{-- So submitting from the Startup Profile card grid lands back
+                                 on that same filtered/paginated list instead of always
+                                 jumping to the show page — see
+                                 CoordinatorAssignmentController::store()'s safe-redirect check.
+                                 assign_coordinator stripped out: it's the ONE-TIME auto-open
+                                 trigger read by maybeAutoOpen() above — carrying it through
+                                 would reopen this same modal immediately after a successful
+                                 save, right back where it started. --}}
+                            <input type="hidden" name="return_url" value="{{ request()->fullUrlWithQuery(['assign_coordinator' => null]) }}">
 
                             <div class="flex gap-4">
                                 <button type="button" @click="step = 1" class="{{ $ghostBtn }}">Back</button>

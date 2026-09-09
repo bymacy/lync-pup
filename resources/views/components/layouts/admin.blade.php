@@ -6,6 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title ?? 'Admin' }} - PUP TBIDO</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script>
+        // Without this, navigating Back to an admin page the browser kept in
+        // its back/forward cache (bfcache) just replays the exact DOM/JS
+        // state it was frozen in — no fresh request to the server at all.
+        // For a page that just showed a one-time flash-driven success modal
+        // (e.g. "Startup Deleted"), that means the modal reappears exactly
+        // as it looked before navigating away, for an action that already
+        // happened. Forcing a real reload here makes Laravel serve a fresh
+        // copy instead, where that one-time flash is already gone (session
+        // flash only survives a single request).
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
+    </script>
 </head>
 
 <body x-data class="antialiased bg-gray-50">
@@ -34,7 +50,7 @@
 
             $navItems = [
             ['route' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard.svg'],
-            ['route' => 'admin.founder-applications.index', 'label' => 'Founder Application', 'icon' => 'founderApplication.svg'],
+            ['route' => 'admin.founder-applications.index', 'label' => 'Founder Registrations', 'icon' => 'founderApplication.svg'],
             ['route' => 'admin.startups.index', 'label' => 'Startup Profile', 'icon' => 'startupProfile.svg'],
             ['route' => 'admin.mentors.index', 'label' => 'Mentor Profile', 'icon' => 'mentorProfile.svg'],
             ['route' => 'admin.coordinators.index', 'label' => 'Coordinator Profile', 'icon' => 'coordProfile.svg'],

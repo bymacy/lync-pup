@@ -171,8 +171,13 @@ class AuthenticationTest extends TestCase
     }
 
     /**
-     * Once verified, a Pending account goes back to being blocked at login
-     * — verification alone doesn't grant access, admin approval still does.
+     * In normal operation account_status flips to Active the instant
+     * VerifyEmailController runs (email verification is now the only real
+     * gate — see that controller), so a verified-yet-Pending row shouldn't
+     * occur in practice. This is a defense-in-depth check on the login
+     * guard itself: whatever the reason account_status isn't Active (a
+     * manual DB edit, a future account-suspension feature, etc), a Pending
+     * account still can't sign in even with a verified email.
      */
     public function test_verified_but_still_pending_account_cannot_sign_in(): void
     {

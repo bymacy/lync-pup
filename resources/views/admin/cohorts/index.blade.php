@@ -5,7 +5,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                Back to Founder Application
+                Back to Founder Registrations
             </a>
             <h1 class="text-3xl font-bold text-gray-900">Cohort Management</h1>
             <p class="text-gray-500 mt-1">Manage the list of cohorts founders can be assigned to when approved.</p>

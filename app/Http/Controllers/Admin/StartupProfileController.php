@@ -8,7 +8,9 @@ use App\Models\Startup;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use App\Mail\PitchDeckRequested;
+use App\Mail\StartupAccountDeleted;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\RedirectResponse;
 
 class StartupProfileController extends Controller
@@ -103,5 +105,49 @@ class StartupProfileController extends Controller
         return redirect()
             ->route('admin.startups.show', $startup)
             ->with('status', 'Pitch deck request sent to '.$startup->user->email.'.');
+    }
+
+    /**
+     * Permanently removes an already-accepted startup and its founder's
+     * account together — unlike FounderApplicationController::destroy()
+     * (which only ever touches a still-Pending, never-acted-on signup),
+     * this is meant for real incubatees with real activity behind them, so
+     * it's deliberately friction-heavy: a reason is required, the admin
+     * must type DELETE to confirm, and the founder is emailed why.
+     *
+     * All of this startup's child rows (Information Sheet, roadblocks,
+     * assessments, evaluation schedules, saved reports, etc.) cascade-delete
+     * at the database level on their own — see each table's migration.
+     */
+    public function destroy(Startup $startup, Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+            'confirm' => ['required', 'in:DELETE'],
+        ]);
+
+        $user = $startup->user;
+        $founderName = $user?->name ?? 'Founder';
+        $companyName = $startup->company_name;
+
+        // Sent before the delete, not after — once $startup/$user are gone
+        // there's nothing left to read the founder's name/email off of.
+        if ($user?->email) {
+            Mail::to($user->email)->send(new StartupAccountDeleted($founderName, $companyName, $data['reason']));
+        }
+
+        // DB rows cascade automatically (see class doc comment above), but
+        // the physical photo file on disk doesn't — same cleanup
+        // CoordinatorProfileController::destroy() does for its own photo.
+        if ($startup->startup_photo_path) {
+            Storage::disk('public')->delete($startup->startup_photo_path);
+        }
+
+        $startup->delete();
+        $user?->delete();
+
+        return redirect()
+            ->route('admin.startups.index', $request->only('tab'))
+            ->with('startup_deleted', $companyName);
     }
 }

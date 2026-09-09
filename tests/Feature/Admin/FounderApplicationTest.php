@@ -2,34 +2,41 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Models\Cohort;
 use App\Models\Startup;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
+/**
+ * Founder Application is now a read-only list — approve/reject no longer
+ * happen here. Email verification alone activates a founder's account (see
+ * Tests\Feature\Auth\EmailVerificationTest), and acceptance into the
+ * incubation program happens later, via the evaluation Accept/Reject on the
+ * Information Sheet (see Tests\Feature\Admin\InformationSheetTest).
+ */
 class FounderApplicationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function makeCohort(): Cohort
+    public function test_approve_and_reject_routes_no_longer_exist(): void
     {
-        return Cohort::create([
-            'number' => 1,
-            'label' => 'Cohort 1',
-            'start_date' => now()->toDateString(),
-            'end_date' => now()->addMonths(6)->toDateString(),
-            'status' => 'Active',
-        ]);
+        $this->assertFalse(Route::has('admin.founder-applications.approve'));
+        $this->assertFalse(Route::has('admin.founder-applications.reject'));
     }
 
-    /**
-     * Regression test: an admin used to be able to approve a founder
-     * application even though that founder never verified their email —
-     * see FounderApplicationController::approve().
-     */
-    public function test_cannot_approve_an_application_whose_email_is_not_verified(): void
+    public function test_admin_can_view_the_founder_application_list(): void
+    {
+        $admin = User::factory()->create(['role' => 'Admin']);
+        $founder = User::factory()->create(['role' => 'Startup', 'account_status' => 'Active']);
+        Startup::factory()->create(['user_id' => $founder->id]);
+
+        $response = $this->actingAs($admin)->get(route('admin.founder-applications.index'));
+
+        $response->assertOk();
+    }
+
+    public function test_admin_can_delete_a_still_unverified_signup(): void
     {
         $admin = User::factory()->create(['role' => 'Admin']);
         $founder = User::factory()->unverified()->create([
@@ -37,38 +44,23 @@ class FounderApplicationTest extends TestCase
             'account_status' => 'Pending',
         ]);
         $startup = Startup::factory()->create(['user_id' => $founder->id]);
-        $cohort = $this->makeCohort();
 
-        $response = $this->actingAs($admin)->post(
-            route('admin.founder-applications.approve', $startup),
-            ['cohort_id' => $cohort->cohort_id]
-        );
+        $response = $this->actingAs($admin)->delete(route('admin.founder-applications.destroy', $startup));
 
         $response->assertRedirect(route('admin.founder-applications.index'));
-        $response->assertSessionHas('error');
-        $this->assertTrue($founder->fresh()->isPendingApproval());
-        $this->assertNull($startup->fresh()->cohort_id);
+        $this->assertModelMissing($startup);
+        $this->assertModelMissing($founder);
     }
 
-    public function test_can_approve_an_application_once_email_is_verified(): void
+    public function test_admin_cannot_delete_an_already_verified_signup(): void
     {
-        Mail::fake();
-
         $admin = User::factory()->create(['role' => 'Admin']);
-        $founder = User::factory()->create([
-            'role' => 'Startup',
-            'account_status' => 'Pending',
-        ]);
+        $founder = User::factory()->create(['role' => 'Startup', 'account_status' => 'Active']);
         $startup = Startup::factory()->create(['user_id' => $founder->id]);
-        $cohort = $this->makeCohort();
 
-        $response = $this->actingAs($admin)->post(
-            route('admin.founder-applications.approve', $startup),
-            ['cohort_id' => $cohort->cohort_id]
-        );
+        $response = $this->actingAs($admin)->delete(route('admin.founder-applications.destroy', $startup));
 
-        $response->assertRedirect(route('admin.founder-applications.index'));
-        $this->assertTrue($founder->fresh()->isApprovedAccount());
-        $this->assertSame($cohort->cohort_id, $startup->fresh()->cohort_id);
+        $response->assertNotFound();
+        $this->assertModelExists($startup);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Cohort;
 use App\Models\EvaluationSchedule;
 use App\Models\InformationSheet;
 use App\Models\Startup;
@@ -137,20 +138,42 @@ class AssessmentHubSeeder extends Seeder
             [
                 'user_id' => $founder->id,
                 'industry_sector' => $industry,
-                'cohort_number' => $cohort,
                 'contact_phone' => '0917' . random_int(1000000, 9999999),
                 'location' => 'Metro Manila, PH',
             ]
         );
 
-        InformationSheet::firstOrCreate(
+        // Cohort assignment now only happens inside
+        // InformationSheetController::approve(), alongside setting the
+        // Information Sheet's approval_status to 'Approved' — so a
+        // not-yet-decided ($approvalStatus 'Pending') row must NOT carry a
+        // cohort yet. $cohort is still passed in for every row (documenting
+        // which cohort each scenario represents / would land in), it's just
+        // only written to the DB once the row is actually Approved.
+        if ($approvalStatus === 'Approved') {
+            $cohortModel = Cohort::where('number', $cohort)->firstOrFail();
+            $startup->update([
+                'cohort_id' => $cohortModel->cohort_id,
+                'cohort_number' => $cohortModel->number,
+                'application_decided_at' => $evaluationDate,
+            ]);
+        } else {
+            $startup->update(['cohort_id' => null, 'cohort_number' => null]);
+        }
+
+        $sheet = InformationSheet::firstOrCreate(
             ['startup_id' => $startup->startup_id],
             [
                 'business_description' => "{$company} is a sample startup seeded for Assessment Hub preview data.",
                 'submission_date' => now()->subDays(30),
-                'approval_status' => $approvalStatus,
             ]
         );
+        // Forced every run so an older seed can't leave approval_status out
+        // of sync with the cohort fields set above.
+        $sheet->update([
+            'approval_status' => $approvalStatus,
+            'approved_at' => $approvalStatus === 'Approved' ? $evaluationDate : null,
+        ]);
 
         EvaluationSchedule::firstOrCreate(
             [

@@ -6,6 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title ?? 'Founder Portal' }} - LYNC PUP</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script>
+        // Same fix as the admin layout: without this, hitting Back to a page
+        // the browser kept in its back/forward cache (bfcache) just replays
+        // its exact frozen DOM/JS state instead of asking the server for a
+        // fresh copy — so a one-time flash-driven success message/modal
+        // (e.g. after a Save or Submit) can reappear for an action that
+        // already happened. Forcing a reload here gets a fresh page instead,
+        // where that one-time flash is already gone.
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
+    </script>
 </head>
 
 <body x-data class="antialiased bg-gray-50">

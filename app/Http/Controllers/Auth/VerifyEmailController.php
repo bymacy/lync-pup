@@ -46,7 +46,12 @@ class VerifyEmailController extends Controller
                 event(new Verified($user));
             }
 
-            $user->forceFill(['email_verification_token' => null])->save();
+            // Email verification is now the ONLY gate on signing in — there's
+            // no separate manual "Founder Application approval" step before
+            // this anymore (that admin action now only decides cohort
+            // placement / incubation acceptance, later, on evaluation day).
+            // So the account activates the moment the address is confirmed.
+            $user->forceFill(['email_verification_token' => null, 'account_status' => 'Active'])->save();
         }
 
         // Whatever session/account this browser happened to already be on
@@ -60,7 +65,6 @@ class VerifyEmailController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login')
-            ->with('status', 'Email verified. Your account is under review. You will be notified upon completion.');
+        return redirect()->route('registration.complete');
     }
 }

@@ -13,12 +13,15 @@ use App\Http\Requests\Admin\UpdateLdInterventionRequest;
 use App\Http\Requests\Admin\UpdateStartupReferenceRequest;
 use App\Http\Requests\Admin\UpdateTeamMemberRequest;
 use App\Notifications\InformationSheetApproved;
+use App\Notifications\InformationSheetRejected;
+use App\Models\Cohort;
 use App\Models\IncubationInvolvement;
 use App\Models\LdIntervention;
 use App\Models\StartupReference;
 use App\Models\Startup;
 use App\Models\TeamMember;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class InformationSheetController extends Controller
@@ -46,20 +49,28 @@ class InformationSheetController extends Controller
                 'mobile_no' => (string) $startup->contact_phone,
                 'founder_email' => (string) $startup->user?->email,
             ],
-            // Feeds the "Approve & Lock" incomplete-assessments warning below
-            // — same Pre/Active/Post completeness rule Venture Exit's own
-            // "Save Assessment" gate uses, see ReadinessRubric::incompleteLabelsFor().
-            'incompleteAssessments' => \App\Support\ReadinessRubric::incompleteLabelsFor($startup),
+            // Feeds the Accept confirmation's "Assign to Cohort" picker — this
+            // is also the moment cohort placement happens now (see approve()).
+            'cohorts' => Cohort::where('status', 'Active')->orderBy('number')->get(),
         ]);
     }
 
-    public function approve(Startup $startup): RedirectResponse
+    public function approve(Startup $startup, Request $request): RedirectResponse
     {
         abort_if(
             ! $startup->evaluationReached(),
             403,
             'This startup\'s evaluation must be scheduled and its date reached before their Information Sheet can be approved.'
         );
+
+        // This is also the moment a startup becomes an official incubatee, so
+        // it's the moment cohort placement happens now too — there's no
+        // earlier "Founder Application approval" step anymore (see
+        // Admin\FounderApplicationController; that page is read-only now).
+        $data = $request->validate([
+            'cohort_id' => ['required', 'exists:cohorts,cohort_id'],
+        ]);
+        $cohort = Cohort::findOrFail($data['cohort_id']);
 
         // Captured before the update so re-approving an already-approved sheet
         // (the admin can revisit this action) doesn't re-notify the founder.
@@ -74,6 +85,15 @@ class InformationSheetController extends Controller
             'evaluator_remarks' => null,
         ]);
 
+        $startup->update([
+            'cohort_id' => $cohort->cohort_id,
+            // Kept in sync so every existing "Cohort {{ $startup->cohort_number }}"
+            // display elsewhere in the app (dashboard, profile, roadblocks, etc.)
+            // continues to work without changes.
+            'cohort_number' => $cohort->number,
+            'application_decided_at' => now(),
+        ]);
+
         if (! $wasApproved) {
             // This is the moment Meeting / Submission / Readiness Result unlock
             // for the founder, so it gets a dashboard card of its own.
@@ -82,8 +102,39 @@ class InformationSheetController extends Controller
 
         return redirect()
             ->route('admin.assessment-hub.index', ['tab' => 'approved'])
-            ->with('status', 'Information sheet approved.')
+            ->with('status', 'Startup accepted into the incubation program.')
             ->with('just_approved', true);
+    }
+
+    /**
+     * Rejects the Information Sheet on evaluation day — the founder can
+     * still revise and resubmit it (see Startup\InformationSheetController::
+     * update()), which then needs its own fresh evaluation before it can be
+     * decided again (see Startup::evaluationReached()).
+     */
+    public function reject(Startup $startup, Request $request): RedirectResponse
+    {
+        abort_if(
+            ! $startup->evaluationReached(),
+            403,
+            'This startup\'s evaluation must be scheduled and its date reached before their Information Sheet can be rejected.'
+        );
+
+        $data = $request->validate([
+            'evaluator_remarks' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $startup->informationSheet()->update([
+            'approval_status' => 'Rejected',
+            'approved_at' => null,
+            'evaluator_remarks' => $data['evaluator_remarks'] ?? null,
+        ]);
+
+        $startup->user?->notify(new InformationSheetRejected($data['evaluator_remarks'] ?? null));
+
+        return redirect()
+            ->route('admin.assessment-hub.index', ['tab' => 'evaluation'])
+            ->with('status', 'Information sheet rejected. The founder can revise and resubmit it.');
     }
 
     public function update(UpdateInformationSheetRequest $request, Startup $startup): RedirectResponse

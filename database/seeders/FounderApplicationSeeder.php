@@ -9,26 +9,31 @@ use Illuminate\Database\Seeder;
 class FounderApplicationSeeder extends Seeder
 {
     /**
-     * A handful of founder accounts sitting in different Founder
-     * Application states, so the admin Approve/Reject flow can actually be
-     * tried out. DevDataSeeder's test founders default to
+     * A handful of founder sign-ups sitting in the states the app can
+     * actually reach today, so the now-read-only Founder Application page
+     * (list + "View" + Delete-while-still-unverified) has something to
+     * show across its tabs. Under the current flow, verifying an email
+     * auto-activates the account (see VerifyEmailController) — there is no
+     * more admin Approve/Reject step — so "Pending" now only ever means
+     * "hasn't verified their email yet," and "Rejected" is a state nothing
+     * in the app sets anymore. DevDataSeeder's test founders default to
      * account_status=Active, so there's normally nothing sitting in
-     * "Pending" to test against.
+     * "Pending" here to test against.
      */
     public function run(): void
     {
-        // Pending, email already verified — ready to be Approved or Rejected.
-        $this->seedFounder('Juan Dela Cruz', 'juan.delacruz@test.com', 'NovaSync PH', 'Pending', verified: true);
-        $this->seedFounder('Maria Santos', 'maria.santos@test.com', 'VoidlyTech', 'Pending', verified: true);
-
-        // Pending, but hasn't verified their email yet — shows the "Not
-        // Verified" badge on the Review screen.
+        // Pending — just signed up, hasn't verified their email yet. Shows
+        // the "Not Verified" badge on the View modal and the Delete action
+        // (still-unverified junk/test signups only).
+        $this->seedFounder('Juan Dela Cruz', 'juan.delacruz@test.com', 'NovaSync PH', 'Pending', verified: false);
+        $this->seedFounder('Maria Santos', 'maria.santos@test.com', 'VoidlyTech', 'Pending', verified: false);
         $this->seedFounder('Carlo Ramirez', 'carlo.ramirez@test.com', 'BrightLeaf Agri', 'Pending', verified: false);
 
-        // Already decided, to try the read-only "View" modal on the
-        // Approved/Rejected tabs.
+        // Verified and auto-activated — already past sign-up, to try the
+        // read-only "View" modal on an already-Active row (no Delete
+        // action once verified).
         $this->seedFounder('Isabela Cruz', 'isabela.cruz@test.com', 'PixelForge Studios', 'Active', verified: true);
-        $this->seedFounder('Marco Villanueva', 'marco.villanueva@test.com', 'DriftWave Labs', 'Rejected', verified: true);
+        $this->seedFounder('Marco Villanueva', 'marco.villanueva@test.com', 'DriftWave Labs', 'Active', verified: true);
 
         $this->command->info('Founder Application test data seeded — check the "Pending" tab under Founder Application.');
     }

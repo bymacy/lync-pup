@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use App\Models\Startup;
+use App\Models\Cohort;
 use App\Models\Coordinator;
 use App\Models\InformationSheet;
 use App\Models\TeamMember;
@@ -49,18 +50,20 @@ class DevDataSeeder extends Seeder
             Coordinator::factory()->count(3)->create();
         }
 
-        // AgriSense PH - Pending
+        // AgriSense PH - Pending, not yet evaluated. Cohort assignment now
+        // only happens inside InformationSheetController::approve(), so this
+        // startup must NOT have a cohort until its sheet is actually
+        // Approved — forced to null every run to repair any older seed.
         $pending = Startup::firstOrCreate(
             ['company_name' => 'AgriSense PH'],
             [
                 'user_id' => $founder->id,
                 'industry_sector' => 'AgriTech',
-                'cohort_number' => 3,
                 'contact_phone' => '09171234567',
                 'location' => 'Mandaluyong City, PH',
             ]
         );
-        $pending->update(['user_id' => $founder->id]);
+        $pending->update(['user_id' => $founder->id, 'cohort_number' => null, 'cohort_id' => null]);
 
         $sheet = InformationSheet::firstOrCreate(
             ['startup_id' => $pending->startup_id],
@@ -141,32 +144,42 @@ class DevDataSeeder extends Seeder
         }
 
         // EcoWatt Solutions - Approved, needs coordinator. Verified + Active
-        // for the same reason as founder@test.com above.
+        // for the same reason as founder@test.com above. Cohort placement
+        // only happens for real startups inside
+        // InformationSheetController::approve(), so this scenario must
+        // actually be Approved (below) for the cohort fields to be legit —
+        // forced every run so an older seed gets repaired instead of
+        // drifting out of sync.
         $ecowattFounder = User::firstOrCreate(
             ['email' => 'ecowatt.founder@test.com'],
             ['name' => 'EcoWatt Founder', 'password' => 'password', 'role' => 'Startup']
         );
         $ecowattFounder->update(['account_status' => 'Active', 'email_verified_at' => now()]);
 
-        
+
         $needsCoordinator = Startup::firstOrCreate(
             ['company_name' => 'EcoWatt Solutions'],
             [
                 'user_id' => $ecowattFounder->id,
                 'industry_sector' => 'CleanTech',
-                'cohort_number' => 3,
-                'cohort_id' => $cohort3->cohort_id,
                 'contact_phone' => '09181234567',
                 'location' => 'Taguig City, PH',
             ]
         );
+        $needsCoordinator->update([
+            'user_id' => $ecowattFounder->id,
+            'cohort_number' => 3,
+            'cohort_id' => $cohort3->cohort_id,
+            'application_decided_at' => now(),
+        ]);
         $ecowattSheet = InformationSheet::firstOrCreate(
             ['startup_id' => $needsCoordinator->startup_id],
-            ['approval_status' => 'Pending']
+            ['approval_status' => 'Pending', 'business_description' => 'Placeholder']
         );
 
         $ecowattSheet->update([
-            'approval_status' => 'Pending',
+            'approval_status' => 'Approved',
+            'approved_at' => now(),
             'submission_date' => now()->toDateString(),
 
             'business_description' => 'EcoWatt Solutions develops affordable solar-powered energy systems for households and small businesses.',
@@ -249,7 +262,7 @@ class DevDataSeeder extends Seeder
             'start_time' => '21:00',
             'end_time' => '22:00',
             'status' => 'Scheduled',
-            'notes' => 'Not-started-yet evaluation test.',
+            'notes' => 'Approved on evaluation day — schedule stays Scheduled since approve() never touches it.',
         ])->save();
 
         if (TeamMember::where('startup_id', $needsCoordinator->startup_id)->count() === 0) {
@@ -269,11 +282,14 @@ class DevDataSeeder extends Seeder
             $assessment->recomputeScores()->save();
         }
 
-        // GreenLoop Energy - Pending sheet with an UPCOMING evaluation.
-        // Deliberately NOT Approved: the Assessment Hub hides startups whose
-        // Information Sheet is already approved from the Evaluation tab, so an
-        // approved GreenLoop would never appear under "Upcoming". This is the
-        // fully-filled-in sheet to open from Evaluation -> Upcoming -> View.
+        // GreenLoop Energy - Pending sheet with a MISSED evaluation (the
+        // evaluation date is in the past and nothing was ever decided on
+        // it). Deliberately NOT Approved: the Assessment Hub hides startups
+        // whose Information Sheet is already approved from the Evaluation
+        // tab, so an approved GreenLoop would never appear under "Missed".
+        // Cohort assignment only happens inside
+        // InformationSheetController::approve(), so this Pending startup
+        // must NOT have a cohort — forced to null every run.
         $greenloopFounder = User::firstOrCreate(
             ['email' => 'greenloop.founder@test.com'],
             ['name' => 'GreenLoop Founder', 'password' => 'password', 'role' => 'Startup']
@@ -285,13 +301,11 @@ class DevDataSeeder extends Seeder
             [
                 'user_id' => $greenloopFounder->id,
                 'industry_sector' => 'CleanTech',
-                'cohort_number' => 3,
-                'cohort_id' => $cohort3->cohort_id,
                 'contact_phone' => '09191234567',
                 'location' => 'Pasig City, PH',
             ]
         );
-        $greenloop->update(['user_id' => $greenloopFounder->id]);
+        $greenloop->update(['user_id' => $greenloopFounder->id, 'cohort_number' => null, 'cohort_id' => null]);
 
         $greenloopSheet = InformationSheet::firstOrCreate(
             ['startup_id' => $greenloop->startup_id],
@@ -299,7 +313,7 @@ class DevDataSeeder extends Seeder
         );
 
         // Forced every run so an older seed (which created this sheet as
-        // Approved) gets repaired instead of staying off the Upcoming list.
+        // Approved) gets repaired instead of staying off the Missed list.
         $greenloopSheet->update([
             'approval_status' => 'Pending',
             'submission_date' => now()->subDays(21),
@@ -388,9 +402,9 @@ class DevDataSeeder extends Seeder
             $assessment->recomputeScores()->save();
         }
 
-        // The upcoming evaluation itself — always pushed to a future date so
-        // re-seeding an old database still lands GreenLoop under "Upcoming"
-        // rather than "Missed".
+        // The missed evaluation itself — always pushed to a fixed day before
+        // today so re-seeding an old database still lands GreenLoop under
+        // "Missed" (EvaluationSchedule::isMissed()) rather than "Upcoming".
         $greenloopEvaluation = EvaluationSchedule::firstOrNew(['startup_id' => $greenloop->startup_id]);
         $greenloopEvaluation->fill([
             'evaluation_date' => now()->subDay()->toDateString(),
@@ -425,8 +439,8 @@ class DevDataSeeder extends Seeder
         $this->command->info('Dev data seeded successfully.');
         $this->command->info('Ready-to-login accounts (password: "password"):');
         $this->command->info('  Admin:   admin@pup.edu.ph');
-        $this->command->info('  Founder: founder@test.com (AgriSense PH), ecowatt.founder@test.com (EcoWatt Solutions), greenloop.founder@test.com (GreenLoop Energy — Pending sheet + upcoming evaluation)');
-        $this->command->info('For Pending/Rejected/unverified test accounts (to try the admin approval and verify-email screens), run: php artisan db:seed --class=FounderApplicationSeeder');
+        $this->command->info('  Founder: founder@test.com (AgriSense PH — Onboarding), ecowatt.founder@test.com (EcoWatt Solutions — Approved, needs coordinator), greenloop.founder@test.com (GreenLoop Energy — Pending sheet + missed evaluation)');
+        $this->command->info('For unverified/just-signed-up test accounts (to try the verify-email screen), run: php artisan db:seed --class=FounderApplicationSeeder');
     }
 
     /**

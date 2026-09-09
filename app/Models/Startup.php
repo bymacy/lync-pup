@@ -150,18 +150,35 @@ class Startup extends Model
     }
 
     /**
-     * True once a (non-cancelled) evaluation's date has actually arrived —
-     * today or in the past — as opposed to hasScheduledEvaluation() above,
-     * which is satisfied by merely booking a future day. Approve & Lock
+     * True once the LATEST (non-cancelled) evaluation's date has actually
+     * arrived — today or in the past — as opposed to hasScheduledEvaluation()
+     * above, which is satisfied by merely booking a future day. Accept/Reject
      * gates on this one: a startup only sitting in the Upcoming list
-     * shouldn't be approvable yet, since nobody has evaluated it.
+     * shouldn't be decidable yet, since nobody has evaluated it.
+     *
+     * Deliberately scoped to the LATEST schedule, and deliberately checks it
+     * against the sheet's own submission_date: after a Reject, the founder
+     * can edit and resubmit (which re-stamps submission_date), and that
+     * resubmission needs its own fresh evaluation before it can be
+     * Accepted/Rejected again — reusing the old, already-decided evaluation
+     * (whose date has necessarily already passed) would let an admin
+     * re-decide a resubmission nobody has actually re-evaluated.
      */
     public function evaluationReached(): bool
     {
-        return $this->evaluationSchedules()
-            ->where('status', '!=', 'Cancelled')
-            ->whereDate('evaluation_date', '<=', now()->toDateString())
-            ->exists();
+        $latest = $this->latestEvaluationSchedule;
+
+        if (! $latest || $latest->status === 'Cancelled') {
+            return false;
+        }
+
+        $submissionDate = $this->informationSheet?->submission_date;
+
+        if ($submissionDate && $latest->evaluation_date->lt($submissionDate->copy()->startOfDay())) {
+            return false;
+        }
+
+        return $latest->evaluation_date->lte(now()->toDateString());
     }
 
     /**
@@ -393,24 +410,18 @@ class Startup extends Model
     }
 
     /**
-     * Scopes below drive the admin "Founder Application" screen. They key
+     * Gates the admin Startup Profile page (and everywhere else a startup
+     * needs to have a real, activated founder account behind it) — keys
      * off the founder's account_status (users.account_status), which is
      * distinct from the informationSheet approval_status used by the
-     * scopes above — a founder's account can be Pending/Active/Rejected
-     * long before they ever fill out an information sheet.
+     * scopes above. Verifying an email auto-activates the account (see
+     * VerifyEmailController), so in practice this is equivalent to "has
+     * verified their email" — the admin Founder Registrations screen
+     * filters on email_verified_at directly instead, since that's the
+     * literal concept it displays.
      */
-    public function scopeApplicationPending(Builder $query): Builder
-    {
-        return $query->whereHas('user', fn ($q) => $q->where('account_status', 'Pending'));
-    }
-
     public function scopeApplicationApproved(Builder $query): Builder
     {
         return $query->whereHas('user', fn ($q) => $q->where('account_status', 'Active'));
-    }
-
-    public function scopeApplicationRejected(Builder $query): Builder
-    {
-        return $query->whereHas('user', fn ($q) => $q->where('account_status', 'Rejected'));
     }
 }

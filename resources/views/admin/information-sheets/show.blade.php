@@ -55,6 +55,7 @@
         : ($url('admin.startups.index') ?? url()->previous());
     $sheetUpdateUrl = $url('admin.information-sheet.update', $startup);
     $approveUrl = $url('admin.information-sheet.approve', $startup);
+    $rejectUrl = $url('admin.information-sheet.reject', $startup);
 
     $teamStoreUrl = $url('admin.team-members.store', $startup);
     $incStoreUrl = $url('admin.incubation.store', $startup);
@@ -87,33 +88,8 @@
     saving: false,
     dirty: false,
     confirmingApprove: false,
+    confirmingReject: false,
     lastClickedInput: null,
-
-    // Approve & Lock warning: reuses the exact 'warn with specific reasons,
-    // let the admin proceed anyway' pattern Venture Exit's own Save
-    // Assessment gate already uses (_venture-exit.blade.php's trySubmit /
-    // showIncompleteConfirm / proceedAnyway). Only intercepts the actual
-    // submit — if nothing is incomplete, it goes straight through.
-    incompleteAssessments: @js($incompleteAssessments ?? []),
-    showIncompleteConfirm: false,
-    confirmedIncomplete: false,
-
-    trySubmit(event) {
-        if (this.incompleteAssessments.length && ! this.confirmedIncomplete) {
-            event.preventDefault();
-            this.showIncompleteConfirm = true;
-            return;
-        }
-
-        this.dirty = false;
-        this.$store.navigation.hasUnsavedChanges = false;
-    },
-
-    proceedAnyway() {
-        this.confirmedIncomplete = true;
-        this.showIncompleteConfirm = false;
-        this.$nextTick(() => document.getElementById('approve-form').requestSubmit());
-    },
 
     newRows: { team: [], inc: [], ld: [], ref: [] },
     nextRowId: 1,
@@ -1585,7 +1561,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     {{-- View mode: Back / Edit / Approve & Lock (or an "Approved &
                          Locked" badge in that slot once approved — approval only
                          locks the founder out, an admin can still Edit here). --}}
-                    <div class="flex gap-3" x-show="!editing && !confirmingApprove" x-cloak>
+                    <div class="flex gap-3" x-show="!editing && !confirmingApprove && !confirmingReject" x-cloak>
                         <a href="{{ $backUrl }}"
                             class="flex-1 text-center border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition">
                             Back
@@ -1625,9 +1601,20 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             $approveDisabledReason = $canApprove
                                 ? ''
                                 : ($startup->hasScheduledEvaluation()
-                                    ? 'This startup\'s evaluation is still upcoming — approval unlocks on the scheduled day.'
-                                    : 'Schedule an evaluation for this startup before approving.');
+                                    ? 'This startup\'s evaluation is still upcoming — this unlocks on the scheduled day.'
+                                    : 'Schedule an evaluation for this startup before deciding.');
                         @endphp
+                        @if ($rejectUrl)
+                        <button type="button"
+                            @click="{{ $canApprove ? 'confirmingReject = true' : '' }}"
+                            @disabled(! $canApprove)
+                            title="{{ $approveDisabledReason }}"
+                            class="flex-1 rounded-lg border border-rose-300 py-2.5 text-sm font-semibold text-rose-800
+                                   hover:bg-rose-50 transition
+                                   disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent">
+                            Reject
+                        </button>
+                        @endif
                         <button type="button"
                             @click="{{ $canApprove ? 'confirmingApprove = true' : '' }}"
                             @disabled(! $canApprove)
@@ -1636,84 +1623,84 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                    bg-gradient-to-r from-[#6D0D23] to-[#11386A]
                                    hover:opacity-95 transition
                                    disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50">
-                            Approve &amp; Lock
+                            Accept &amp; Lock
                         </button>
                         @endif
                     </div>
 
-                    {{-- Approve confirmation. Locking is irreversible from the founder's side,
-                         so it doesn't fire on a single click. --}}
+                    {{-- Accept confirmation. Locking is irreversible from the founder's side,
+                         so it doesn't fire on a single click. This is also the moment the
+                         startup becomes an official incubatee, so a cohort must be picked. --}}
                     @if ($approveUrl)
                     <div x-show="confirmingApprove" x-cloak class="border border-gray-200 rounded-lg p-4">
                         <p class="text-sm text-gray-700">
-                            Approving locks this sheet. {{ $startup->company_name }} won't be able to edit it and
-                            will be told to contact their Coordinator for changes.
+                            Accepting locks this sheet and makes {{ $startup->company_name }} an official incubatee.
+                            They won't be able to edit the sheet anymore and will be told to contact their
+                            Coordinator for changes.
                         </p>
-                        <div class="flex gap-3 mt-3">
-                            <button type="button" @click="confirmingApprove = false"
-                                class="flex-1 border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition">
-                                Cancel
-                            </button>
-                            <form id="approve-form" method="POST" action="{{ $approveUrl }}" class="flex-1"
-                                @submit="trySubmit($event)">
-                                @csrf
-                                @method('PATCH')
-                                <button type="submit"
-                                    class="w-full rounded-lg py-2.5 text-sm font-semibold text-white
-                                           bg-gradient-to-r from-[#6D0D23] to-[#11386A]
-                                           hover:opacity-95 transition">
-                                    Yes, approve &amp; lock
-                                </button>
-                            </form>
-                        </div>
-                    </div>
+                        <form id="approve-form" method="POST" action="{{ $approveUrl }}" class="mt-3"
+                            @submit="dirty = false; $store.navigation.hasUnsavedChanges = false">
+                            @csrf
+                            @method('PATCH')
 
-                    {{-- Incomplete-assessments warning: only shown if Pre/Active/Post
-                         still has something not yet started, and only once the admin
-                         has actually confirmed "Yes, approve & lock" above — same
-                         list-driven Cancel/Proceed Anyway pattern as Venture Exit's
-                         own Save Assessment gate (_venture-exit.blade.php). --}}
-                    <div x-show="showIncompleteConfirm" x-cloak
-                        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
-                        style="display:none;">
-                        <div class="relative w-full max-w-lg rounded-2xl bg-white px-5 pb-5 pt-8 text-center shadow-2xl sm:px-6">
-                            <button type="button" @click="showIncompleteConfirm = false"
-                                class="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
-                                aria-label="Close">
-                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
-                                </svg>
-                            </button>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Assign to Cohort <span class="text-red-600">*</span></label>
+                            <select name="cohort_id" required class="w-full border rounded-lg px-3 py-2 text-sm mb-3">
+                                <option value="">Select cohort</option>
+                                @foreach ($cohorts ?? [] as $cohort)
+                                    <option value="{{ $cohort->cohort_id }}" @selected($startup->cohort_id === $cohort->cohort_id)>{{ $cohort->display_label }}</option>
+                                @endforeach
+                            </select>
+                            @error('cohort_id') <p class="text-xs text-red-600 mb-3">{{ $message }}</p> @enderror
 
-                            <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#6D0D23] to-[#11386A]">
-                                <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007M10.29 3.86 1.82 18a1.5 1.5 0 0 0 1.28 2.25h17.8a1.5 1.5 0 0 0 1.28-2.25L13.71 3.86a1.5 1.5 0 0 0-2.42 0Z" />
-                                </svg>
-                            </div>
-
-                            <h2 class="mt-3 text-base font-bold text-gray-900">Incomplete Assessments</h2>
-                            <p class="mt-1.5 text-xs leading-5 text-gray-600">The following assessment(s) have not been started yet:</p>
-
-                            <ul class="mx-auto mt-3 max-w-xs list-inside list-disc space-y-1 text-left text-xs text-gray-700">
-                                <template x-for="item in incompleteAssessments" :key="item">
-                                    <li x-text="item"></li>
-                                </template>
-                            </ul>
-
-                            <p class="mt-3 text-xs leading-5 text-gray-600">Do you want to proceed anyway?</p>
-
-                            <div class="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
-                                <button type="button" @click="showIncompleteConfirm = false"
-                                    class="rounded-lg border border-gray-300 bg-white py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                            <div class="flex gap-3">
+                                <button type="button" @click="confirmingApprove = false"
+                                    class="flex-1 border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition">
                                     Cancel
                                 </button>
-                                <button type="button" @click="proceedAnyway()"
-                                    class="rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-sm font-semibold text-white transition hover:opacity-95">
-                                    Proceed Anyway
+                                <button type="submit"
+                                    class="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white
+                                           bg-gradient-to-r from-[#6D0D23] to-[#11386A]
+                                           hover:opacity-95 transition">
+                                    Yes, accept &amp; lock
                                 </button>
                             </div>
-                        </div>
+                        </form>
                     </div>
+
+                    {{-- Reject confirmation. The founder can revise and resubmit after
+                         this — see Startup\InformationSheetController::update() — which
+                         then needs its own fresh evaluation before it can be decided
+                         again (Startup::evaluationReached()). --}}
+                    @if ($rejectUrl)
+                    <div x-show="confirmingReject" x-cloak class="border border-gray-200 rounded-lg p-4">
+                        <p class="text-sm text-gray-700">
+                            Rejecting lets {{ $startup->company_name }} revise and resubmit their sheet. Their next
+                            submission will need a fresh evaluation before it can be decided again.
+                        </p>
+                        <form method="POST" action="{{ $rejectUrl }}" class="mt-3" @submit="dirty = false">
+                            @csrf
+                            @method('PATCH')
+
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Remarks for the founder <span class="text-gray-400 font-normal">(Optional)</span></label>
+                            <textarea name="evaluator_remarks" rows="3" placeholder="What needs to change before resubmitting?"
+                                class="w-full border rounded-lg px-3 py-2 text-sm mb-3"></textarea>
+                            @error('evaluator_remarks') <p class="text-xs text-red-600 mb-3">{{ $message }}</p> @enderror
+
+                            <div class="flex gap-3">
+                                <button type="button" @click="confirmingReject = false"
+                                    class="flex-1 border border-gray-300 bg-white text-gray-700 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition">
+                                    Cancel
+                                </button>
+                                <button type="submit"
+                                    class="flex-1 rounded-lg border border-rose-300 bg-rose-800 py-2.5 text-sm font-semibold text-white
+                                           hover:bg-rose-900 transition">
+                                    Yes, reject
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    @endif
+
                     @endif
 
                     {{-- Edit mode: Cancel / Save --}}
