@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AssessmentDocument;
+use App\Models\AssessmentMeeting;
 use App\Models\EvaluationSchedule;
 use App\Models\ReadinessLevelAssessment;
 use App\Models\Cohort;
@@ -160,7 +161,7 @@ class AssessmentHubController extends Controller
         // Arriving from the sidebar (no query string) always lands on
         // Overview + "All Startup" — the assessment tab never resumes some
         // previously visited stage.
-        $selectedStage = in_array($request->query('stage'), [...ReadinessRubric::STAGES, 'Overview', 'Reports'], true)
+        $selectedStage = in_array($request->query('stage'), [...ReadinessRubric::STAGES, 'Overview', 'Meetings', 'Reports'], true)
             ? $request->query('stage')
             : 'Overview';
 
@@ -377,6 +378,21 @@ class AssessmentHubController extends Controller
                 ->values();
         }
 
+        // ============ Assessment tab: Meetings ============
+        // Scoped to the same $assessableStartups (Approved only) as the rest
+        // of the Assessment tab — nothing to schedule an RLS assessment
+        // meeting about before a startup has even been accepted. The three
+        // sub-nav filters (Today/Upcoming/Archive) are purely date-derived
+        // (see AssessmentMeeting) rather than a stored status, so a
+        // rescheduled row simply reappears under whichever tab its new date
+        // now falls into.
+        $allAssessmentMeetings = AssessmentMeeting::with('startup')
+            ->whereIn('startup_id', $assessableStartups->pluck('startup_id'))
+            ->get();
+        $meetingsToday = $allAssessmentMeetings->filter->isToday()->sortBy('start_time')->values();
+        $meetingsUpcoming = $allAssessmentMeetings->filter->isUpcoming()->sortBy(['meeting_date', 'start_time'])->values();
+        $meetingsArchive = $allAssessmentMeetings->filter->isArchived()->sortByDesc('meeting_date')->values();
+
         return view('admin.assessment-hub.index', [
             'pendingStartups' => $pendingStartups,
             'scheduledToday' => $scheduledToday,
@@ -388,6 +404,9 @@ class AssessmentHubController extends Controller
             'timeSlots' => EvaluationSchedule::TIME_SLOTS,
             'bookedSlots' => $bookedSlots,
             'assessableStartups' => $assessableStartups,
+            'meetingsToday' => $meetingsToday,
+            'meetingsUpcoming' => $meetingsUpcoming,
+            'meetingsArchive' => $meetingsArchive,
             'selectedStartup' => $selectedStartup,
             'selectedStage' => $selectedStage,
             'currentAssessment' => $currentAssessment,

@@ -16,7 +16,11 @@ for ($i = 0; $i < $count; $i++) {
     }
     }
 
-    $allStages = array_merge(['Overview'], $stages, ['Reports']);
+    // "Meetings" sits between Overview and the RL stages — scheduling a
+    // meeting is something an admin does before filling in any stage's
+    // forms, so it reads as a step ahead of them rather than a stage of its
+    // own (see AssessmentMeeting).
+    $allStages = array_merge(['Overview', 'Meetings'], $stages, ['Reports']);
 
     // TRL's "Section 1: Startup & Technology Overview" only appears on
     // Pre-Assessment — Post-Assessment reuses the exact same TRL/MRL/TMRL/SRL
@@ -188,7 +192,9 @@ for ($i = 0; $i < $count; $i++) {
             </div>
         </div>
 
-        @if ($selectedStage === 'Overview' || (! $selectedStartup && $selectedStage !== 'Reports'))
+        @if ($selectedStage === 'Meetings')
+        @include('admin.assessment-hub._meetings')
+        @elseif ($selectedStage === 'Overview' || (! $selectedStartup && $selectedStage !== 'Reports'))
         {{-- ============ Overview: every assessable startup's completion status ============ --}}
         @if ($assessableStartups->isEmpty())
         <div class="rounded-xl border border-dashed p-12 text-center text-gray-400">

@@ -115,12 +115,17 @@
 
             <div class="border-b border-gray-300 mb-8">
                 <nav class="flex overflow-x-auto overflow-y-hidden whitespace-nowrap">
+                    {{-- Query param key stays 'onboarding' (matches
+                         StartupProfileController::index()'s tab switch and
+                         Startup::scopeOnboarding()) — only the displayed
+                         label changed to "Applicant", since nothing in this
+                         tab has actually been accepted yet. --}}
                     @foreach ([
                     'all' => 'All',
+                    'onboarding' => 'Applicant',
                     'active' => 'Active',
                     'assign-coordinator' => 'Assign Coordinator',
                     'pending' => 'Pending',
-                    'onboarding' => 'Onboarding'
                     ] as $key => $label)
 
                     <a

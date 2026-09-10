@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Startup;
 
 use App\Http\Controllers\Controller;
+use App\Models\AssessmentMeeting;
 use App\Models\EvaluationSchedule;
 use App\Models\Roadblock;
 use Illuminate\Support\Carbon;
@@ -59,7 +60,29 @@ class MeetingController extends Controller
                 ];
             });
 
-        $meetings = $mentorships->concat($evaluations)->sortBy('sort_key')->values();
+        $assessmentMeetings = AssessmentMeeting::where('startup_id', $startup->startup_id)
+            ->get()
+            // Same day-based rule as the mentorship/evaluation rows above —
+            // once a meeting's date has passed with nothing done about it,
+            // it's the admin's Meetings > Archive tab's concern (reschedule
+            // or delete), not something still worth showing the founder.
+            ->reject->isArchived()
+            ->map(function (AssessmentMeeting $meeting) {
+                return [
+                    'type' => 'assessment',
+                    'sort_key' => $meeting->meeting_date->format('Y-m-d').' '.$meeting->start_time,
+                    'date_label' => $meeting->meeting_date->format('l, F j, Y'),
+                    'time_label' => $meeting->time_range_label,
+                    'status_label' => $this->dayLabel($meeting->meeting_date),
+                    'stage_label' => $meeting->stage,
+                    'platform' => $meeting->modality,
+                    'meeting_link' => $meeting->link,
+                    'notes' => $meeting->notes,
+                    'can_join' => $meeting->meeting_date->isToday(),
+                ];
+            });
+
+        $meetings = $mentorships->concat($evaluations)->concat($assessmentMeetings)->sortBy('sort_key')->values();
 
         return view('startup.meetings.index', compact('meetings'));
     }

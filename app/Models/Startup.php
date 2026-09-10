@@ -117,6 +117,11 @@ class Startup extends Model
         return $this->hasMany(EvaluationSchedule::class, 'startup_id', 'startup_id');
     }
 
+    public function assessmentMeetings()
+    {
+        return $this->hasMany(AssessmentMeeting::class, 'startup_id', 'startup_id');
+    }
+
     public function savedReports()
     {
         return $this->hasMany(SavedReport::class, 'startup_id', 'startup_id');
@@ -216,10 +221,13 @@ class Startup extends Model
         }
 
         // Not yet decided (no sheet, or approval_status still 'Pending'):
-        // per direct testing feedback, split into Onboarding vs Pending
+        // per direct testing feedback, split into Applicant vs Pending
         // based on whether the startup has actually finished Profile Setup
-        // + the Information Sheet AND been scheduled for evaluation.
-        return $this->isReadyForEvaluation() ? 'Pending' : 'Onboarding';
+        // + the Information Sheet AND been scheduled for evaluation. Labeled
+        // "Applicant" (not "Onboarding") since nothing here has actually been
+        // accepted yet — that only happens once the Information Sheet is
+        // evaluated and approved.
+        return $this->isReadyForEvaluation() ? 'Pending' : 'Applicant';
     }
 
     /**

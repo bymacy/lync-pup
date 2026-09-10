@@ -74,6 +74,16 @@
                             <p class="hidden text-[11px] text-white/70 sm:block xl:mt-3 xl:text-xs">Roadblock:</p>
                             <p class="truncate text-[11px] text-white/90 xl:text-xs" title="{{ $meeting['roadblock_category'] }}">{{ $meeting['roadblock_category'] }}</p>
                         </div>
+                        @elseif ($meeting['type'] === 'assessment')
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 flex-shrink-0 sm:h-7 sm:w-7 xl:mb-3 xl:h-8 xl:w-8 2xl:h-9 2xl:w-9" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold leading-tight sm:text-base 2xl:text-lg">Assessment</p>
+                            <p class="hidden text-[11px] text-white/70 sm:block xl:mt-3 xl:text-xs">Stage:</p>
+                            <p class="truncate text-[11px] text-white/90 xl:text-xs" title="{{ $meeting['stage_label'] }}">{{ $meeting['stage_label'] }}</p>
+                        </div>
                         @else
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 flex-shrink-0 sm:h-7 sm:w-7 xl:mb-3 xl:h-8 xl:w-8 2xl:h-9 2xl:w-9" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 0H6.108c-1.135 0-2.098.847-2.192 1.98a48.424 48.424 0 000 7.86c.094 1.133 1.057 1.98 2.192 1.98h7.284c1.135 0 2.098-.847 2.192-1.98.075-.907.093-1.827.05-2.734M8.25 3v6a.75.75 0 00.75.75h6" />
@@ -129,6 +139,37 @@
                         {{-- Platform: real logo for the three known platforms, camera for
                              "Custom Link" (an unbranded video call), or a building + address
                              for an in-person "Location" meeting. --}}
+                        @if (($meeting['platform'] ?? null) === 'Location')
+                        <div class="{{ $row }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="{{ $rowIcon }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                            </svg>
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold text-gray-900 sm:text-sm">Location</p>
+                                <p class="truncate text-xs text-gray-600 sm:text-sm">{{ $meeting['meeting_link'] ?? '—' }}</p>
+                            </div>
+                        </div>
+                        @else
+                        <div class="{{ $row }}">
+                            @if ($platformLogo)
+                            <img src="{{ asset('images/icons/' . $platformLogo) }}" alt=""
+                                class="h-5 w-5 flex-shrink-0 object-contain">
+                            @else
+                            <svg xmlns="http://www.w3.org/2000/svg" class="{{ $rowIcon }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+                            </svg>
+                            @endif
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold text-gray-900 sm:text-sm">Platform</p>
+                                <p class="truncate text-xs text-gray-600 sm:text-sm">{{ $meeting['platform'] ?? '—' }}</p>
+                            </div>
+                        </div>
+                        @endif
+                        @elseif ($meeting['type'] === 'assessment')
+                        {{-- Same real platform/link as an evaluation... except an Assessment
+                             Meeting actually stores modality/link (see AssessmentMeeting),
+                             so — unlike the fixed "TBIDO"/"TBIDO Office" placeholders in the
+                             evaluation branch below — this shows the real thing. --}}
                         @if (($meeting['platform'] ?? null) === 'Location')
                         <div class="{{ $row }}">
                             <svg xmlns="http://www.w3.org/2000/svg" class="{{ $rowIcon }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -228,6 +269,54 @@
                                 <p class="font-semibold text-gray-800">Note:</p>
                                 <p class="line-clamp-2 break-words italic">{{ $meeting['notes'] }}</p>
                                 @if ($noteIsLong)
+                                <button type="button" @click="viewingNote = @js($meeting['notes'])"
+                                    class="mt-1 font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
+                                    View
+                                </button>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
+                        @endif
+                        @elseif ($meeting['type'] === 'assessment')
+                        {{-- Same Join Meeting / in-person pattern as mentorship's non-Location
+                             branch above — an Assessment Meeting always has a real
+                             modality/link (see AssessmentMeeting), never the fixed
+                             placeholders the evaluation branch below falls back to. --}}
+                        @if (($meeting['platform'] ?? null) === 'Location')
+                        @php
+                        $assessmentInPersonNote = $meeting['notes'] ?: 'See Location for the address.';
+                        $assessmentInPersonNoteIsLong = mb_strlen($assessmentInPersonNote) > $noteLimit;
+                        @endphp
+                        <div class="min-w-0 text-xs text-gray-600">
+                            <p class="font-semibold text-gray-800">In-person</p>
+                            <p class="line-clamp-2 break-words italic">{{ $assessmentInPersonNote }}</p>
+                            @if ($assessmentInPersonNoteIsLong)
+                            <button type="button" @click="viewingNote = @js($assessmentInPersonNote)"
+                                class="mt-1 font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
+                                View
+                            </button>
+                            @endif
+                        </div>
+                        @else
+                        <div class="w-full">
+                            @if ($meeting['can_join'] && $meeting['meeting_link'])
+                            <a href="{{ $meeting['meeting_link'] }}" target="_blank" rel="noopener"
+                                class="block w-full rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2 text-center text-xs font-medium text-white transition hover:opacity-95 sm:py-2.5 sm:text-sm">
+                                Join Meeting
+                            </a>
+                            @else
+                            <button type="button" disabled
+                                class="block w-full cursor-not-allowed rounded-lg bg-gray-300 py-2 text-center text-xs font-medium text-gray-500 sm:py-2.5 sm:text-sm">
+                                Join Meeting
+                            </button>
+                            @endif
+                            @if (!empty($meeting['notes']))
+                            @php $assessmentNoteIsLong = mb_strlen($meeting['notes']) > $noteLimit; @endphp
+                            <div class="mt-2 min-w-0 text-xs text-gray-600">
+                                <p class="font-semibold text-gray-800">Note:</p>
+                                <p class="line-clamp-2 break-words italic">{{ $meeting['notes'] }}</p>
+                                @if ($assessmentNoteIsLong)
                                 <button type="button" @click="viewingNote = @js($meeting['notes'])"
                                     class="mt-1 font-semibold text-[#6D0D23] transition hover:underline focus:outline-none">
                                     View
