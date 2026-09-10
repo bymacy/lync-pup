@@ -256,13 +256,22 @@ class Startup extends Model
     }
 
     /**
-     * Three-state Information Sheet progress for the Assessment Hub's
-     * "Awaiting Schedule" list: 'Not Started' (no sheet row at all yet —
-     * the founder hasn't opened it), 'In Progress' (a row exists — created
-     * the moment a founder saves their Startup Profile — but they haven't
-     * submitted it), or 'Completed' (submitted; see
-     * hasSubmittedInformationSheet()). Only 'Completed' is actually ready
-     * to have an evaluation scheduled against it.
+     * Information Sheet progress for the Assessment Hub's "Awaiting
+     * Schedule" list: 'Not Started' (no sheet row at all yet — the founder
+     * hasn't opened it), 'In Progress' (a row exists — created the moment a
+     * founder saves their Startup Profile — but they haven't submitted it),
+     * 'Re-Evaluation' (submitted, currently Pending, but this sheet carries
+     * rejected_at from an earlier rejection — i.e. a resubmission after
+     * being rejected, not a first-time submission), or 'Completed' (a
+     * genuine first-time submission; see hasSubmittedInformationSheet()).
+     * 'Completed' and 'Re-Evaluation' are both ready to have an evaluation
+     * scheduled against them.
+     *
+     * A resubmission flips approval_status back to 'Pending' on its own
+     * (see Startup\InformationSheetController::update()) but deliberately
+     * never clears rejected_at — only Admin\InformationSheetController's
+     * approve()/reject() touch that column — so its presence here is what
+     * distinguishes "resubmitted after rejection" from "never rejected".
      */
     public function informationSheetStatus(): string
     {
@@ -270,7 +279,15 @@ class Startup extends Model
             return 'Not Started';
         }
 
-        return $this->hasSubmittedInformationSheet() ? 'Completed' : 'In Progress';
+        if (! $this->hasSubmittedInformationSheet()) {
+            return 'In Progress';
+        }
+
+        if ($this->informationSheet->approval_status === 'Pending' && $this->informationSheet->rejected_at) {
+            return 'Re-Evaluation';
+        }
+
+        return 'Completed';
     }
 
     /**
@@ -282,6 +299,35 @@ class Startup extends Model
     public function hasApprovedInformationSheet(): bool
     {
         return $this->informationSheet?->approval_status === 'Approved';
+    }
+
+    /**
+     * True while this startup's Information Sheet is sitting Rejected and
+     * hasn't been resubmitted or approved yet — the exact set the
+     * Assessment Hub's Rejected tab lists and the
+     * founders:purge-expired-rejections command targets for auto-deletion.
+     * Resubmitting flips approval_status back to 'Pending' on its own (see
+     * Startup\InformationSheetController::update()), which takes a startup
+     * out of this state without any extra bookkeeping here.
+     */
+    public function isRejectedPendingResubmission(): bool
+    {
+        return $this->informationSheet?->approval_status === 'Rejected';
+    }
+
+    /**
+     * The date-time by which a Rejected startup must resubmit before
+     * founders:purge-expired-rejections removes it — 10 days after the
+     * most recent rejection. Null once approved/resubmitted, or if
+     * rejected_at somehow was never stamped.
+     */
+    public function rejectionDeadline(): ?\Illuminate\Support\Carbon
+    {
+        if (! $this->isRejectedPendingResubmission() || ! $this->informationSheet->rejected_at) {
+            return null;
+        }
+
+        return $this->informationSheet->rejected_at->copy()->addDays(10);
     }
 
     /**

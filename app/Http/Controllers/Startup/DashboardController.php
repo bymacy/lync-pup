@@ -45,6 +45,12 @@ class DashboardController extends Controller
 
         $onboardingSteps = $this->onboardingSteps($startup);
 
+        // A rejected sheet gets its own dedicated notice card (see the view)
+        // rather than falling into the generic "awaiting approval" one below
+        // — it needs to actually name the resubmission deadline.
+        $isRejected = $startup->isRejectedPendingResubmission();
+        $rejectionDeadline = $startup->rejectionDeadline();
+
         return view('startup.dashboard', [
             'startup' => $startup,
             'cohortSequence' => $cohortSequence,
@@ -53,12 +59,17 @@ class DashboardController extends Controller
             'overallLabel' => ReadinessRubric::overallLabel($assessment->overall_score ?? null),
             'needsProfileSetup' => ! $startup->isProfileComplete(),
             'needsInformationSheet' => $startup->isProfileComplete() && ! $startup->hasSubmittedInformationSheet(),
+            'isRejected' => $isRejected,
+            'rejectionDeadline' => $rejectionDeadline,
             // Stage 2 -> 3 waiting room: the sheet is in, the remaining
             // modules are still locked (see EnsureFounderStage), so the
             // dashboard says why rather than leaving the founder guessing.
+            // Excludes a Rejected sheet — that gets its own notice card
+            // above instead of the generic "awaiting approval" one.
             'awaitingSheetApproval' => $startup->isProfileComplete()
                 && $startup->hasSubmittedInformationSheet()
-                && ! $startup->hasApprovedInformationSheet(),
+                && ! $startup->hasApprovedInformationSheet()
+                && ! $isRejected,
             'onboardingSteps' => $onboardingSteps,
             'graduationSteps' => $this->graduationSteps($startup),
             'onboardingComplete' => collect($onboardingSteps)->last()['state'] === 'done',

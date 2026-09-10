@@ -82,6 +82,11 @@ class InformationSheetController extends Controller
             // evaluation day (DONE) from one signed off later (MISSED) - see
             // EvaluationSchedule::approvedOnEvaluationDay().
             'approved_at' => now(),
+            // Clears any rejection history/countdown this startup was under —
+            // approval means they're in for good, so the Rejected tab and the
+            // founders:purge-expired-rejections command should never see them
+            // again unless they're rejected afresh later.
+            'rejected_at' => null,
             'evaluator_remarks' => null,
         ]);
 
@@ -127,14 +132,22 @@ class InformationSheetController extends Controller
         $startup->informationSheet()->update([
             'approval_status' => 'Rejected',
             'approved_at' => null,
+            // Starts (or restarts) the 10-day resubmission countdown — see
+            // the Rejected tab (_rejected.blade.php) and the
+            // founders:purge-expired-rejections command, which auto-deletes
+            // any startup still sitting Rejected 10 days after this stamp.
+            'rejected_at' => now(),
             'evaluator_remarks' => $data['evaluator_remarks'] ?? null,
         ]);
 
-        $startup->user?->notify(new InformationSheetRejected($data['evaluator_remarks'] ?? null));
+        $startup->user?->notify(new InformationSheetRejected(
+            $data['evaluator_remarks'] ?? null,
+            $startup->refresh()->rejectionDeadline(),
+        ));
 
         return redirect()
-            ->route('admin.assessment-hub.index', ['tab' => 'evaluation'])
-            ->with('status', 'Information sheet rejected. The founder can revise and resubmit it.');
+            ->route('admin.assessment-hub.index', ['tab' => 'rejected'])
+            ->with('status', 'Information sheet rejected. The founder has 10 days to revise and resubmit it.');
     }
 
     public function update(UpdateInformationSheetRequest $request, Startup $startup): RedirectResponse

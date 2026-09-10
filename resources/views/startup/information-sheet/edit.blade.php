@@ -18,8 +18,29 @@
             : ($startup->evaluationDayLockActive()
                 ? 'Locked for today — your evaluation is scheduled today. Contact your Coordinator for changes'
                 : null);
+
+        // Purely informational — deliberately kept outside the isLocked/dirty
+        // Alpine state below, since a Rejected sheet must stay fully editable.
+        $isRejected = $startup->isRejectedPendingResubmission();
+        $rejectionDeadline = $startup->rejectionDeadline();
+        $rejectDaysLeft = $rejectionDeadline ? now()->startOfDay()->diffInDays($rejectionDeadline->copy()->startOfDay(), false) : null;
     @endphp
 
+    @if ($isRejected)
+    <div class="mb-4 rounded-xl border border-[#6C0E24]/40 bg-[#6C0E24]/10 p-4">
+        <p class="text-sm font-bold text-gray-900">Information Sheet Rejected — Resubmission Required</p>
+        <p class="mt-1 text-xs text-gray-600">
+            Please update and resubmit this Information Sheet by <strong>{{ $rejectionDeadline?->format('F j, Y') ?? '—' }}</strong>
+            @if ($rejectDaysLeft !== null)
+            ({{ max(0, $rejectDaysLeft) }} day{{ $rejectDaysLeft === 1 ? '' : 's' }} left)
+            @endif
+            . Accounts not resubmitted by the deadline are automatically removed.
+        </p>
+        @if ($sheet?->evaluator_remarks)
+        <p class="mt-2 text-xs text-gray-600"><span class="font-semibold">Evaluator remarks:</span> {{ $sheet->evaluator_remarks }}</p>
+        @endif
+    </div>
+    @endif
 
     <div
         class="bg-white rounded-xl border border-gray-200 max-w-6xl overflow-hidden"

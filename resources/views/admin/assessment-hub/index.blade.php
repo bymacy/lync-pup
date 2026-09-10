@@ -52,8 +52,8 @@
         </div>
 
         @php
-        $initialTab = in_array(request('tab'), ['schedule', 'evaluation', 'approved']) ? request('tab') : 'schedule';
-        $subTabs = ['schedule' => 'Schedule', 'evaluation' => 'Evaluation', 'approved' => 'Approved'];
+        $initialTab = in_array(request('tab'), ['schedule', 'evaluation', 'approved', 'rejected']) ? request('tab') : 'schedule';
+        $subTabs = ['schedule' => 'Schedule', 'evaluation' => 'Evaluation', 'approved' => 'Approved', 'rejected' => 'Rejected'];
         @endphp
         <div x-show="mainTab === 'information-sheet'" x-cloak x-data="{ subTab: @js($initialTab) }"
             x-init="$watch('subTab', value => setQueryParam('tab', value))">
@@ -79,6 +79,9 @@
             </div>
             <div x-show="subTab === 'approved'" x-cloak>
                 @include('admin.assessment-hub._approved')
+            </div>
+            <div x-show="subTab === 'rejected'" x-cloak>
+                @include('admin.assessment-hub._rejected')
             </div>
         </div>
 

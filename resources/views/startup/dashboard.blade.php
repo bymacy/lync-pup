@@ -49,6 +49,32 @@
             Open Form
         </a>
     </div>
+    @elseif ($isRejected)
+    @php
+    $rejectDaysLeft = $rejectionDeadline ? now()->startOfDay()->diffInDays($rejectionDeadline->copy()->startOfDay(), false) : null;
+    @endphp
+    <div class="mb-5 flex flex-col gap-4 rounded-2xl border border-[#6C0E24]/40 bg-[#6C0E24]/10 p-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div class="flex items-center gap-3 sm:gap-4">
+            <span class="flex shrink-0 items-center justify-center rounded-md bg-[#6C0E24] text-white" style="width: 44px; height: 44px;">
+                <span class="icon-mask" style="width: 24px; height: 24px; --icon: url('{{ asset('images/icons/warning-circle.svg') }}')"></span>
+            </span>
+            <div class="min-w-0">
+                <p class="text-sm font-bold text-gray-900">Information Sheet Rejected — Resubmission Required</p>
+                <p class="text-xs text-gray-600">
+                    Resubmit by <strong>{{ $rejectionDeadline?->format('F j, Y') ?? '—' }}</strong>
+                    @if ($rejectDaysLeft !== null)
+                    ({{ max(0, $rejectDaysLeft) }} day{{ $rejectDaysLeft === 1 ? '' : 's' }} left)
+                    @endif
+                    — accounts not resubmitted by the deadline are automatically removed.
+                </p>
+            </div>
+        </div>
+        <a href="{{ route('startup.information-sheet.edit') }}"
+            class="btn-brand-edge inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-md px-4 py-2 text-xs font-semibold text-white transition sm:w-auto">
+            <span class="icon-mask" style="width: 14px; height: 14px; --icon: url('{{ asset('images/icons/info-sheet.svg') }}')"></span>
+            Update Information Sheet
+        </a>
+    </div>
     @elseif ($awaitingSheetApproval)
     @php
     $scheduledEvaluation = $startup->evaluationSchedules()

@@ -38,6 +38,13 @@ class AssessmentHubController extends Controller
         $pendingQuery = Startup::with(['informationSheet', 'latestEvaluationSchedule'])
             ->pending()
             ->whereDoesntHave('evaluationSchedules', fn ($q) => $q->where('status', 'Scheduled'))
+            // A founder who hasn't verified their email yet hasn't really
+            // "applied" in any actionable sense — there's nothing an admin
+            // can do here until the account is real, so keep them off this
+            // list entirely rather than showing a row nothing can be done
+            // with. They appear the moment VerifyEmailController flips
+            // email_verified_at (and account_status to Active).
+            ->whereHas('user', fn ($q) => $q->whereNotNull('email_verified_at'))
             ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
             // Completed (submitted) on top, then In Progress (sheet started
             // but not submitted), then Not Started (no sheet row yet) -
@@ -114,6 +121,17 @@ class AssessmentHubController extends Controller
             ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
             ->orderBy('company_name')
             ->get();
+
+        // "Rejected" tab — every startup currently sitting Rejected (not yet
+        // resubmitted or approved; see Startup::isRejectedPendingResubmission()).
+        // Ordered soonest-to-expire first so the founders:purge-expired-rejections
+        // command's next casualties are the first thing an admin sees.
+        $rejectedStartups = Startup::with('informationSheet')
+            ->whereHas('informationSheet', fn ($q) => $q->where('approval_status', 'Rejected'))
+            ->when($cohortId, fn ($q) => $q->where('cohort_id', $cohortId))
+            ->get()
+            ->sortBy(fn (Startup $s) => $s->informationSheet?->rejected_at ?? now())
+            ->values();
 
         $bookedSlots = $scheduled
             ->filter(fn ($row) => $row->evaluation_date->gte(now()->startOfDay()))
@@ -366,6 +384,7 @@ class AssessmentHubController extends Controller
             'upcomingEvaluations' => $upcomingEvaluations,
             'missedEvaluations' => $missedEvaluations,
             'approvedStartups' => $approvedStartups,
+            'rejectedStartups' => $rejectedStartups,
             'timeSlots' => EvaluationSchedule::TIME_SLOTS,
             'bookedSlots' => $bookedSlots,
             'assessableStartups' => $assessableStartups,

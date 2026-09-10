@@ -19,6 +19,7 @@ use App\Http\Controllers\Startup\MeetingController as FounderMeetingController;
 use App\Http\Controllers\Admin\RoadblockController as AdminRoadblockController;
 use App\Http\Controllers\Admin\AssessmentController;
 use App\Http\Controllers\Admin\AssessmentHubController;
+use App\Http\Controllers\Admin\RejectedStartupController;
 use App\Http\Controllers\Admin\VentureExitAiController;
 use App\Http\Controllers\Admin\EvaluationScheduleController;
 use App\Http\Controllers\Admin\FounderApplicationController;
@@ -158,6 +159,7 @@ Route::middleware(['auth', 'role:Admin', 'select-cohort'])->prefix('admin')->nam
     Route::put('/assessment-hub/assessments/{startup}', [AssessmentController::class, 'update'])->name('assessment-hub.assessments.update');
     Route::put('/assessment-hub/assessments/{startup}/documents', [AssessmentController::class, 'updateDocuments'])->name('assessment-hub.assessments.update-documents');
     Route::post('/assessment-hub/assessments/{startup}/venture-exit/generate-ai', [VentureExitAiController::class, 'generate'])->name('assessment-hub.assessments.venture-exit.generate-ai');
+    Route::delete('/assessment-hub/rejected/{startup}', [RejectedStartupController::class, 'destroy'])->name('assessment-hub.rejected.destroy');
 
     Route::get('/exports/documents', [ExportController::class, 'documents'])->name('exports.documents');
     Route::get('/exports/{startup}/status', [ExportController::class, 'documentStatus'])->name('exports.status');

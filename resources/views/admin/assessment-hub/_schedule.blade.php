@@ -40,7 +40,6 @@ return $url
                         <tr class="{{ $gradient }} text-white text-center">
                             <th class="px-3 py-2 text-left text-[11px] font-semibold tracking-wider">Startup</th>
                             <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Date Started</th>
-                            <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Cohort</th>
                             <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Status</th>
                             <th class="px-3 py-2 text-[11px] font-semibold tracking-wider">Action</th>
                         </tr>
@@ -67,16 +66,19 @@ return $url
                             <td class="px-3 py-2 whitespace-nowrap text-center text-xs text-gray-600">
                                 {{ optional($startup->informationSheet?->submission_date ?? $startup->created_at)->format('M d, Y') ?? '—' }}
                             </td>
-                            <td class="px-3 py-2 text-center text-xs text-gray-600">{{ $startup->cohort_number ?? '—' }}</td>
 
                             @php
                                 $infoStatus = $startup->informationSheetStatus();
                                 $infoStatusTone = match ($infoStatus) {
                                     'Completed' => 'border-green-300 text-green-700',
+                                    'Re-Evaluation' => 'border-amber-300 text-amber-700',
                                     'In Progress' => 'border-blue-300 text-blue-700',
                                     default => 'border-gray-300 text-gray-500',
                                 };
-                                $canSchedule = $infoStatus === 'Completed';
+                                // A resubmission after a rejection (see
+                                // Startup::informationSheetStatus()) is just as ready
+                                // to book as a first-time Completed submission.
+                                $canSchedule = in_array($infoStatus, ['Completed', 'Re-Evaluation'], true);
                             @endphp
                             <td class="px-3 py-2 text-center">
                                 <span class="rounded-full border px-2.5 py-1 text-[11px] font-semibold {{ $infoStatusTone }}">{{ $infoStatus }}</span>
@@ -115,7 +117,7 @@ return $url
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-400">No startups waiting on evaluation.</td>
+                            <td colspan="4" class="px-4 py-8 text-center text-sm text-gray-400">No startups waiting on evaluation.</td>
                         </tr>
                         @endforelse
                     </tbody>
