@@ -66,7 +66,7 @@ class AgriSenseSeeder extends Seeder
             'non_academic_distinctions' => 'Best Startup Pitch, PUP Innovation Summit 2023',
             'membership_associations' => 'Philippine Startup Founders Network',
             'date_accomplished' => '2026-07-10',
-            'portfolio_manager' => 'Engr. Tristan Velardo',
+            'portfolio_manager' => 'Sir Tristan Velardo',
             'cohort_no' => 'Cohort 3',
             'endorsed_by' => 'Sir Erwin',
             'endorsement_date' => '2026-07-11',

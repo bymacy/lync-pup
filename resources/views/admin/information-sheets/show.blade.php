@@ -298,8 +298,8 @@
                     'business_id_number' => 'e.g. BID-0098765',
                     'dti_registration_number' => 'e.g. DTI-0054321',
                     'business_tin' => 'e.g. 123-456-789-000',
-                    'portfolio_manager' => 'Full name',
-                    'cohort_no' => 'e.g. Cohort 3',
+                    // portfolio_manager/cohort_no no longer need a hint —
+                    // they're dropdowns now, not free-typed fields.
                     'endorsed_by' => 'Full name',
                     ];
 
@@ -313,7 +313,11 @@
                     'residential_address', 'permanent_address', 'sex', 'civil_status',
                     'place_of_birth', 'mobile_no',
                     'sec_registration', 'business_id_number', 'dti_registration_number', 'business_tin',
-                    'portfolio_manager', 'cohort_no', 'endorsed_by',
+                    // portfolio_manager/cohort_no are dropdowns now (see
+                    // $selectField below) — they display whatever casing
+                    // Coordinator::name / Cohort::display_label already use,
+                    // so they're deliberately left out of this list.
+                    'endorsed_by',
                     ];
 
 $field = function ($name, $label, $number = null, $type = 'text', $required = true) use ($sheet, $prefill, $hints, $upperFields, $dobMin, $dobMax) {
@@ -360,6 +364,61 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                         </div>
                     </div>";
                     };
+
+                    // Portfolio Manager / Cohort No. — TBIDO-only fields backed by
+                    // real system data (Coordinators / Cohorts) instead of free
+                    // typing, so an endorsement can't reference a coordinator or
+                    // cohort that doesn't actually exist. $options is a list of
+                    // [value, label] pairs; a currently-stored value that doesn't
+                    // match any current option (e.g. a coordinator who has since
+                    // left, or an old seed value) is kept as its own selectable
+                    // option instead of silently disappearing/blanking on save.
+                    $selectField = function ($name, $label, array $options, $required = true) use ($sheet) {
+                        $stored = $sheet?->{$name};
+                        $value = old($name, $stored ?? '');
+                        $star = $required ? " <span class='text-rose-600 text-base font-bold leading-none align-middle'>*</span>" : '';
+                        $requiredAttr = $required ? ' required' : '';
+
+                        $optionValues = array_column($options, 0);
+                        $extra = (filled($value) && ! in_array($value, $optionValues, true))
+                            ? [[$value, $value.' (no longer in the list)']]
+                            : [];
+
+                        $optionsHtml = '';
+                        foreach (array_merge($extra, $options) as [$optValue, $optLabel]) {
+                            $selectedAttr = $value === $optValue ? ' selected' : '';
+                            $optionsHtml .= "<option value=\"".e($optValue)."\"{$selectedAttr}>".e($optLabel)."</option>";
+                        }
+
+                        $control = "<select name=\"{$name}\" form=\"info-sheet-form\"{$requiredAttr}
+                                :disabled=\"!editing\"
+                                @change=\"dirty=true\"
+                                @click=\"if(!editing){ lastClickedInput=\$el.name }\"
+                                class='w-full border rounded px-3 py-1.5 text-sm bg-white disabled:bg-gray-50 disabled:text-gray-500'>
+                                <option value=\"\"".($value === '' ? ' selected' : '')." disabled>Select&hellip;</option>
+                                {$optionsHtml}
+                                </select>";
+
+                        return "<div class='flex flex-col gap-1 py-1.5 text-sm sm:flex-row sm:items-start sm:gap-2'>
+                            <label class='w-full flex-shrink-0 text-gray-800 sm:w-48 sm:pt-1.5'>".e($label).":{$star}</label>
+                            <div class='flex-1 min-w-0'>
+                                {$control}
+                            </div>
+                        </div>";
+                    };
+
+                    // Real Portfolio Coordinators, same source as the Startup
+                    // Profile page's Assign Coordinator picker.
+                    $portfolioManagerOptions = \App\Models\Coordinator::orderBy('first_name')->get()
+                        ->map(fn ($c) => [$c->name, $c->name])->all();
+
+                    // Every cohort, Active first then Archived — unlike the Accept
+                    // panel's "Assign to Cohort" picker (Active only, since that one
+                    // is choosing where a startup goes NOW), this field can
+                    // legitimately reference an older, already-Archived cohort.
+                    $cohortNoOptions = \App\Models\Cohort::orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+                        ->orderBy('number')->get()
+                        ->map(fn ($c) => [$c->display_label, $c->display_label])->all();
 
                     // 5 & 6. Height and weight. The reviewer types digits in whichever
                     // unit they think in and picks it with a toggle; the sheet still
@@ -1533,8 +1592,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     <div class="border border-gray-200 rounded-md p-4 bg-white">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                             <div>
-                                {!! $field('portfolio_manager', 'PORTFOLIO MANAGER') !!}
-                                {!! $field('cohort_no', 'COHORT NO.') !!}
+                                {!! $selectField('portfolio_manager', 'PORTFOLIO MANAGER', $portfolioManagerOptions) !!}
+                                {!! $selectField('cohort_no', 'COHORT NO.', $cohortNoOptions) !!}
                                 {!! $field('endorsed_by', 'ENDORSED BY') !!}
                                 {!! $field('endorsement_date', 'DATE', null, 'date') !!}
                             </div>

@@ -42,6 +42,8 @@ $initialStart = $oldMatchesThisRow
     ? old('start_time')
     : ($schedule ? substr($schedule->start_time, 0, 5) : null);
 $initialNotes = $oldMatchesThisRow ? old('notes') : $schedule?->notes;
+$initialModality = $oldMatchesThisRow ? old('modality') : $schedule?->modality;
+$initialLink = $oldMatchesThisRow ? old('link') : $schedule?->link;
 $formId = 'schedule-form-'.($schedule?->evaluation_schedule_id ?? 'new').'-'.($startup?->startup_id ?? '0');
 
 // The date/time validation error, scoped to THIS row via $oldMatchesThisRow
@@ -63,6 +65,8 @@ $initialServerError = $oldMatchesThisRow
         date: @js($initialDate),
         startTime: @js($initialStart),
         notes: @js($initialNotes),
+        modality: @js($initialModality),
+        link: @js($initialLink),
         serverError: @js($initialServerError),
         // Snapshot of what this modal opened with — in edit/reschedule mode
         // date/startTime always arrive pre-filled from the existing
@@ -72,10 +76,25 @@ $initialServerError = $oldMatchesThisRow
         initialDate: @js($initialDate),
         initialStartTime: @js($initialStart),
         initialNotes: @js($initialNotes),
+        initialModality: @js($initialModality),
+        initialLink: @js($initialLink),
         isDirty() {
             return this.date !== this.initialDate
                 || this.startTime !== this.initialStartTime
-                || (this.notes || '') !== (this.initialNotes || '');
+                || (this.notes || '') !== (this.initialNotes || '')
+                || (this.modality || '') !== (this.initialModality || '')
+                || (this.link || '') !== (this.initialLink || '');
+        },
+        // Same per-platform placeholder hints as the Roadblock assign modal
+        // (App\Support\MeetingPlatform::LINK_PLACEHOLDERS) — kept as a plain
+        // object here since Blade can't share PHP constants with Alpine
+        // directly.
+        linkPlaceholders: {
+            'Google Meet': 'e.g., https://google.com',
+            'Zoom': 'e.g., https://zoom.us',
+            'Microsoft Teams': 'e.g., Paste Microsoft Teams invitation link here',
+            'Location': 'e.g., 123 Main Street, Suite 400, New York, NY',
+            'Custom Link': 'e.g., https://your-conferencing-app.com',
         },
         viewMonth: new Date(@js($initialDate) + 'T00:00:00').getMonth(),
         viewYear: new Date(@js($initialDate) + 'T00:00:00').getFullYear(),
@@ -138,7 +157,7 @@ $initialServerError = $oldMatchesThisRow
             <img src="{{ asset('images/icons/cal.svg') }}" alt="" class="h-6 w-6 brightness-0 invert" aria-hidden="true">
             <span>{{ $title }}</span>
         </h3>
-        <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); notes = @js($initialNotes); serverError = @js($initialServerError); {{ $close }}"
+        <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); notes = @js($initialNotes); modality = @js($initialModality); link = @js($initialLink); serverError = @js($initialServerError); {{ $close }}"
             class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white text-white transition hover:border-transparent hover:bg-white hover:text-[#6D0D23] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             aria-label="Close">
             <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -242,17 +261,51 @@ $initialServerError = $oldMatchesThisRow
 
             @if (! $isReadOnly)
             <div class="mt-6">
+                <p class="font-medium mb-2">3. Choose a Modality</p>
+                <select name="modality" x-model="modality"
+                    class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700">
+                    <option value="" disabled>Select Platform</option>
+                    @foreach (\App\Support\MeetingPlatform::OPTIONS as $platformOption)
+                    <option value="{{ $platformOption }}">{{ $platformOption }}</option>
+                    @endforeach
+                </select>
+                @if ($oldMatchesThisRow) @error('modality') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
+            </div>
+
+            <div class="mt-6">
+                <p class="font-medium mb-2">Meeting Link / Location</p>
+                <textarea name="link" rows="3" x-model="link"
+                    :placeholder="linkPlaceholders[modality] || 'Input Meeting Link / Address'"
+                    class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
+                @if ($oldMatchesThisRow) @error('link') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
+            </div>
+
+            <div class="mt-6">
                 <p class="font-medium mb-2">Notes (Optional)</p>
                 <textarea name="notes" rows="3" placeholder="Enter any notes for this schedule..."
                     x-model="notes"
                     class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
                 @if ($oldMatchesThisRow) @error('notes') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror @endif
             </div>
-            @elseif ($schedule?->notes)
+            @else
+            @if ($schedule?->modality)
+            <div class="mt-6">
+                <p class="font-medium mb-2">Modality</p>
+                <p class="border rounded-lg px-3 py-2 text-sm bg-gray-50">{{ $schedule->modality }}</p>
+            </div>
+            @endif
+            @if ($schedule?->link)
+            <div class="mt-6">
+                <p class="font-medium mb-2">Meeting Link / Location</p>
+                <p class="border rounded-lg px-3 py-2 text-sm bg-gray-50 whitespace-pre-line break-words">{{ $schedule->link }}</p>
+            </div>
+            @endif
+            @if ($schedule?->notes)
             <div class="mt-6">
                 <p class="font-medium mb-2">Notes</p>
                 <p class="border rounded-lg px-3 py-2 text-sm bg-gray-50 whitespace-pre-line">{{ $schedule->notes }}</p>
             </div>
+            @endif
             @endif
 
             {{-- Reactive, not a static @error() — see serverError in x-data
@@ -273,7 +326,7 @@ $initialServerError = $oldMatchesThisRow
     <div class="shrink-0 border-t border-gray-200 bg-white px-6 py-4">
         <div class="flex gap-3">
             @if ($mode !== 'edit')
-            <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); notes = @js($initialNotes); serverError = @js($initialServerError); {{ $close }}" class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition hover:bg-gray-50">
+            <button type="button" @click="date = @js($initialDate); startTime = @js($initialStart); notes = @js($initialNotes); modality = @js($initialModality); link = @js($initialLink); serverError = @js($initialServerError); {{ $close }}" class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition hover:bg-gray-50">
                 {{ $isReadOnly ? 'Close' : 'Cancel' }}
             </button>
             @endif
@@ -286,12 +339,13 @@ $initialServerError = $oldMatchesThisRow
             @endif
 
             @if (! $isReadOnly)
-            {{-- Date and time are always required (see Store/UpdateEvaluationScheduleRequest).
-                 !isDirty() additionally keeps Save/Save Changes/Save Reschedule disabled
-                 until something actually changes — edit/reschedule always open pre-filled
-                 from the existing $schedule, so without this the required-fields check
-                 alone is always satisfied and the button was enabled even with zero edits. --}}
-            <button type="submit" form="{{ $formId }}" :disabled="!date || !startTime || !isDirty()"
+            {{-- Date, time, modality, and link are all required (see
+                 Store/UpdateEvaluationScheduleRequest). !isDirty() additionally keeps
+                 Save/Save Changes/Save Reschedule disabled until something actually
+                 changes — edit/reschedule always open pre-filled from the existing
+                 $schedule, so without this the required-fields check alone is always
+                 satisfied and the button was enabled even with zero edits. --}}
+            <button type="submit" form="{{ $formId }}" :disabled="!date || !startTime || !modality || !link || !isDirty()"
                 class="flex-1 rounded-lg bg-gradient-to-r from-[#6D0D23] to-[#11386A] py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:opacity-40">
                 @if ($mode === 'add') Save Schedule
                 @elseif ($mode === 'edit') Save Changes

@@ -116,7 +116,7 @@ class DevDataSeeder extends Seeder
             'non_academic_distinctions' => 'Best Startup Pitch, PUP Innovation Summit 2023',
             'membership_associations' => 'Philippine Startup Founders Network',
             'date_accomplished' => '2026-07-10',
-            'portfolio_manager' => 'Engr. Tristan Velardo',
+            'portfolio_manager' => 'Sir Tristan Velardo',
             'cohort_no' => 'Cohort 3',
             'endorsed_by' => 'Sir Erwin',
             'endorsement_date' => '2026-07-11',
@@ -246,7 +246,7 @@ class DevDataSeeder extends Seeder
             'membership_associations' => 'Philippine Renewable Energy Association',
 
             'date_accomplished' => now()->toDateString(),
-            'portfolio_manager' => 'Engr. Tristan Velardo',
+            'portfolio_manager' => 'Sir Tristan Velardo',
             'cohort_no' => 'Cohort 3',
             'endorsed_by' => 'Sir Erwin',
             'endorsement_date' => now()->toDateString(),
@@ -366,7 +366,7 @@ class DevDataSeeder extends Seeder
             'non_academic_distinctions' => 'Finalist, DOST CleanTech Challenge 2024',
             'membership_associations' => 'Philippine Society of Mechanical Engineers',
             'date_accomplished' => now()->subDays(21)->toDateString(),
-            'portfolio_manager' => 'Engr. Tristan Velardo',
+            'portfolio_manager' => 'Sir Tristan Velardo',
             'cohort_no' => 'Cohort 3',
             'endorsed_by' => 'Sir Erwin',
             'endorsement_date' => now()->subDays(20)->toDateString(),
@@ -414,6 +414,128 @@ class DevDataSeeder extends Seeder
             'notes' => 'Missed evaluation test.',
         ])->save();
 
+        // ClearPath Mobility - Startup Profile AND Information Sheet both
+        // complete (submission_date set), but deliberately NO
+        // EvaluationSchedule row at all yet. This is the "ready to be
+        // scheduled" test case: it lands in the Assessment Hub's Awaiting
+        // Schedule tab (Startup::scopePending() + no Scheduled evaluation)
+        // for an admin to click "Set Evaluation" on. No cohort — cohort
+        // assignment only happens at InformationSheetController::approve()
+        // time, long after this point — forced to null every run.
+        $clearpathFounder = User::firstOrCreate(
+            ['email' => 'clearpath.founder@test.com'],
+            ['name' => 'Renz Villaruel', 'password' => 'password', 'role' => 'Startup']
+        );
+        $clearpathFounder->update(['account_status' => 'Active', 'email_verified_at' => now()]);
+
+        $readyToSchedule = Startup::firstOrCreate(
+            ['company_name' => 'ClearPath Mobility'],
+            [
+                'user_id' => $clearpathFounder->id,
+                'industry_sector' => 'Mobility Tech',
+                'contact_phone' => '09201234567',
+                'location' => 'Quezon City, PH',
+                'startup_photo_path' => 'startup-photos/placeholder.png',
+            ]
+        );
+        $readyToSchedule->update([
+            'user_id' => $clearpathFounder->id,
+            'industry_sector' => 'Mobility Tech',
+            'contact_phone' => '09201234567',
+            'location' => 'Quezon City, PH',
+            'startup_photo_path' => 'startup-photos/placeholder.png',
+            'cohort_number' => null,
+            'cohort_id' => null,
+        ]);
+
+        $clearpathSheet = InformationSheet::firstOrCreate(
+            ['startup_id' => $readyToSchedule->startup_id],
+            ['approval_status' => 'Pending', 'business_description' => 'Placeholder']
+        );
+
+        // Forced every run so an older seed (missing submission_date, or
+        // accidentally Approved/cohorted) gets repaired back to this exact
+        // "submitted, awaiting schedule" state.
+        $clearpathSheet->update([
+            'approval_status' => 'Pending',
+            'submission_date' => now()->subDays(2),
+            'business_description' => 'ClearPath Mobility builds real-time route optimization software for last-mile delivery fleets.',
+            'target_market' => 'Logistics companies and delivery fleet operators in Metro Manila.',
+            'problem_statement' => 'Delivery fleets waste fuel and time on inefficient, manually-planned routes.',
+            'solution_offered' => 'An AI-assisted route optimization platform that re-plans delivery routes in real time.',
+            'surname' => 'Villaruel',
+            'first_name' => 'Renz',
+            'middle_name' => 'Aquino',
+            'name_extension' => 'N/A',
+            'height_m' => '1.68',
+            'weight_kg' => '62',
+            'blood_type' => 'A+',
+            'gsis_no' => '4455667788',
+            'pagibig_no' => '4455-6677-8899',
+            'philhealth_no' => '44-556677889-9',
+            'sss_no' => '44-5566778-9',
+            'residential_address' => '18 Maginhawa Street, Quezon City',
+            'permanent_address' => '18 Maginhawa Street, Quezon City',
+            'sex' => 'Male',
+            'civil_status' => 'Single',
+            'citizenship_by_birth' => 'Filipino',
+            'citizenship_dual' => 'N/A',
+            'place_of_birth' => 'Quezon City',
+            'date_of_birth' => '1996-02-20',
+            'mobile_no' => '09201234567',
+            'founder_email' => 'renz.villaruel@clearpath.ph',
+            'secondary_school' => 'Quezon City Science High School',
+            'secondary_degree_course' => 'N/A',
+            'secondary_highest_level_unit' => 'N/A',
+            'secondary_year_graduated' => '2013',
+            'vocational_school' => 'N/A',
+            'vocational_degree_course' => 'N/A',
+            'vocational_highest_level_unit' => 'N/A',
+            'vocational_year_graduated' => 'N/A',
+            'college_school' => 'Polytechnic University of the Philippines',
+            'college_degree_course' => 'BS Information Technology',
+            'college_highest_level_unit' => "Bachelor's Degree",
+            'college_year_graduated' => '2018',
+            'graduate_school' => 'N/A',
+            'graduate_degree_course' => 'N/A',
+            'graduate_highest_level_unit' => 'N/A',
+            'graduate_year_graduated' => 'N/A',
+            'scholarships_academic_honors' => "Dean's Lister, 2015-2018",
+            'sec_registration' => 'CS202198765',
+            'business_id_number' => 'BID-0055432',
+            'dti_registration_number' => 'DTI-0098765',
+            'business_tin' => '789-012-345-000',
+            'non_academic_distinctions' => 'Finalist, PUP Logistics Innovation Challenge 2025',
+            'membership_associations' => 'Philippine Logistics Tech Association',
+            'date_accomplished' => now()->subDays(2)->toDateString(),
+        ]);
+
+        if (TeamMember::where('startup_id', $readyToSchedule->startup_id)->count() === 0) {
+            TeamMember::create(['startup_id' => $readyToSchedule->startup_id, 'full_name' => 'Renz Villaruel', 'designation' => 'CEO', 'role' => 'CEO', 'phone' => '09201234567', 'address' => 'Quezon City', 'date_of_birth' => '1996-02-20', 'email' => 'renz@clearpath.ph', 'citizenship' => 'Filipino', 'sex' => 'Male', 'civil_status' => 'Single']);
+            TeamMember::create(['startup_id' => $readyToSchedule->startup_id, 'full_name' => 'Diane Cortez', 'designation' => 'CTO', 'role' => 'CTO', 'phone' => '09211234567', 'address' => 'Marikina City', 'date_of_birth' => '1997-08-09', 'email' => 'diane@clearpath.ph', 'citizenship' => 'Filipino', 'sex' => 'Female', 'civil_status' => 'Single']);
+        }
+
+        if (IncubationInvolvement::where('info_sheet_id', $clearpathSheet->info_sheet_id)->count() === 0) {
+            IncubationInvolvement::create(['info_sheet_id' => $clearpathSheet->info_sheet_id, 'organization_name_address' => 'DTI Negosyo Center, Quezon City', 'date_from' => '2024-03-01', 'date_to' => '2024-08-31', 'number_of_hours' => '90', 'incubation_program_focus' => 'Product Development']);
+        }
+
+        if (LdIntervention::where('info_sheet_id', $clearpathSheet->info_sheet_id)->count() === 0) {
+            LdIntervention::create(['info_sheet_id' => $clearpathSheet->info_sheet_id, 'title' => 'Logistics Tech Bootcamp', 'date_from' => '2024-09-05', 'date_to' => '2024-09-07', 'number_of_hours' => '24', 'conducted_sponsored_by' => 'PUP-TBIDO']);
+        }
+
+        if (StartupReference::where('info_sheet_id', $clearpathSheet->info_sheet_id)->count() === 0) {
+            StartupReference::create(['info_sheet_id' => $clearpathSheet->info_sheet_id, 'name' => 'Engr. Michael Santos', 'contact' => '09221234567', 'email' => 'michael.santos@pup.edu.ph', 'address' => 'PUP Sta. Mesa, Manila']);
+        }
+
+        if (ReadinessLevelAssessment::where('startup_id', $readyToSchedule->startup_id)->count() === 0) {
+            $assessment = new ReadinessLevelAssessment(array_merge([
+                'startup_id' => $readyToSchedule->startup_id,
+                'stage' => 'Pre-Assessment',
+                'assessment_date' => now(),
+            ], $this->rubricProgress(['TRL' => 5.5, 'MRL' => 4.8, 'TMRL' => 5.0, 'SRL' => 3.9])));
+            $assessment->recomputeScores()->save();
+        }
+
         // Sample mentors
         Mentor::firstOrCreate(
             ['contact_email' => 'cruz@gmail.com'],
@@ -439,7 +561,7 @@ class DevDataSeeder extends Seeder
         $this->command->info('Dev data seeded successfully.');
         $this->command->info('Ready-to-login accounts (password: "password"):');
         $this->command->info('  Admin:   admin@pup.edu.ph');
-        $this->command->info('  Founder: founder@test.com (AgriSense PH — Onboarding), ecowatt.founder@test.com (EcoWatt Solutions — Approved, needs coordinator), greenloop.founder@test.com (GreenLoop Energy — Pending sheet + missed evaluation)');
+        $this->command->info('  Founder: founder@test.com (AgriSense PH — Onboarding), ecowatt.founder@test.com (EcoWatt Solutions — Approved, needs coordinator), greenloop.founder@test.com (GreenLoop Energy — Pending sheet + missed evaluation), clearpath.founder@test.com (ClearPath Mobility — Profile + Info Sheet complete, ready to be scheduled)');
         $this->command->info('For unverified/just-signed-up test accounts (to try the verify-email screen), run: php artisan db:seed --class=FounderApplicationSeeder');
     }
 

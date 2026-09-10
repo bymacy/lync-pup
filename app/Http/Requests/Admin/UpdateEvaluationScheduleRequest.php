@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\EvaluationSchedule;
+use App\Support\MeetingPlatform;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -51,6 +52,24 @@ class UpdateEvaluationScheduleRequest extends FormRequest
                     }
                 },
             ],
+            // How the evaluation itself will happen, same fixed platform list
+            // and per-platform link validation as Roadblock's mentor
+            // assignment (see App\Support\MeetingPlatform).
+            'modality' => ['required', Rule::in(MeetingPlatform::OPTIONS)],
+            'link' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    if (blank($value)) {
+                        return;
+                    }
+
+                    if (! MeetingPlatform::isValidLink($this->input('modality'), $value)) {
+                        $fail(MeetingPlatform::linkErrorMessage($this->input('modality')));
+                    }
+                },
+            ],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
@@ -59,6 +78,13 @@ class UpdateEvaluationScheduleRequest extends FormRequest
     {
         return [
             'evaluation_date.after_or_equal' => 'You cannot schedule an evaluation in the past.',
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'link' => 'meeting link / location',
         ];
     }
 }

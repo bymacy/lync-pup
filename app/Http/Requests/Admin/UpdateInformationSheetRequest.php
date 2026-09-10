@@ -34,8 +34,13 @@ class UpdateInformationSheetRequest extends FormRequest
             'sec_registration', 'business_id_number', 'dti_registration_number', 'business_tin',
             // 32 & 34. Distinctions and memberships
             'non_academic_distinctions', 'membership_associations',
-            // For TBIDO only
-            'portfolio_manager', 'cohort_no', 'endorsed_by',
+            // For TBIDO only. portfolio_manager/cohort_no are deliberately
+            // NOT upper-cased here — they're now dropdowns sourced straight
+            // from Coordinator::name / Cohort::display_label (see
+            // admin/information-sheets/show.blade.php's $selectField()), so
+            // upper-casing them would make the saved value stop matching any
+            // dropdown option's real casing the next time the page loads.
+            'endorsed_by',
         ];
 
         // Fields that legitimately hold several lines. Everything else is a

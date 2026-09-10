@@ -17,6 +17,8 @@ class EvaluationSchedule extends Model
         'evaluation_date',
         'start_time',
         'end_time',
+        'modality',
+        'link',
         'notes',
         'status',
     ];
