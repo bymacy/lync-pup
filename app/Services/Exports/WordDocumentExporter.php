@@ -12,7 +12,7 @@ use PhpOffice\PhpWord\TemplateProcessor;
 
 class WordDocumentExporter
 {
-    
+
     private const TEMPLATES = [
         1 => 'startup-information-sheet-template.docx',
         2 => 'startup-tech-assessment-trl-template.docx',
@@ -29,13 +29,13 @@ class WordDocumentExporter
         13 => 'doc13-venture-exit-template.docx',
     ];
 
-   
+
     public function hasTemplate(int $documentNumber): bool
     {
         return isset(self::TEMPLATES[$documentNumber]);
     }
 
-    
+
     public function render(int $documentNumber, Startup $startup): ?string
     {
         if (! isset(self::TEMPLATES[$documentNumber])) {
@@ -67,17 +67,17 @@ class WordDocumentExporter
         // Tracked in git under resources/document-templates/ (unlike
         // storage/app, resources/ isn't gitignored) so these masters ship
         // with every clone instead of needing a manual out-of-band copy.
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[1]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[1]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
-        $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
         // Founder's Information (1-21) and a few Startup Information fields
         // (27-31, 32, 34, 35) print in all caps on the real form - matches
         // its own printed instruction, "Use Capital Letters and Print
         // Legibly". Applied here rather than relying on how the admin
         // actually typed it into the app.
-        $vc = fn ($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
+        $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
 
         $processor->setValue('surname', $vc($sheet?->surname));
         $processor->setValue('first_name', $vc($sheet?->first_name));
@@ -102,10 +102,10 @@ class WordDocumentExporter
         $processor->setValue('founder_email', $vc($sheet?->founder_email));
 
         foreach (['secondary', 'vocational', 'college', 'graduate'] as $key) {
-            $processor->setValue("{$key}_school", $v($sheet?->{$key.'_school'}));
-            $processor->setValue("{$key}_degree_course", $v($sheet?->{$key.'_degree_course'}));
-            $processor->setValue("{$key}_highest_level_unit", $v($sheet?->{$key.'_highest_level_unit'}));
-            $processor->setValue("{$key}_year_graduated", $v($sheet?->{$key.'_year_graduated'}));
+            $processor->setValue("{$key}_school", $v($sheet?->{$key . '_school'}));
+            $processor->setValue("{$key}_degree_course", $v($sheet?->{$key . '_degree_course'}));
+            $processor->setValue("{$key}_highest_level_unit", $v($sheet?->{$key . '_highest_level_unit'}));
+            $processor->setValue("{$key}_year_graduated", $v($sheet?->{$key . '_year_graduated'}));
         }
 
         // The real form gives this 9 separate small cells (a 3x3 grid), one
@@ -116,7 +116,7 @@ class WordDocumentExporter
         // template actually has room for.
         $scholarships = array_values(array_filter(
             array_map('trim', preg_split('/\r\n|\r|\n/', (string) $sheet?->scholarships_academic_honors)),
-            fn ($line) => $line !== ''
+            fn($line) => $line !== ''
         ));
         for ($i = 1; $i <= 9; $i++) {
             $processor->setValue("scholarship_{$i}", $vc($scholarships[$i - 1] ?? ''));
@@ -142,7 +142,7 @@ class WordDocumentExporter
         $this->cloneRepeatingRow(
             $processor,
             anchor: 'member_full_name',
-            rows: $startup->teamMembers->map(fn ($m) => [
+            rows: $startup->teamMembers->map(fn($m) => [
                 'member_full_name' => $v($m->full_name),
                 'member_designation' => $v($m->designation),
                 'member_phone' => $v($m->phone),
@@ -159,7 +159,7 @@ class WordDocumentExporter
         $this->cloneRepeatingRow(
             $processor,
             anchor: 'incub_org',
-            rows: ($sheet?->incubationInvolvements ?? collect())->map(fn ($row) => [
+            rows: ($sheet?->incubationInvolvements ?? collect())->map(fn($row) => [
                 'incub_org' => $v($row->organization_name_address),
                 'incub_from' => $d($row->date_from),
                 'incub_to' => $d($row->date_to),
@@ -172,7 +172,7 @@ class WordDocumentExporter
         $this->cloneRepeatingRow(
             $processor,
             anchor: 'ld_title',
-            rows: ($sheet?->ldInterventions ?? collect())->map(fn ($row) => [
+            rows: ($sheet?->ldInterventions ?? collect())->map(fn($row) => [
                 'ld_title' => $v($row->title),
                 'ld_from' => $d($row->date_from),
                 'ld_to' => $d($row->date_to),
@@ -185,7 +185,7 @@ class WordDocumentExporter
         $this->cloneRepeatingRow(
             $processor,
             anchor: 'ref_name',
-            rows: ($sheet?->references ?? collect())->map(fn ($row) => [
+            rows: ($sheet?->references ?? collect())->map(fn($row) => [
                 'ref_name' => $vc($row->name),
                 'ref_contact' => $vc($row->contact),
                 'ref_email' => $vc($row->email),
@@ -199,7 +199,7 @@ class WordDocumentExporter
             mkdir($tempDir, 0755, true);
         }
 
-        $filledDocxPath = $tempDir.'/'.uniqid('doc1-', true).'.docx';
+        $filledDocxPath = $tempDir . '/' . uniqid('doc1-', true) . '.docx';
         $processor->saveAs($filledDocxPath);
 
         // Was: convert to PDF via LibreOffice here. Dropped for now - on
@@ -247,12 +247,12 @@ class WordDocumentExporter
         $overview = $assessment?->trl_overview ?? [];
         $progress = $assessment?->progressFor('TRL') ?? [];
 
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[2]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[2]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
-        $vc = fn ($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
-        $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
+        $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
         // Section 1's checkboxes print as a checkbox glyph - a checked
         // box with a check mark inside, not a solid block (Macy: "make
         // the black boxes be checkbox instead"). Section 2's TRL rubric
@@ -260,9 +260,9 @@ class WordDocumentExporter
         // unchecked (Macy: "lagay na lang a check instead of checkbox")
         // - two different conventions, so two closures rather than one
         // shared $cb.
-        $cbBox = fn (bool $isChecked) => $isChecked ? '☑' : '☐';
-        $cbCheck = fn (bool $isChecked) => $isChecked ? '✓' : '';
-        $inList = fn (array $list, string $needle) => in_array($needle, $list, true);
+        $cbBox = fn(bool $isChecked) => $isChecked ? '☑' : '☐';
+        $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
+        $inList = fn(array $list, string $needle) => in_array($needle, $list, true);
         $processor->setValue('company_name', $v($startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->assessment_date));
         $processor->setValue('founder', $v($overview['founder'] ?? ''));
@@ -368,7 +368,7 @@ class WordDocumentExporter
             mkdir($tempDir, 0755, true);
         }
 
-        $filledDocxPath = $tempDir.'/'.uniqid('doc2-', true).'.docx';
+        $filledDocxPath = $tempDir . '/' . uniqid('doc2-', true) . '.docx';
         $processor->saveAs($filledDocxPath);
 
         $binary = file_get_contents($filledDocxPath);
@@ -398,16 +398,16 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('MRL') ?? [];
 
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[3]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[3]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
-        $vc = fn ($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
-        $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
+        $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
         // Same "plain checkmark, nothing when unchecked" convention as
         // Document 2/9's TRL rubric (Macy: "lagay na lang a check instead
         // of checkbox").
-        $cbCheck = fn (bool $isChecked) => $isChecked ? '✓' : '';
+        $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->assessment_date));
@@ -437,7 +437,7 @@ class WordDocumentExporter
             mkdir($tempDir, 0755, true);
         }
 
-        $filledDocxPath = $tempDir.'/'.uniqid('doc3-', true).'.docx';
+        $filledDocxPath = $tempDir . '/' . uniqid('doc3-', true) . '.docx';
         $processor->saveAs($filledDocxPath);
 
         $binary = file_get_contents($filledDocxPath);
@@ -462,15 +462,15 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('TMRL') ?? [];
 
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[4]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[4]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
-        $vc = fn ($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
-        $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
+        $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
         // Same "plain checkmark, nothing when unchecked" convention as
         // Document 3/9's rubrics.
-        $cbCheck = fn (bool $isChecked) => $isChecked ? '✓' : '';
+        $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->assessment_date));
@@ -500,7 +500,7 @@ class WordDocumentExporter
             mkdir($tempDir, 0755, true);
         }
 
-        $filledDocxPath = $tempDir.'/'.uniqid('doc4-', true).'.docx';
+        $filledDocxPath = $tempDir . '/' . uniqid('doc4-', true) . '.docx';
         $processor->saveAs($filledDocxPath);
 
         $binary = file_get_contents($filledDocxPath);
@@ -527,15 +527,15 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('SRL') ?? [];
 
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[5]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[5]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
-        $vc = fn ($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
-        $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
+        $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
         // Same "plain checkmark, nothing when unchecked" convention as
         // Document 3/4/9's rubrics.
-        $cbCheck = fn (bool $isChecked) => $isChecked ? '✓' : '';
+        $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->assessment_date));
@@ -565,7 +565,7 @@ class WordDocumentExporter
             mkdir($tempDir, 0755, true);
         }
 
-        $filledDocxPath = $tempDir.'/'.uniqid('doc5-', true).'.docx';
+        $filledDocxPath = $tempDir . '/' . uniqid('doc5-', true) . '.docx';
         $processor->saveAs($filledDocxPath);
 
         $binary = file_get_contents($filledDocxPath);
@@ -591,15 +591,15 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('TRL') ?? [];
 
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[9]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[9]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
-        $vc = fn ($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
         // Same "plain checkmark, nothing when unchecked" convention as
         // Document 2's Section 2 TRL rubric (Macy: "lagay na lang a check
         // instead of checkbox").
-        $cbCheck = fn (bool $isChecked) => $isChecked ? '✓' : '';
+        $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         foreach (ReadinessRubric::levels('TRL') as $level => $definition) {
             $criteriaChecked = $progress[$level] ?? $progress[(string) $level] ?? [];
@@ -626,7 +626,7 @@ class WordDocumentExporter
             mkdir($tempDir, 0755, true);
         }
 
-        $filledDocxPath = $tempDir.'/'.uniqid('doc9-', true).'.docx';
+        $filledDocxPath = $tempDir . '/' . uniqid('doc9-', true) . '.docx';
         $processor->saveAs($filledDocxPath);
 
         $binary = file_get_contents($filledDocxPath);
@@ -655,15 +655,15 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('MRL') ?? [];
 
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[10]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[10]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
-        $vc = fn ($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
-        $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
+        $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
         // Same "plain checkmark, nothing when unchecked" convention as
         // Document 3/9's rubrics.
-        $cbCheck = fn (bool $isChecked) => $isChecked ? '✓' : '';
+        $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->assessment_date));
@@ -691,7 +691,7 @@ class WordDocumentExporter
             mkdir($tempDir, 0755, true);
         }
 
-        $filledDocxPath = $tempDir.'/'.uniqid('doc10-', true).'.docx';
+        $filledDocxPath = $tempDir . '/' . uniqid('doc10-', true) . '.docx';
         $processor->saveAs($filledDocxPath);
 
         $binary = file_get_contents($filledDocxPath);
@@ -714,15 +714,15 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('TMRL') ?? [];
 
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[11]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[11]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
-        $vc = fn ($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
-        $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
+        $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
         // Same "plain checkmark, nothing when unchecked" convention as
         // Document 4/9's rubrics.
-        $cbCheck = fn (bool $isChecked) => $isChecked ? '✓' : '';
+        $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->assessment_date));
@@ -750,7 +750,7 @@ class WordDocumentExporter
             mkdir($tempDir, 0755, true);
         }
 
-        $filledDocxPath = $tempDir.'/'.uniqid('doc11-', true).'.docx';
+        $filledDocxPath = $tempDir . '/' . uniqid('doc11-', true) . '.docx';
         $processor->saveAs($filledDocxPath);
 
         $binary = file_get_contents($filledDocxPath);
@@ -773,15 +773,15 @@ class WordDocumentExporter
 
         $progress = $assessment?->progressFor('SRL') ?? [];
 
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[12]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[12]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
-        $vc = fn ($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
-        $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
+        $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
         // Same "plain checkmark, nothing when unchecked" convention as
         // Document 5/9's rubrics.
-        $cbCheck = fn (bool $isChecked) => $isChecked ? '✓' : '';
+        $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
         $processor->setValue('assessment_date', $d($assessment?->assessment_date));
@@ -809,7 +809,7 @@ class WordDocumentExporter
             mkdir($tempDir, 0755, true);
         }
 
-        $filledDocxPath = $tempDir.'/'.uniqid('doc12-', true).'.docx';
+        $filledDocxPath = $tempDir . '/' . uniqid('doc12-', true) . '.docx';
         $processor->saveAs($filledDocxPath);
 
         $binary = file_get_contents($filledDocxPath);
@@ -830,7 +830,7 @@ class WordDocumentExporter
     {
         $lines = array_values(array_filter(
             array_map('trim', preg_split('/\r\n|\r|\n/', $text)),
-            fn ($line) => $line !== ''
+            fn($line) => $line !== ''
         ));
 
         for ($i = 1; $i <= $slots; $i++) {
@@ -860,17 +860,17 @@ class WordDocumentExporter
 
         $data = $document?->data ?? [];
 
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[6]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[6]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
-        $vc = fn ($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $vc = fn($val) => $val !== null && $val !== '' ? mb_strtoupper((string) $val) : '';
         // Same checkbox-glyph convention as Document 8's Platform
         // Compatibility/Development Status/IP Status columns - a visible
         // box either way, not bare "X"/nothing, so unchecked options still
         // show an empty box instead of blank space. Checked box uses a
         // checkmark (matching the ☑/☐ convention used elsewhere), not an X.
-        $cbCheck = fn (bool $isChecked) => $isChecked ? '☑' : '☐';
+        $cbCheck = fn(bool $isChecked) => $isChecked ? '☑' : '☐';
 
         $processor->setValue('company_name', $v($startup->company_name));
 
@@ -895,8 +895,8 @@ class WordDocumentExporter
         ];
         foreach ($sectionAnchors as $sectionKey => $prefix) {
             $sectionRows = collect(data_get($data, $sectionKey, []))
-                ->filter(fn ($row) => collect($row)->filter()->isNotEmpty())
-                ->map(fn ($row) => [
+                ->filter(fn($row) => collect($row)->filter()->isNotEmpty())
+                ->map(fn($row) => [
                     "{$prefix}_topics" => $v($row['topics'] ?? null),
                     "{$prefix}_objective" => $v($row['objective'] ?? null),
                     "{$prefix}_timeline" => $v($row['timeline'] ?? null),
@@ -943,17 +943,17 @@ class WordDocumentExporter
 
         $data = $document?->data ?? [];
 
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[7]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[7]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
         $processor->setValue('portfolio_coordinator', $v($startup->activeCoordinatorAssignment?->coordinator?->name));
 
         $checkInRows = collect(data_get($data, 'check_ins', []))
-            ->filter(fn ($row) => collect($row)->filter()->isNotEmpty())
-            ->map(fn ($row) => [
+            ->filter(fn($row) => collect($row)->filter()->isNotEmpty())
+            ->map(fn($row) => [
                 'ci_dates' => $v($row['dates'] ?? null),
                 'ci_area' => $v($row['area_discussed'] ?? null),
                 'ci_action' => $v($row['action_plan'] ?? null),
@@ -1006,16 +1006,16 @@ class WordDocumentExporter
 
         $data = $document?->data ?? [];
 
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[8]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[8]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
-        $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
         // The table cell border is already the "box" - a separate box
         // glyph (☐/☑) wasn't rendering reliably in real Word (no font on
         // that run), so this just prints a plain check mark, centered in
         // the cell, and nothing at all when unchecked.
-        $cbCheck = fn (bool $isChecked) => $isChecked ? '✓' : '';
+        $cbCheck = fn(bool $isChecked) => $isChecked ? '✓' : '';
 
         $processor->setValue('company_name', $v($startup->company_name));
         $processor->setValue('prototype_name', $v(data_get($data, 'prototype_name')));
@@ -1023,13 +1023,13 @@ class WordDocumentExporter
         $processor->setValue('recommendations', $v(data_get($data, 'recommendations')));
 
         foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_8_PLATFORM_COMPATIBILITY as $i => $option) {
-            $processor->setValue('pc_check_'.($i + 1), $cbCheck((bool) data_get($data, "platform_compatibility.$option")));
+            $processor->setValue('pc_check_' . ($i + 1), $cbCheck((bool) data_get($data, "platform_compatibility.$option")));
         }
         foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_8_DEVELOPMENT_STATUS as $i => $option) {
-            $processor->setValue('ds_check_'.($i + 1), $cbCheck((bool) data_get($data, "development_status.$option")));
+            $processor->setValue('ds_check_' . ($i + 1), $cbCheck((bool) data_get($data, "development_status.$option")));
         }
         foreach (\App\Support\ActiveAssessmentForms::DOCUMENT_8_IP_STATUS as $i => $option) {
-            $processor->setValue('ip_check_'.($i + 1), $cbCheck((bool) data_get($data, "ip_status.$option")));
+            $processor->setValue('ip_check_' . ($i + 1), $cbCheck((bool) data_get($data, "ip_status.$option")));
         }
 
         $categories = \App\Support\ActiveAssessmentForms::document8RatingCategories();
@@ -1052,7 +1052,7 @@ class WordDocumentExporter
             $processor->setValue("sum_{$catKey}", $avg !== null ? (string) $avg : '');
         }
 
-        $filledAverages = array_filter($categoryAverages, fn ($a) => $a !== null);
+        $filledAverages = array_filter($categoryAverages, fn($a) => $a !== null);
         $overallAvg = $filledAverages ? \App\Support\ActiveAssessmentForms::averageRating($filledAverages) : null;
         $processor->setValue('sum_total', $overallAvg !== null ? (string) $overallAvg : '');
         $processor->setValue('sum_overall_interp', (string) (\App\Support\ActiveAssessmentForms::scoreInterpretation($overallAvg) ?? ''));
@@ -1089,11 +1089,11 @@ class WordDocumentExporter
 
         $data = $document?->data ?? [];
 
-        $templatePath = resource_path('document-templates/'.self::TEMPLATES[13]);
+        $templatePath = resource_path('document-templates/' . self::TEMPLATES[13]);
         $processor = new TemplateProcessor($templatePath);
 
-        $v = fn ($val) => $val !== null && $val !== '' ? (string) $val : '';
-        $d = fn ($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
+        $v = fn($val) => $val !== null && $val !== '' ? (string) $val : '';
+        $d = fn($val) => $val ? \Illuminate\Support\Carbon::parse($val)->format('m/d/Y') : '';
 
         $processor->setValue('startup_name', $v(data_get($data, 'startup_name', $startup->company_name)));
         $processor->setValue('date_of_assessment', $d(data_get($data, 'date_of_assessment')));
@@ -1126,7 +1126,7 @@ class WordDocumentExporter
         }
 
         // Macy: names in the signatory block must be all caps.
-        $vUpper = fn ($val) => mb_strtoupper($v($val), 'UTF-8');
+        $vUpper = fn($val) => mb_strtoupper($v($val), 'UTF-8');
         $processor->setValue('evaluated_by_name', $vUpper(data_get($data, 'evaluated_by_name')));
         $processor->setValue('evaluated_by_position', $v(data_get($data, 'evaluated_by_position')));
         $processor->setValue('reviewed_by_name', $vUpper(data_get($data, 'reviewed_by_name')));
@@ -1150,7 +1150,7 @@ class WordDocumentExporter
             mkdir($tempDir, 0755, true);
         }
 
-        $filledDocxPath = $tempDir.'/'.uniqid($prefix, true).'.docx';
+        $filledDocxPath = $tempDir . '/' . uniqid($prefix, true) . '.docx';
         $processor->saveAs($filledDocxPath);
 
         $binary = file_get_contents($filledDocxPath);
@@ -1208,8 +1208,15 @@ class WordDocumentExporter
     {
         return match ($anchor) {
             'member_full_name' => array_fill_keys([
-                'member_full_name', 'member_designation', 'member_phone', 'member_address',
-                'member_date_of_birth', 'member_email', 'member_citizenship', 'member_sex', 'member_civil_status',
+                'member_full_name',
+                'member_designation',
+                'member_phone',
+                'member_address',
+                'member_date_of_birth',
+                'member_email',
+                'member_citizenship',
+                'member_sex',
+                'member_civil_status',
             ], true),
             'incub_org' => array_fill_keys(['incub_org', 'incub_from', 'incub_to', 'incub_hours', 'incub_focus'], true),
             'ld_title' => array_fill_keys(['ld_title', 'ld_from', 'ld_to', 'ld_hours', 'ld_by'], true),
@@ -1240,7 +1247,7 @@ class WordDocumentExporter
         if (! is_dir($profileDir)) {
             mkdir($profileDir, 0755, true);
         }
-        $profileUrl = 'file:///'.str_replace('\\', '/', $profileDir);
+        $profileUrl = 'file:///' . str_replace('\\', '/', $profileDir);
 
         // Laravel's Process facade (and Symfony's underneath it) captures
         // output through anonymous pipes. On this machine that makes
@@ -1252,7 +1259,7 @@ class WordDocumentExporter
         // directly, redirecting stdin from NUL and stdout/stderr straight to
         // real log files instead of pipes - the combination that avoids
         // whatever soffice.bin/ucrtbase.dll doesn't tolerate here.
-        $quote = fn (string $value) => '"'.$value.'"';
+        $quote = fn(string $value) => '"' . $value . '"';
         $command = sprintf(
             '%s --headless --norestore -env:UserInstallation=%s --convert-to pdf --outdir %s %s',
             $quote($soffice),
@@ -1261,8 +1268,8 @@ class WordDocumentExporter
             $quote($docxPath),
         );
 
-        $stdoutPath = $outDir.'/'.uniqid('soffice-out-', true).'.log';
-        $stderrPath = $outDir.'/'.uniqid('soffice-err-', true).'.log';
+        $stdoutPath = $outDir . '/' . uniqid('soffice-out-', true) . '.log';
+        $stderrPath = $outDir . '/' . uniqid('soffice-err-', true) . '.log';
 
         $descriptors = [
             0 => ['file', 'NUL', 'r'],
@@ -1308,12 +1315,12 @@ class WordDocumentExporter
             ]);
 
             throw new \RuntimeException(
-                'Could not convert the filled Word document to PDF (exit code '.$exitCode.'). '
-                .'stderr: '.$stderr.' | stdout: '.$stdout
+                'Could not convert the filled Word document to PDF (exit code ' . $exitCode . '). '
+                    . 'stderr: ' . $stderr . ' | stdout: ' . $stdout
             );
         }
 
-        $pdfPath = $outDir.'/'.pathinfo($docxPath, PATHINFO_FILENAME).'.pdf';
+        $pdfPath = $outDir . '/' . pathinfo($docxPath, PATHINFO_FILENAME) . '.pdf';
 
         if (! is_file($pdfPath)) {
             throw new \RuntimeException("LibreOffice reported success but {$pdfPath} wasn't created.");
