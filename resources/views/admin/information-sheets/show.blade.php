@@ -80,6 +80,23 @@
         </div>
     </div>
 
+    {{-- Flash-hint on the Edit button: a couple of quick outward rings in the
+         page's own brand color, then settles back to nothing. Fires every
+         time a read-only field is clicked (see highlightEditButton() below),
+         so an admin who clicks a field and sees nothing happen gets pointed
+         straight at the control that actually unlocks it. --}}
+    <style>
+        @keyframes editHintPulse {
+            0% { box-shadow: 0 0 0 0 rgba(109, 13, 35, 0.55); }
+            70% { box-shadow: 0 0 0 10px rgba(109, 13, 35, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(109, 13, 35, 0); }
+        }
+        .edit-hint-glow {
+            animation: editHintPulse 1s ease-out 2;
+            border-radius: 0.5rem;
+        }
+    </style>
+
     <div
         class="bg-white rounded-xl border border-gray-200 max-w-6xl overflow-hidden"
         x-data="{
@@ -90,6 +107,19 @@
     confirmingApprove: false,
     confirmingReject: false,
     lastClickedInput: null,
+
+    // Flashes the Edit button so an admin who clicks a read-only field
+    // notices they need to press Edit first, instead of wondering why
+    // nothing happened. Toggled via classList (not a reactive :class
+    // binding) so repeated clicks always restart the animation, even
+    // when the class is already present from a previous click.
+    highlightEditButton() {
+        const btn = this.$refs.editButton;
+        if (! btn) return;
+        btn.classList.remove('edit-hint-glow');
+        void btn.offsetWidth; // reflow, so re-adding the class restarts the animation
+        btn.classList.add('edit-hint-glow');
+    },
 
     newRows: { team: [], inc: [], ld: [], ref: [] },
     nextRowId: 1,
@@ -191,6 +221,7 @@
         @click.capture="
         if (!editing && $event.target.matches('input, textarea, select')) {
             lastClickedInput = $event.target.name;
+            highlightEditButton();
 
             $nextTick(() => {
                 $refs.editButton?.scrollIntoView({
@@ -1627,7 +1658,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                         </a>
 
                         @if ($sheetUpdateUrl)
-                        <div class="flex-1 rounded-lg p-[1.5px] bg-gradient-to-r from-[#6D0D23] to-[#11386A]">
+                        <div class="flex-1 rounded-lg p-[1px] bg-gradient-to-r from-[#6D0D23] to-[#11386A]">
                             <button
                                 type="button"
                                 x-ref="editButton"

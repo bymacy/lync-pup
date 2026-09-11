@@ -83,14 +83,16 @@ class AssessmentHubController extends Controller
             ->paginate($pendingPerPage, ['*'], 'page', $pendingPage)
             ->withQueryString();
 
-        // Once a startup's Information Sheet is approved, they're done with
-        // the evaluation stage — their schedule row (even if still
-        // 'Scheduled') should stop showing up here and live under the
-        // Approved tab instead.
+        // Once a startup's Information Sheet is approved OR rejected, they're
+        // decided — their schedule row (even if still 'Scheduled') should
+        // stop showing up here and live under the Approved/Rejected tab
+        // instead. Otherwise a just-rejected startup lingers on Today with no
+        // outcome badge to show for it (outcome() only knows DONE/MISSED),
+        // which reads as if the reject click did nothing.
         $scheduledToday = EvaluationSchedule::with('startup')
             ->where('status', 'Scheduled')
             ->whereDate('evaluation_date', now()->toDateString())
-            ->whereDoesntHave('startup.informationSheet', fn ($q) => $q->where('approval_status', 'Approved'))
+            ->whereDoesntHave('startup.informationSheet', fn ($q) => $q->whereIn('approval_status', ['Approved', 'Rejected']))
             ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
             ->orderBy('start_time')
             ->get();
@@ -98,7 +100,12 @@ class AssessmentHubController extends Controller
         $scheduled = EvaluationSchedule::with('startup.informationSheet')
             ->where('status', 'Scheduled')
             ->when($cohortId, fn ($q) => $q->whereHas('startup', fn ($s) => $s->where('cohort_id', $cohortId)))
-            ->get();
+            ->get()
+            // Rejected startups belong solely to the Rejected tab from the
+            // moment they're rejected — never back on Today/Upcoming/Missed,
+            // even though the schedule row itself is still 'Scheduled'.
+            ->reject(fn ($row) => $row->startup?->informationSheet?->approval_status === 'Rejected')
+            ->values();
 
         $activeSchedules = $scheduled->reject(
             fn ($row) => $row->startup?->informationSheet?->approval_status === 'Approved'
@@ -108,7 +115,9 @@ class AssessmentHubController extends Controller
         // carries its own outcome (DONE / MISSED), approved ones included - those
         // are the DONE rows, so they are read off $scheduled rather than
         // $activeSchedules. Upcoming still drops approved startups; they belong
-        // to the Approved tab, not to a future booking. See EvaluationSchedule.
+        // to the Approved tab, not to a future booking. Rejected startups are
+        // already filtered out of $scheduled above, so they never resurface
+        // here either. See EvaluationSchedule.
         $todayEvaluations = $scheduled->filter->isToday()->sortBy('start_time')->values();
         $upcomingEvaluations = $activeSchedules->filter->isUpcoming()->sortBy(['evaluation_date', 'start_time'])->values();
         // Read off $activeSchedules, not $scheduled: an approved sheet drops out of
