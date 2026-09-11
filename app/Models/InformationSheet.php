@@ -62,6 +62,11 @@ class InformationSheet extends Model
         return $this->hasMany(StartupReference::class, 'info_sheet_id');
     }
 
+    public function files()
+    {
+        return $this->hasMany(InformationSheetFile::class, 'info_sheet_id');
+    }
+
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->middle_name} {$this->surname} {$this->name_extension}");

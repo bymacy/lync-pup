@@ -18,8 +18,6 @@ use Illuminate\Support\Collection;
  */
 class RiskEngine
 {
-    public const CATEGORY_INFO_SHEET = 'Information Sheet';
-
     public const CATEGORY_COORDINATOR = 'Portfolio Coordinator';
 
     public const CATEGORY_MENTOR = 'Mentor Coordination';
@@ -27,7 +25,6 @@ class RiskEngine
     public const CATEGORY_ASSESSMENT = 'Readiness Assessment';
 
     public const CATEGORIES = [
-        self::CATEGORY_INFO_SHEET,
         self::CATEGORY_COORDINATOR,
         self::CATEGORY_MENTOR,
         self::CATEGORY_ASSESSMENT,
@@ -59,30 +56,20 @@ class RiskEngine
      * other indicators, a "Failed" roadblock status is a discrete terminal
      * outcome rather than an ongoing delay that worsens with time, so only
      * its flat base score applies.
+     *
+     * The original 3 Information Sheet indicators (No/Incomplete/Not
+     * Evaluated) were removed: the sheet is now assessed earlier in the
+     * flow (Assessment Hub's Awaiting Schedule/Evaluation tabs, plus the
+     * Rejected tab's own 10-day countdown) before a startup is even
+     * Approved, which is the point Risk Monitoring only ever covers — so
+     * flagging it again here was redundant with a decision that had
+     * already been made. Removing them also retires the CATEGORY_INFO_SHEET
+     * category entirely (see CATEGORIES above); the classification
+     * thresholds below are unchanged — they read as fixed severity cutoffs,
+     * not a percentage of the maximum possible score, so one category
+     * disappearing doesn't make the remaining ones any less serious.
      */
     public const INDICATORS = [
-        'no_information_sheet' => [
-            'label' => 'No Information Sheet',
-            'category' => self::CATEGORY_INFO_SHEET,
-            'severity' => 'Critical',
-            'base_score' => 5,
-        ],
-
-        // See the "Incomplete vs Not Evaluated" docblock above assess()
-        // for why these two are split on `submission_date` rather than
-        // both just checking `approval_status !== 'Approved'`.
-        'incomplete_information_sheet' => [
-            'label' => 'Incomplete Information Sheet',
-            'category' => self::CATEGORY_INFO_SHEET,
-            'severity' => 'High',
-            'base_score' => 4,
-        ],
-        'information_sheet_not_evaluated' => [
-            'label' => 'Information Sheet Not Evaluated',
-            'category' => self::CATEGORY_INFO_SHEET,
-            'severity' => 'High',
-            'base_score' => 4,
-        ],
         'no_mentor_assigned' => [
             'label' => 'No Mentor Assigned to Submitted Roadblock',
             'category' => self::CATEGORY_MENTOR,
@@ -175,44 +162,14 @@ class RiskEngine
         $documents = $documents ?? collect();
         $triggered = [];
 
+        // The Information Sheet itself is no longer assessed here — see the
+        // INDICATORS docblock above. $isApproved is still needed below (the
+        // Portfolio Coordinator indicator only applies once a startup is
+        // actually in the program).
         $infoSheet = $startup->informationSheet;
         $isApproved = $infoSheet && $infoSheet->approval_status === 'Approved';
 
-        // 1. No Information Sheet — clock starts when the startup itself was
-        // created, since there's no sheet submission to anchor to yet.
-        if (! $infoSheet) {
-            $triggered['no_information_sheet'] = self::dayTierScore(
-                $startup->created_at ? Carbon::parse($startup->created_at) : null
-            );
-        }
-
-        // 2 & 3. Incomplete vs Not Evaluated — an InformationSheet row can
-        // exist without the founder ever having gone through the actual
-        // Information Sheet submission flow: the Startup Profile page
-        // (app/Http/Controllers/Startup/StartupProfileController.php)
-        // also creates/touches this row (setting only business_description)
-        // whenever a founder saves their profile, well before they've
-        // filled in or submitted the real Information Sheet form. The one
-        // reliable signal that the actual form was submitted is
-        // `submission_date`, which is only ever set inside
-        // InformationSheetController::update() — never by the profile save.
-        // So: a row with no submission_date is "started but not finished"
-        // (Incomplete); a row with a submission_date but not yet Approved
-        // is genuinely "submitted, awaiting admin evaluation" (Not
-        // Evaluated).
-        if ($infoSheet && ! $infoSheet->submission_date) {
-            $triggered['incomplete_information_sheet'] = self::dayTierScore(
-                $infoSheet->created_at ? Carbon::parse($infoSheet->created_at) : null
-            );
-        }
-
-        if ($infoSheet && $infoSheet->submission_date && $infoSheet->approval_status !== 'Approved') {
-            $triggered['information_sheet_not_evaluated'] = self::dayTierScore(
-                Carbon::parse($infoSheet->submission_date)
-            );
-        }
-
-        // 4. No Mentor Assigned to Submitted Roadblock — a roadblock still
+        // 1. No Mentor Assigned to Submitted Roadblock — a roadblock still
         // sitting in 'Pending' (not yet Scheduled/Resolved/Failed) with no
         // mentor_id means it's awaiting assignment. Use the oldest such
         // roadblock so the score reflects the longest-ignored case.
@@ -225,7 +182,7 @@ class RiskEngine
             $triggered['no_mentor_assigned'] = self::dayTierScore(Carbon::parse($unassigned->created_at));
         }
 
-        // 5. No Portfolio Coordinator Assigned — only meaningful once a
+        // 2. No Portfolio Coordinator Assigned — only meaningful once a
         // startup is actually in the program (info sheet approved),
         // otherwise every not-yet-approved applicant would spuriously show
         // this risk from day one. There's no dedicated "approved_at"
@@ -237,12 +194,12 @@ class RiskEngine
             );
         }
 
-        // 6. Failed Mentorship — flat score, see class docblock.
+        // 3. Failed Mentorship — flat score, see class docblock.
         if ($startup->roadblocks->contains(fn ($roadblock) => $roadblock->status === 'Failed')) {
             $triggered['failed_mentorship'] = 0;
         }
 
-        // 7-10. Pre/Active/Post-Assessment + Venture Exit — see
+        // 4-7. Pre/Active/Post-Assessment + Venture Exit — see
         // ASSESSMENT_DUE_MONTHS docblock for why these are measured against
         // the startup's COHORT start date instead of its own timeline. No
         // cohort / no start_date set means there's nothing to measure
@@ -339,9 +296,6 @@ class RiskEngine
     protected static function resolveLink(string $key, Startup $startup): ?string
     {
         return match ($key) {
-            'no_information_sheet', 'incomplete_information_sheet', 'information_sheet_not_evaluated' =>
-                route('admin.information-sheet.show', $startup),
-
             'no_mentor_assigned' => route('admin.roadblocks.index', [
                 'tab' => 'manage',
                 'highlight' => 'startup-'.$startup->startup_id,

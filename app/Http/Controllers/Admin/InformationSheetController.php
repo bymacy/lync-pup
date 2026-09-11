@@ -12,6 +12,7 @@ use App\Http\Requests\Admin\UpdateInformationSheetRequest;
 use App\Http\Requests\Admin\UpdateLdInterventionRequest;
 use App\Http\Requests\Admin\UpdateStartupReferenceRequest;
 use App\Http\Requests\Admin\UpdateTeamMemberRequest;
+use App\Mail\InformationSheetRejectedMail;
 use App\Notifications\InformationSheetApproved;
 use App\Notifications\InformationSheetRejected;
 use App\Models\Cohort;
@@ -20,8 +21,10 @@ use App\Models\LdIntervention;
 use App\Models\StartupReference;
 use App\Models\Startup;
 use App\Models\TeamMember;
+use App\Models\VersionHistory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 class InformationSheetController extends Controller
@@ -32,14 +35,22 @@ class InformationSheetController extends Controller
             'informationSheet.incubationInvolvements',
             'informationSheet.ldInterventions',
             'informationSheet.references',
+            'informationSheet.files',
             'teamMembers',
             'user',
         ]);
 
         $nameParts = \App\Models\InformationSheet::splitFounderName($startup->user?->name);
 
+        $versionHistory = VersionHistory::where('startup_id', $startup->startup_id)
+            ->where('context', 'Information Sheet')
+            ->with('user')
+            ->latest()
+            ->get();
+
         return view('admin.information-sheets.show', [
             'startup' => $startup,
+            'versionHistory' => $versionHistory,
             // Seeds empty fields from the Startup Profile — display only, never
             // written until the sheet itself is saved.
             'prefill' => [
@@ -105,6 +116,8 @@ class InformationSheetController extends Controller
             $startup->user?->notify(new InformationSheetApproved);
         }
 
+        VersionHistory::record($startup, 'Information Sheet', 'approve_information_sheet');
+
         return redirect()
             ->route('admin.assessment-hub.index', ['tab' => 'approved'])
             ->with('status', 'Startup accepted into the incubation program.')
@@ -140,10 +153,26 @@ class InformationSheetController extends Controller
             'evaluator_remarks' => $data['evaluator_remarks'] ?? null,
         ]);
 
+        $deadline = $startup->refresh()->rejectionDeadline();
+
         $startup->user?->notify(new InformationSheetRejected(
             $data['evaluator_remarks'] ?? null,
-            $startup->refresh()->rejectionDeadline(),
+            $deadline,
         ));
+
+        // The notification above only ever produced an in-app dashboard
+        // card — founders had no way to find out about a rejection unless
+        // they happened to log back in. This is the actual email.
+        if ($startup->user?->email) {
+            Mail::to($startup->user->email)->send(new InformationSheetRejectedMail(
+                $startup->user->name ?? 'Founder',
+                $startup->company_name,
+                $data['evaluator_remarks'] ?? null,
+                $deadline,
+            ));
+        }
+
+        VersionHistory::record($startup, 'Information Sheet', 'reject_information_sheet');
 
         return redirect()
             ->route('admin.assessment-hub.index', ['tab' => 'rejected'])
@@ -167,6 +196,8 @@ class InformationSheetController extends Controller
         }
 
         $sheet->update($data);
+
+        VersionHistory::record($startup, 'Information Sheet', 'update_information_sheet');
 
         return redirect()->route('admin.information-sheet.show', $startup)->with('status', 'Information Sheet updated.');
     }

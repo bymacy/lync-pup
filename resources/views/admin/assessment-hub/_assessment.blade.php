@@ -142,6 +142,9 @@ for ($i = 0; $i < $count; $i++) {
             <span class="icon-mask h-8 w-8 text-rose-900"
                 style="--icon: url('{{ asset('images/icons/submit-roadblock.svg') }}')"></span>
             <span class="font-bold text-gray-900">{{ $selectedStage }}</span>
+            @if ($selectedStartup && in_array($selectedStage, ['Pre-Assessment', 'Active-Assessment', 'Post-Assessment', 'Venture Exit'], true))
+                <x-version-history-panel :entries="$stageVersionHistory" />
+            @endif
         </div>
 
         <div class="flex flex-wrap items-center gap-3 mb-6">

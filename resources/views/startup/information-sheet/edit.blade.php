@@ -1666,6 +1666,167 @@ $field = function ($name, $label, $number = null, $type = 'text', $note = null) 
                     @error('name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
 
+                {{-- Add Supporting Documents — optional multi-file attachments on
+                     the sheet itself (see InformationSheetFile). Same upload
+                     widget/requirements as Roadblock submission's own
+                     "Supporting Files" (see resources/views/startup/roadblocks/
+                     index.blade.php): up to 5 files, 5MB each client-side (server
+                     allows up to 10MB — see StoreInformationSheetFilesRequest),
+                     images/PDF/Word/Excel/CSV. --}}
+                <div class="mt-6">
+                    <p class="text-xs font-semibold text-gray-700 mb-2">ADD SUPPORTING DOCUMENTS</p>
+
+                    @if (($sheet?->files ?? collect())->isNotEmpty())
+                    <div class="mb-4 space-y-2 max-w-md">
+                        @foreach ($sheet->files as $file)
+                        @php $rowKey = 'doc-' . $file->information_sheet_file_id; @endphp
+                        <div class="flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2" x-show="!isRemoving('{{ $rowKey }}')">
+                            <a href="{{ $file->url }}" target="_blank" rel="noopener" class="truncate text-sm text-[#11386A] hover:underline">{{ $file->original_filename }}</a>
+
+                            {{-- Deferred DELETE: same pattern as the row-tables above —
+                                 only joins the save queue once :class adds js-subform. --}}
+                            <form method="POST" action="{{ route('startup.information-sheet.files.destroy', $file) }}"
+                                class="js-deleteform hidden"
+                                :class="isRemoving('{{ $rowKey }}') ? 'js-subform' : ''">
+                                @csrf
+                                @method('DELETE')
+                            </form>
+
+                            <button type="button" x-show="editing" x-cloak
+                                @click="toggleRemoval('{{ $rowKey }}')"
+                                title="Remove file" aria-label="Remove file"
+                                class="text-red-600 hover:text-red-800 text-base leading-none flex-shrink-0">
+                                &times;
+                            </button>
+                        </div>
+                        @endforeach
+
+                        <p class="text-xs text-gray-500" x-show="removalCount('doc-') > 0" x-cloak>
+                            <span x-text="removalCount('doc-')"></span> marked for removal on save.
+                            <button type="button" @click="restoreRemovals('doc-')" class="underline hover:text-gray-700">Restore</button>
+                        </p>
+                    </div>
+                    @endif
+
+                    <div x-show="editing" x-cloak
+                        x-data="{
+                            files: [],
+                            dt: new DataTransfer(),
+                            dragOver: false,
+                            fileError: '',
+                            limits: {
+                                maxFiles: 5,
+                                maxBytes: 5 * 1024 * 1024,
+                                accept: ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv'],
+                            },
+                            addFiles(fileList) {
+                                this.fileError = '';
+                                const existing = Array.from(this.dt.files).map(f => f.name + f.size);
+
+                                Array.from(fileList).forEach(file => {
+                                    const ext = file.name.split('.').pop().toLowerCase();
+
+                                    if (this.dt.files.length >= this.limits.maxFiles) {
+                                        this.fileError = 'Maximum file limit reached.'; return;
+                                    }
+                                    if (!this.limits.accept.includes(ext)) {
+                                        this.fileError = `${file.name} isn't a supported file type.`; return;
+                                    }
+                                    if (file.size > this.limits.maxBytes) {
+                                        this.fileError = `${file.name} is larger than 5MB.`; return;
+                                    }
+                                    if (existing.includes(file.name + file.size)) {
+                                        this.fileError = `${file.name} is already attached.`; return;
+                                    }
+
+                                    this.dt.items.add(file);
+                                    existing.push(file.name + file.size);
+                                });
+
+                                this.syncInput();
+                                if (this.fileError) { setTimeout(() => { this.fileError = ''; }, 4000); }
+                            },
+                            removeFile(index) {
+                                const newDt = new DataTransfer();
+                                Array.from(this.dt.files).forEach((file, i) => { if (i !== index) newDt.items.add(file); });
+                                this.dt = newDt;
+                                this.fileError = '';
+                                this.syncInput();
+                            },
+                            syncInput() {
+                                this.$refs.fileInput.files = this.dt.files;
+                                this.files = Array.from(this.dt.files).map(file => ({ name: file.name }));
+                            },
+                        }">
+
+                        <form method="POST" action="{{ route('startup.information-sheet.files.store') }}"
+                            class="js-subform js-addform" enctype="multipart/form-data">
+                            @csrf
+
+                            <div class="flex w-full max-w-md items-stretch">
+                                <div class="flex w-10 flex-shrink-0 items-center justify-center rounded-l-lg border border-rose-200
+                                            bg-rose-50 text-rose-800 sm:w-11">
+                                    <x-icon name="cam.svg" class="w-5 h-5" />
+                                </div>
+
+                                <div
+                                    @dragover.prevent="dragOver = true"
+                                    @dragleave.prevent="dragOver = false"
+                                    @drop.prevent="dragOver = false; addFiles($event.dataTransfer.files)"
+                                    :class="fileError
+                                        ? 'border-red-400 bg-red-50/60'
+                                        : (dragOver ? 'border-rose-500 bg-rose-100' : 'border-rose-200 bg-rose-50/60')"
+                                    class="min-w-0 flex-1 rounded-r-lg border-2 border-l-0 border-dashed px-3 py-4 text-center transition sm:px-4 sm:py-5">
+
+                                    <svg class="mx-auto mb-1.5 h-5 w-5 text-rose-800" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-.41-8.98 4.5 4.5 0 0 1 8.08-3.32 3 3 0 0 1 3.76 3.87 4.5 4.5 0 0 1-.44 8.43H6.75Z" />
+                                    </svg>
+
+                                    <p class="mb-2.5 text-xs text-gray-600">Drag-and-drop</p>
+
+                                    <button type="button" @click="$refs.fileInput.click()"
+                                        :disabled="files.length >= limits.maxFiles"
+                                        :class="files.length >= limits.maxFiles
+                                            ? 'cursor-not-allowed bg-gray-300 text-gray-500'
+                                            : 'bg-gradient-to-r from-[#6D0D23] to-[#11386A] text-white hover:opacity-95'"
+                                        class="rounded px-4 py-1.5 text-xs font-medium transition">
+                                        <span x-text="files.length >= limits.maxFiles ? 'Limit Reached' : 'Browse Files'"></span>
+                                    </button>
+
+                                    <input type="file" name="files[]" x-ref="fileInput" multiple class="hidden"
+                                        :disabled="files.length >= limits.maxFiles"
+                                        accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+                                        @change="addFiles($event.target.files); dirty = true">
+                                </div>
+                            </div>
+
+                            <p x-show="fileError" x-cloak class="mt-2 max-w-md text-xs text-red-600" x-text="fileError"></p>
+
+                            @error('files') <p class="mt-2 max-w-md text-xs text-red-600">{{ $message }}</p> @enderror
+                            @error('files.*') <p class="mt-2 max-w-md text-xs text-red-600">{{ $message }}</p> @enderror
+
+                            <p class="mt-2 max-w-md text-xs text-gray-500"
+                                x-text="`Up to ${limits.maxFiles} files, 5MB each. Images, PDF, Word, or Excel.`"></p>
+
+                            <template x-if="files.length > 0">
+                                <ul class="mt-4 w-full max-w-md space-y-2">
+                                    <template x-for="(file, index) in files" :key="index">
+                                        <li class="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                                            <span x-text="file.name" class="truncate text-sm text-gray-700"></span>
+                                            <button type="button" @click="removeFile(index)" aria-label="Remove file"
+                                                class="ml-3 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-rose-50 hover:text-rose-900 focus:outline-none">
+                                                &times;
+                                            </button>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </template>
+                        </form>
+                    </div>
+
+                    <p x-show="!editing" class="text-xs text-gray-500">Optional. Founder may attach supporting documents here.</p>
+                </div>
+
                 {{-- 36. Declaration & Endorsement. Founder side only shows the
              declaration + date accomplished — the "For TBIDO Only" half
              (Portfolio Manager/Cohort/Endorsed by/Director) is admin-only,

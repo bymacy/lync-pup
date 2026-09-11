@@ -53,6 +53,10 @@ $exportDocuments = [
         error: null,
         savingToReports: false,
         savedToReports: false,
+        // Which file (by file_path) is currently in its 'actively renaming'
+        // state — null means every file shows its plain name + pencil
+        // button. Only one file can be mid-rename at a time.
+        editingFile: null,
 
         get startupName() {
             const s = this.startups.find(s => s.id === this.startupId);
@@ -124,6 +128,7 @@ $exportDocuments = [
             this.error = null;
             this.savingToReports = false;
             this.savedToReports = false;
+            this.editingFile = null;
             this.open = true;
         },
 
@@ -508,17 +513,44 @@ $exportDocuments = [
                             <template x-for="file in result.files" :key="file.file_path">
                                 <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 text-sm">
                                     <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-1">
-                                            <input type="text"
-                                                :value="fileBaseName(file)"
-                                                @input="renameFile(file, $event.target.value)"
-                                                aria-label="Rename file"
-                                                class="w-full min-w-0 rounded border border-transparent bg-transparent px-1 py-0.5 font-semibold text-gray-800 transition hover:border-gray-300 focus:border-rose-300 focus:bg-white focus:outline-none focus:ring-1 focus:ring-rose-200">
-                                            <span class="shrink-0 text-gray-500" x-text="fileExtension(file)"></span>
-                                            <svg class="h-3.5 w-3.5 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                                            </svg>
-                                        </div>
+                                        {{-- View state: plain name + a pencil button that switches this
+                                             one file into its editing state below. --}}
+                                        <template x-if="editingFile !== file.file_path">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="truncate font-semibold text-gray-800" x-text="fileBaseName(file)"></span>
+                                                <span class="shrink-0 text-gray-500" x-text="fileExtension(file)"></span>
+                                                <button type="button" @click="editingFile = file.file_path"
+                                                    aria-label="Rename file"
+                                                    class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-gray-400 transition hover:bg-gray-100 hover:text-gray-600">
+                                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+
+                                        {{-- Editing state: a focused, bordered input plus a checkmark
+                                             button that just steps back to the view state above — the
+                                             name is already live-saved via @input as it's typed. --}}
+                                        <template x-if="editingFile === file.file_path">
+                                            <div class="flex items-center gap-1.5">
+                                                <input type="text"
+                                                    :value="fileBaseName(file)"
+                                                    @input="renameFile(file, $event.target.value)"
+                                                    @keydown.enter.prevent="editingFile = null"
+                                                    x-init="$el.focus(); $el.select()"
+                                                    aria-label="Rename file"
+                                                    class="w-full min-w-0 rounded border border-rose-300 bg-white px-1.5 py-0.5 font-semibold text-gray-800 focus:outline-none focus:ring-1 focus:ring-rose-200">
+                                                <span class="shrink-0 text-gray-500" x-text="fileExtension(file)"></span>
+                                                <button type="button" @click="editingFile = null"
+                                                    aria-label="Done renaming"
+                                                    class="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-rose-900 text-white transition hover:opacity-90">
+                                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
                                         <div class="text-xs text-gray-500">
                                             <span x-text="file.file_size_label"></span>
                                         </div>

@@ -162,12 +162,24 @@ $cohortReturnUrl = request('from') === 'assessment-hub'
                             Team
                         </h2>
                         <div class="grid grid-cols-2 gap-3">
+                            {{-- The registered founder (the account itself) isn't one of the
+                                 Information Sheet's own Core Team rows below — without this,
+                                 nothing on this card actually said who the founder was. --}}
+                            @if ($startup->user?->name)
+                            <div class="flex items-center justify-between gap-2 rounded-lg bg-rose-50 px-4 py-2 text-sm">
+                                <span class="font-medium text-gray-900">{{ $startup->user->name }}</span>
+                                <span class="shrink-0 rounded-full bg-rose-900 px-2 py-0.5 text-[10px] font-semibold text-white">Founder</span>
+                            </div>
+                            @endif
+
                             @forelse ($startup->teamMembers as $member)
                             <div class="bg-gray-100 rounded-lg px-4 py-2 text-sm">
                                 {{ $member->full_name }}
                             </div>
                             @empty
+                            @if (! $startup->user?->name)
                             <p class="text-sm text-gray-500 col-span-2">No team members listed yet.</p>
+                            @endif
                             @endforelse
                         </div>
                     </div>

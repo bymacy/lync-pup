@@ -6,6 +6,7 @@ use App\Models\AssessmentDocument;
 use App\Models\Coordinator;
 use App\Models\CoordinatorAssignment;
 use App\Models\InformationSheet;
+use App\Models\Roadblock;
 use App\Models\Startup;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -50,10 +51,13 @@ class RiskMonitoringTest extends TestCase
         $response->assertViewIs('admin.risk-monitoring.index');
     }
 
-    public function test_a_startup_with_no_information_sheet_appears_in_the_risk_rows(): void
+    public function test_a_startup_with_a_failed_roadblock_appears_in_the_risk_rows(): void
     {
         $startup = Startup::factory()->create(['company_name' => 'AgriSense PH']);
-        $this->backdate($startup, ['created_at' => now()->subDays(10)]);
+        Roadblock::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'status' => 'Failed',
+        ]);
 
         $response = $this->actingAs($this->admin())->get(route('admin.risk-monitoring.index'));
 

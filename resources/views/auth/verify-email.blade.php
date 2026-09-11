@@ -48,7 +48,7 @@
                         // back 401 (Accept: application/json makes Laravel
                         // return JSON here instead of a server-side
                         // redirect this fetch would otherwise silently
-                        // follow). Treat that the same as "verified".
+                        // follow). Treat that the same as 'verified'.
                         if (res.status === 401) {
                             window.location = '{{ route('login') }}';
                             return;

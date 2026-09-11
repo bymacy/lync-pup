@@ -56,17 +56,17 @@ class StartupProfileTest extends TestCase
 
         // UpdateStartupProfileRequest requires every field
         // Startup::isProfileComplete() checks, plus (via its withValidator()
-        // guard) at least 3 Core Team members and - since this startup has
+        // guard) at least 1 Core Team member and - since this startup has
         // no stored photo yet - an uploaded startup_photo.
         StartupTeamMember::create(['startup_id' => $startup->startup_id, 'full_name' => 'Member One']);
-        StartupTeamMember::create(['startup_id' => $startup->startup_id, 'full_name' => 'Member Two']);
-        StartupTeamMember::create(['startup_id' => $startup->startup_id, 'full_name' => 'Member Three']);
 
         $response = $this->actingAs($user)->patch(route('startup.profile.update'), [
             'company_name' => 'Updated Co',
             'industry_sector' => 'FinTech',
             'business_description' => 'A platform that connects local farmers directly with urban buyers, improving margins for everyone involved.',
-            'founder_name' => 'Updated Founder',
+            'first_name' => 'Updated',
+            'middle_name' => 'Q',
+            'last_name' => 'Founder',
             'contact_phone' => '09171112222',
             'website' => 'https://updated.ph',
             'location' => 'Makati City',
@@ -75,7 +75,7 @@ class StartupProfileTest extends TestCase
 
         $response->assertRedirect(route('startup.profile.edit'));
         $this->assertDatabaseHas('startups', ['startup_id' => $startup->startup_id, 'company_name' => 'Updated Co']);
-        $this->assertEquals('Updated Founder', $user->fresh()->name);
+        $this->assertEquals('Updated Q Founder', $user->fresh()->name);
     }
 
     public function test_founder_can_add_team_member(): void

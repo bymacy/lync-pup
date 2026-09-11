@@ -10,6 +10,7 @@ use App\Models\ReadinessLevelAssessment;
 use App\Models\Cohort;
 use App\Models\SavedReport;
 use App\Models\Startup;
+use App\Models\VersionHistory;
 use App\Support\ReadinessRubric;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -231,6 +232,18 @@ class AssessmentHubController extends Controller
                 ->first()
             : null;
 
+        // Version History for whichever assessment stage is currently open
+        // — only meaningful once a specific startup is selected (there's no
+        // single "startup" to log activity against on the All Startup
+        // Overview/Meetings/Reports views).
+        $stageVersionHistory = ($selectedStartup && in_array($selectedStage, ReadinessRubric::STAGES, true))
+            ? VersionHistory::where('startup_id', $selectedStartup->startup_id)
+                ->where('context', $selectedStage)
+                ->with('user')
+                ->latest()
+                ->get()
+            : collect();
+
         // ============ Assessment tab: Reports ============
         // The Reports stage tab lists this startup's previously "Save to
         // Reports"-d exports — nothing to show without a startup selected.
@@ -423,6 +436,7 @@ class AssessmentHubController extends Controller
             'activeDocuments' => $activeDocuments,
             'ventureExitDocument' => $ventureExitDocument,
             'postAssessmentSummary' => $postAssessmentSummary,
+            'stageVersionHistory' => $stageVersionHistory,
             'incompleteAssessments' => $incompleteAssessments,
             'savedReports' => $savedReports,
             'allSavedReportsSummary' => $allSavedReportsSummary,

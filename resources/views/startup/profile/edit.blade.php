@@ -1,5 +1,13 @@
 <x-layouts.founder title="Startup Profile">
 
+    @php
+        // Contact Information's Founder Name field is 3 separate inputs
+        // (First/Middle/Last) even though users.name still stores one
+        // composed string - same split InformationSheet::splitFounderName()
+        // already does elsewhere, reused here instead of duplicated.
+        $founderNameParts = \App\Models\InformationSheet::splitFounderName(auth()->user()->name);
+    @endphp
+
     {{-- Cropper.js: circular crop for the startup avatar --}}
     <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js" defer></script>
@@ -25,7 +33,7 @@
 
         // Core Team is the Profile's own roster now (StartupTeamMember -
         // see migration 000049), separate from the Information Sheet's own
-        // Core Team table. Must have at least 3 members (see
+        // Core Team table. Must have at least 1 member (see
         // UpdateStartupProfileRequest) - this just tallies existing rows
         // minus what's marked for deletion plus any new, non-blank rows
         // being added.
@@ -42,7 +50,14 @@
         company_name: @js(old('company_name', $startup->company_name) ?? ''),
         industry_sector: @js(old('industry_sector', $startup->industry_sector) ?? ''),
         business_description: @js(old('business_description', $startup->business_description) ?? ''),
-        founder_name: @js(old('founder_name', auth()->user()->name) ?? ''),
+        // Founder Name used to be one free-text field; it's now First/Middle/
+        // Last, seeded by splitting the same users.name column this always
+        // read from (see InformationSheet::splitFounderName() - same
+        // first-token/last-token/middle-tokens-in-between convention used
+        // there, reused here rather than duplicated).
+        first_name: @js(old('first_name', $founderNameParts['first_name']) ?? ''),
+        middle_name: @js(old('middle_name', $founderNameParts['middle_name']) ?? ''),
+        last_name: @js(old('last_name', $founderNameParts['surname']) ?? ''),
         contact_phone: @js(old('contact_phone', $startup->contact_phone) ?? ''),
         location: @js(old('location', $startup->location) ?? ''),
 
@@ -56,11 +71,12 @@
             return this.company_name.trim() !== ''
                 && this.industry_sector.trim() !== ''
                 && this.business_description.trim().length >= 50
-                && this.founder_name.trim() !== ''
+                && this.first_name.trim() !== ''
+                && this.last_name.trim() !== ''
                 && /^(09\d{9}|\+639\d{9})$/.test(this.contact_phone.trim())
                 && this.location.trim() !== ''
                 && this.hasPhoto
-                && this.remainingTeamCount >= 3;
+                && this.remainingTeamCount >= 1;
         },
 
         // Cancel has to do three things, and the old version did only the first:
@@ -238,18 +254,45 @@
                     <div class="bg-white rounded-xl border border-gray-200 p-6">
                         <h2 class="font-bold text-gray-900 mb-4">Contact Information</h2>
 
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Founder Name <span class="text-red-500">*</span></label>
-                            <input
-                                type="text"
-                                name="founder_name"
-                                x-model="founder_name"
-                                required
-                                :readonly="!editing"
-                                :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
-                                class="w-full border rounded-lg px-3 py-2 text-sm"
-                                @input="dirty = true">
-                            @error('founder_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
+                                <input
+                                    type="text"
+                                    name="first_name"
+                                    x-model="first_name"
+                                    required
+                                    :readonly="!editing"
+                                    :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
+                                    class="w-full border rounded-lg px-3 py-2 text-sm"
+                                    @input="dirty = true">
+                                @error('first_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                                <input
+                                    type="text"
+                                    name="middle_name"
+                                    x-model="middle_name"
+                                    :readonly="!editing"
+                                    :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
+                                    class="w-full border rounded-lg px-3 py-2 text-sm"
+                                    @input="dirty = true">
+                                @error('middle_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Last Name <span class="text-red-500">*</span></label>
+                                <input
+                                    type="text"
+                                    name="last_name"
+                                    x-model="last_name"
+                                    required
+                                    :readonly="!editing"
+                                    :class="editing ? 'bg-white' : 'bg-gray-50 text-gray-600 cursor-default'"
+                                    class="w-full border rounded-lg px-3 py-2 text-sm"
+                                    @input="dirty = true">
+                                @error('last_name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                            </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4 mb-4">
@@ -328,9 +371,9 @@
                              the sheet's lock. --}}
                         <p x-show="editing" x-cloak
                             class="text-xs mt-1 mb-4"
-                            :class="remainingTeamCount >= 3 ? 'text-gray-400' : 'text-red-500'"
-                            x-text="remainingTeamCount + ' / 3 members minimum'"></p>
-                        <p x-show="!editing" class="text-xs text-gray-500 mb-4">Minimum of 3 members.</p>
+                            :class="remainingTeamCount >= 1 ? 'text-gray-400' : 'text-red-500'"
+                            x-text="remainingTeamCount + ' / 1 member minimum'"></p>
+                        <p x-show="!editing" class="text-xs text-gray-500 mb-4">Minimum of 1 member.</p>
 
                         <div class="space-y-3 mb-4">
                             @foreach($startup->startupTeamMembers as $member)

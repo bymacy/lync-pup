@@ -15,7 +15,7 @@ Risk Monitoring flags startups whose incubation paperwork or milestones have sta
 
 ## 2. The core idea
 
-Every startup is checked against a fixed list of **10 risk indicators**. Each indicator either triggers (the underlying problem exists right now) or doesn't. Every triggered indicator contributes a score:
+Every startup is checked against a fixed list of **7 risk indicators**. Each indicator either triggers (the underlying problem exists right now) or doesn't. Every triggered indicator contributes a score:
 
 ```
 indicator score = base_score + time_escalation
@@ -25,38 +25,29 @@ A startup's **Total Risk Score** is the sum of every triggered indicator's score
 
 All of this happens in one function: `RiskEngine::assess(Startup $startup, ?Collection $documents)`, called once per startup by `RiskMonitoringController::index()`. `$documents` is that startup's full `AssessmentDocument` collection (needed to check Active-Assessment doc completion and the Venture Exit form).
 
-## 3. The 10 risk indicators
+> **Note:** The Information Sheet itself is no longer part of this computation. It used to contribute 3 indicators (No Information Sheet, Incomplete Information Sheet, Information Sheet Not Evaluated), but the sheet is now assessed earlier in the flow — via the Assessment Hub's Evaluation Schedule and Approve/Reject workflow — before a startup is ever admitted into a cohort, so a startup risk-scored here has already been evaluated one way or another. Removing those 3 indicators also retired the `Information Sheet` risk category entirely. The classification thresholds in section 6 were left unchanged (they read as fixed severity cutoffs, not a percentage of the maximum possible score).
+
+## 3. The 7 risk indicators
 
 | # | Indicator key | Label | Category | Severity | Base Score |
 |---|---|---|---|---|---|
-| 1 | `no_information_sheet` | No Information Sheet | Information Sheet | Critical | 5 |
-| 2 | `incomplete_information_sheet` | Incomplete Information Sheet | Information Sheet | High | 4 |
-| 3 | `information_sheet_not_evaluated` | Information Sheet Not Evaluated | Information Sheet | High | 4 |
-| 4 | `no_mentor_assigned` | No Mentor Assigned to Submitted Roadblock | Mentor Coordination | Medium | 3 |
-| 5 | `no_portfolio_coordinator` | No Portfolio Coordinator Assigned | Portfolio Coordinator | Low | 1 |
-| 6 | `failed_mentorship` | Failed Mentorship | Mentor Coordination | High | 4 |
-| 7 | `no_pre_assessment` | Pre-Assessment Overdue | Readiness Assessment | High | 4 |
-| 8 | `no_active_assessment` | Active-Assessment Overdue | Readiness Assessment | High | 4 |
-| 9 | `no_post_assessment` | Post-Assessment Overdue | Readiness Assessment | Critical | 5 |
-| 10 | `no_venture_exit` | Venture Exit Overdue | Readiness Assessment | Medium | 3 |
-
-Indicator #6 (Failed Mentorship) was added on top of an original 5-indicator spec.
+| 1 | `no_mentor_assigned` | No Mentor Assigned to Submitted Roadblock | Mentor Coordination | Medium | 3 |
+| 2 | `no_portfolio_coordinator` | No Portfolio Coordinator Assigned | Portfolio Coordinator | Low | 1 |
+| 3 | `failed_mentorship` | Failed Mentorship | Mentor Coordination | High | 4 |
+| 4 | `no_pre_assessment` | Pre-Assessment Overdue | Readiness Assessment | High | 4 |
+| 5 | `no_active_assessment` | Active-Assessment Overdue | Readiness Assessment | High | 4 |
+| 6 | `no_post_assessment` | Post-Assessment Overdue | Readiness Assessment | Critical | 5 |
+| 7 | `no_venture_exit` | Venture Exit Overdue | Readiness Assessment | Medium | 3 |
 
 ### What triggers each one
 
-**1. No Information Sheet** — the startup has no `InformationSheet` row at all. Clock starts at the startup's own `created_at` (nothing else to anchor to yet).
+**1. No Mentor Assigned to Submitted Roadblock** — the startup has a Roadblock with `status = 'Pending'` and no `mentor_id`. If there are several, the *oldest* one is used, so the score reflects the longest-ignored case. Clock starts at that roadblock's `created_at`.
 
-**2. Incomplete Information Sheet** — an `InformationSheet` row exists, but `submission_date` is still null. This matters because the Startup Profile page can create/touch an Information Sheet row (just setting `business_description`) the moment a founder saves their profile — long before they've actually gone through the real Information Sheet form. `submission_date` is the one field that's only ever set by the real submission flow (`InformationSheetController::update()`), so a null `submission_date` means "started but never finished." Clock starts at the sheet's own `created_at`.
+**2. No Portfolio Coordinator Assigned** — only checked once the Information Sheet is `Approved` (otherwise every not-yet-accepted applicant would spuriously show this from day one). Triggers if the startup has no active `CoordinatorAssignment`. There's no dedicated "approved at" timestamp on the sheet, so the sheet's `updated_at` (falling back to the startup's `created_at`) is used as the best available proxy for "since when has this needed a coordinator."
 
-**3. Information Sheet Not Evaluated** — the sheet has a `submission_date` but `approval_status` isn't `'Approved'` yet (still `Pending` or `Rejected`). This is genuinely "submitted, waiting on the admin." Clock starts at `submission_date`.
+**3. Failed Mentorship** — the startup has any Roadblock with `status = 'Failed'`. This one is flat: no time escalation is added, because a "Failed" status is a discrete terminal outcome, not an ongoing delay that gets worse the longer it sits. Its score is always exactly 4.
 
-**4. No Mentor Assigned to Submitted Roadblock** — the startup has a Roadblock with `status = 'Pending'` and no `mentor_id`. If there are several, the *oldest* one is used, so the score reflects the longest-ignored case. Clock starts at that roadblock's `created_at`.
-
-**5. No Portfolio Coordinator Assigned** — only checked once the Information Sheet is `Approved` (otherwise every not-yet-accepted applicant would spuriously show this from day one). Triggers if the startup has no active `CoordinatorAssignment`. There's no dedicated "approved at" timestamp on the sheet, so the sheet's `updated_at` (falling back to the startup's `created_at`) is used as the best available proxy for "since when has this needed a coordinator."
-
-**6. Failed Mentorship** — the startup has any Roadblock with `status = 'Failed'`. This one is flat: no time escalation is added, because a "Failed" status is a discrete terminal outcome, not an ongoing delay that gets worse the longer it sits. Its score is always exactly 4.
-
-**7–10. Pre-Assessment / Active-Assessment / Post-Assessment / Venture Exit Overdue** — see section 5 below; these four work differently from the rest.
+**4–7. Pre-Assessment / Active-Assessment / Post-Assessment / Venture Exit Overdue** — see section 5 below; these four work differently from the rest.
 
 ## 4. Time-based escalation ("day tiers")
 
@@ -69,7 +60,7 @@ Most indicators (everything except Failed Mentorship) add extra points the longe
 | 4–7 days | +2 |
 | 8+ days | +3 |
 
-So, for example, a startup with no Information Sheet for 10 days scores `5 (base) + 3 (8+ days) = 8` for that indicator alone.
+So, for example, a startup with a Pending, unassigned Roadblock for 10 days scores `3 (base) + 3 (8+ days) = 6` for that indicator alone.
 
 ## 5. The four assessment/exit indicators work on a different clock
 
@@ -123,19 +114,18 @@ Note on wording: an overall *level* is called "Moderate," while an individual in
 
 ## 7. Risk categories
 
-Every indicator belongs to exactly one of four categories, used for the page's "Top Risk Categories" breakdown:
+Every indicator belongs to exactly one of three categories, used for the page's "Top Risk Categories" breakdown:
 
-- **Information Sheet** — indicators 1, 2, 3
-- **Portfolio Coordinator** — indicator 5
-- **Mentor Coordination** — indicators 4, 6
-- **Readiness Assessment** — indicators 7, 8, 9, 10
+- **Portfolio Coordinator** — indicator 2
+- **Mentor Coordination** — indicators 1, 3
+- **Readiness Assessment** — indicators 4, 5, 6, 7
 
 ## 8. What the page actually shows
 
 `RiskMonitoringController::index()` reads the app-wide selected cohort from `session('selected_cohort_id')` (set via the sidebar cohort control). If a cohort is selected, only that cohort's startups are assessed; otherwise every startup is. It runs `RiskEngine::assess()` once per startup (eager-loading `informationSheet`, `activeCoordinatorAssignment`, `roadblocks`, `readinessAssessments`, `cohort`, plus all `AssessmentDocument` rows grouped by startup) and reuses that one result set for everything on the page:
 
 1. **Risk Classification** — a donut chart of how many startups fall into each level (Critical / High / Moderate / Low / None), plus counts and percentages. Center of the donut shows the total number of startups (in the current cohort filter).
-2. **Top Risk Categories** — for each of the 4 categories, how many startups have at least one triggered indicator in it, further broken down by those startups' *overall* level (not the indicator's own severity).
+2. **Top Risk Categories** — for each of the 3 categories, how many startups have at least one triggered indicator in it, further broken down by those startups' *overall* level (not the indicator's own severity).
 3. **Risk Indicator table** — every startup with a Total Risk Score greater than 0, sorted highest score first. Each row shows the startup, its overall risk level (colored pill), its numeric score, and a clickable chip per triggered indicator (colored by that indicator's own severity). Clicking a chip or the row's "View" button opens a modal listing every triggered indicator for that startup with its score and severity.
 
 Startups with a score of 0 (no triggered indicators) don't appear in the Risk Indicator table, but they are counted in the "None" bucket of the Risk Classification donut.
@@ -146,7 +136,6 @@ Clicking an indicator chip routes straight to wherever that problem gets resolve
 
 | Indicator(s) | Links to |
 |---|---|
-| No Information Sheet, Incomplete Information Sheet, Information Sheet Not Evaluated | That startup's Information Sheet page |
 | No Mentor Assigned | Roadblock Management, Manage tab, that startup's row highlighted |
 | Failed Mentorship | Roadblock Management, Archive → Failed tab, that startup's row highlighted |
 | No Portfolio Coordinator | That startup's profile page, Portfolio Coordinator section highlighted |

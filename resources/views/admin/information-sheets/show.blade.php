@@ -35,6 +35,32 @@
     $sheet = $startup->informationSheet;
     $isLocked = $sheet?->approval_status === 'Approved';
 
+    // Once a sheet is sitting Rejected (not yet resubmitted — see
+    // Startup::isRejectedPendingResubmission()), there is nothing left for
+    // an admin to do here: only the founder revising and resubmitting can
+    // move it forward again, and that resubmission needs its own fresh
+    // evaluation before Accept/Reject can even run (see
+    // Startup::evaluationReached()). Edit/Approve/Reject are all hidden in
+    // this state — this is a read-only view of what got rejected.
+    $isRejectedView = $startup->isRejectedPendingResubmission();
+
+    // Same "has the evaluation day actually arrived" gate Approve/Reject
+    // already used — Edit now follows it too, so an admin can't quietly
+    // correct a still-Pending sheet on the founder's behalf before there's
+    // even been a chance to evaluate it as submitted. Once Approved,
+    // though, Edit stays unconditionally available (see update()'s own
+    // docblock: admins can still fix a typo after the fact), and once
+    // Rejected it's hidden entirely by $isRejectedView above — this gate
+    // only bites while still Pending and not yet at/after the scheduled
+    // evaluation day.
+    $canApprove = $startup->evaluationReached();
+    $approveDisabledReason = $canApprove
+        ? ''
+        : ($startup->hasScheduledEvaluation()
+            ? 'This startup\'s evaluation is still upcoming — this unlocks on the scheduled day.'
+            : 'Schedule an evaluation for this startup before deciding.');
+    $editDisabled = ! $isLocked && ! $isRejectedView && ! $canApprove;
+
     // Date-of-birth bounds, shared by item 19 and every Core Team row - the same
     // values the founder view uses, so both sides refuse a future date or a
     // 2010-or-later birth year at the picker itself.
@@ -74,10 +100,11 @@
                 <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
         </a>
-        <div>
+        <div class="flex-1">
             <h1 class="text-3xl font-bold text-gray-900">Information Sheet</h1>
             <p class="text-gray-500 mt-1">Review and edit the details submitted by {{ $startup->company_name }}.</p>
         </div>
+        <x-version-history-panel :entries="$versionHistory" />
     </div>
 
     {{-- Flash-hint on the Edit button: a couple of quick outward rings in the
@@ -1591,6 +1618,41 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     @error('name') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
 
+                {{-- Supporting Documents — whatever the founder attached via their
+                     own "Add Supporting Documents" section (see
+                     InformationSheetFile). View-only here: the admin can open or
+                     download each file, but managing the list itself is the
+                     founder's own responsibility. --}}
+                @if ($startup->informationSheet?->files->isNotEmpty())
+                <div class="mt-6">
+                    <p class="text-xs font-semibold text-gray-700 mb-2">SUPPORTING DOCUMENTS</p>
+                    <div class="space-y-2 max-w-md">
+                        @foreach ($startup->informationSheet->files as $file)
+                        <div class="flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2">
+                            <span class="truncate text-sm text-gray-700">{{ $file->original_filename }}</span>
+
+                            <div class="flex flex-shrink-0 items-center gap-2.5 text-[#9F1239]">
+                                <a href="{{ $file->url }}" target="_blank" rel="noopener"
+                                    aria-label="Open {{ $file->original_filename }}"
+                                    class="transition hover:opacity-70">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5A3.375 3.375 0 0010.125 2.25H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                    </svg>
+                                </a>
+                                <a href="{{ $file->url }}" download="{{ $file->original_filename }}"
+                                    aria-label="Download {{ $file->original_filename }}"
+                                    class="transition hover:opacity-70">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15.75V3m0 12.75l-3.75-3.75M12 15.75l3.75-3.75M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
                 {{-- 36. Declaration & Endorsement. Signing happens on the printed
              export, so neither the founder's nor the director's signature
              box is shown here — only the dates they go with. --}}
@@ -1657,11 +1719,14 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                             Back
                         </a>
 
-                        @if ($sheetUpdateUrl)
-                        <div class="flex-1 rounded-lg p-[1px] bg-gradient-to-r from-[#6D0D23] to-[#11386A]">
+                        @if ($sheetUpdateUrl && ! $isRejectedView)
+                        <div class="flex-1 rounded-lg p-[1px] bg-gradient-to-r from-[#6D0D23] to-[#11386A]"
+                            :class="{ 'opacity-50': {{ $editDisabled ? 'true' : 'false' }} }">
                             <button
                                 type="button"
                                 x-ref="editButton"
+                                @disabled($editDisabled)
+                                title="{{ $editDisabled ? $approveDisabledReason : '' }}"
                                 @click="
                                     editing = true;
                                     $nextTick(() => {
@@ -1675,7 +1740,8 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                                     });
                                 "
                                 class="w-full rounded-[7px] bg-white py-2.5 text-sm font-semibold text-[#11386A]
-                                       transition-all duration-200 hover:bg-slate-50 hover:shadow-sm">
+                                       transition-all duration-200 hover:bg-slate-50 hover:shadow-sm
+                                       disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:shadow-none">
                                 Edit
                             </button>
                         </div>
@@ -1685,15 +1751,14 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                         <div class="flex-1 text-center bg-gray-100 text-gray-500 rounded-lg py-2.5 text-sm font-medium">
                             Approved &amp; Locked{{ $sheet?->approved_at ? ' — ' . $sheet->approved_at->format('m/d/Y') : '' }}
                         </div>
+                        @elseif ($isRejectedView)
+                        <div class="flex-1 text-center bg-rose-50 text-rose-700 rounded-lg py-2.5 text-sm font-medium">
+                            Rejected{{ $sheet?->rejected_at ? ' — ' . $sheet->rejected_at->format('m/d/Y') : '' }} — awaiting founder resubmission
+                        </div>
                         @elseif ($approveUrl)
-                        @php
-                            $canApprove = $startup->evaluationReached();
-                            $approveDisabledReason = $canApprove
-                                ? ''
-                                : ($startup->hasScheduledEvaluation()
-                                    ? 'This startup\'s evaluation is still upcoming — this unlocks on the scheduled day.'
-                                    : 'Schedule an evaluation for this startup before deciding.');
-                        @endphp
+                        {{-- $canApprove / $approveDisabledReason are computed once, near
+                             $isRejectedView at the top of this file — Edit now shares the
+                             same gate. --}}
                         @if ($rejectUrl)
                         <button type="button"
                             @click="{{ $canApprove ? 'confirmingReject = true' : '' }}"
@@ -1721,7 +1786,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                     {{-- Accept confirmation. Locking is irreversible from the founder's side,
                          so it doesn't fire on a single click. This is also the moment the
                          startup becomes an official incubatee, so a cohort must be picked. --}}
-                    @if ($approveUrl)
+                    @if ($approveUrl && ! $isRejectedView)
                     <div x-show="confirmingApprove" x-cloak class="border border-gray-200 rounded-lg p-4">
                         <p class="text-sm text-gray-700">
                             Accepting locks this sheet and makes {{ $startup->company_name }} an official incubatee.
@@ -1761,7 +1826,7 @@ $field = function ($name, $label, $number = null, $type = 'text', $required = tr
                          this — see Startup\InformationSheetController::update() — which
                          then needs its own fresh evaluation before it can be decided
                          again (Startup::evaluationReached()). --}}
-                    @if ($rejectUrl)
+                    @if ($rejectUrl && ! $isRejectedView)
                     <div x-show="confirmingReject" x-cloak class="border border-gray-200 rounded-lg p-4">
                         <p class="text-sm text-gray-700">
                             Rejecting lets {{ $startup->company_name }} revise and resubmit their sheet. Their next

@@ -46,6 +46,15 @@
     $veSeed['reviewed_by_position'] = $veData['reviewed_by_position'] ?? 'Incubation Management Chief, TBIDO';
     $veSeed['noted_by_name'] = $veData['noted_by_name'] ?? '';
     $veSeed['noted_by_position'] = $veData['noted_by_position'] ?? 'Director, TBIDO';
+
+    // Exit status — mutually exclusive per the reference definitions:
+    // "Completed" (finished the cohort with requirements still missing) vs
+    // "Graduated" (finished the cohort with every requirement met). Kept as
+    // a single nullable value rather than two independent booleans so the
+    // checkboxes below can't both end up checked at once.
+    $veSeed['exit_status'] = in_array($veData['exit_status'] ?? null, ['Completed', 'Graduated'], true)
+        ? $veData['exit_status']
+        : null;
 @endphp
 
 <div
@@ -192,6 +201,7 @@
                 this.ve.readiness_levels[k].highest_level = '';
                 this.ve.readiness_levels[k].remarks = '';
             });
+            this.ve.exit_status = null;
             this.showClearConfirm = false;
         },
     }"
@@ -382,6 +392,27 @@
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                     <input type="text" x-model="ve.noted_by_position"
                         class="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-500">
+                </div>
+            </div>
+
+            <div class="mt-8 border-t border-gray-200 pt-6">
+                <p class="mb-2 font-bold text-gray-900">Exit Status</p>
+                <p class="mb-3 text-xs italic text-gray-500">
+                    Completed: finished the cohort but with requirements still missing. Graduated: finished the cohort with every requirement completed.
+                </p>
+                <div class="flex flex-wrap gap-6">
+                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" :checked="ve.exit_status === 'Completed'"
+                            @change="ve.exit_status = (ve.exit_status === 'Completed' ? null : 'Completed')"
+                            class="h-4 w-4 rounded border-gray-300 text-[#6D0D23] focus:ring-[#6D0D23]">
+                        Completed
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" :checked="ve.exit_status === 'Graduated'"
+                            @change="ve.exit_status = (ve.exit_status === 'Graduated' ? null : 'Graduated')"
+                            class="h-4 w-4 rounded border-gray-300 text-[#6D0D23] focus:ring-[#6D0D23]">
+                        Graduated
+                    </label>
                 </div>
             </div>
 

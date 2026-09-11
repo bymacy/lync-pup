@@ -44,7 +44,9 @@ class UpdateStartupProfileRequest extends FormRequest
             // migration 000048), so it's a normal Profile field - no lock
             // to check here.
             'business_description' => ['required', 'string', 'min:50'],
-            'founder_name' => ['required', 'string', 'max:150'],
+            'first_name' => ['required', 'string', 'max:100'],
+            'middle_name' => ['nullable', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:100'],
             'contact_phone' => ['required', 'string', 'max:13', 'regex:/^(09\d{9}|\+639\d{9})$/'],
             'website' => ['nullable', 'url', 'max:255'],
             'location' => ['required', 'string', 'max:255'],
@@ -67,7 +69,7 @@ class UpdateStartupProfileRequest extends FormRequest
             }
 
             // Core Team (the Profile's own StartupTeamMember roster - see
-            // migration 000049) must have at least 3 members — tally what
+            // migration 000049) must have at least 1 member — tally what
             // survives this save: existing rows minus the ones marked for
             // deletion, plus any new, non-blank rows being added. Always
             // enforced: this roster is independent of the Information
@@ -86,10 +88,10 @@ class UpdateStartupProfileRequest extends FormRequest
                     ->filter(fn ($name) => filled($name))
                     ->count();
 
-                if (($remainingExisting + $newCount) < 3) {
+                if (($remainingExisting + $newCount) < 1) {
                     $validator->errors()->add(
                         'team_members',
-                        'Your Core Team must have at least 3 members.'
+                        'Your Core Team must have at least 1 member.'
                     );
                 }
             }
@@ -113,7 +115,9 @@ class UpdateStartupProfileRequest extends FormRequest
             'contact_phone' => 'phone number',
             'location' => 'address',
             'startup_photo' => 'startup photo',
-            'founder_name' => 'founder name',
+            'first_name' => 'first name',
+            'middle_name' => 'middle name',
+            'last_name' => 'last name',
         ];
     }
 }

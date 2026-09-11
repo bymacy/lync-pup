@@ -111,7 +111,17 @@ class StartupProfileController extends Controller
         // (storeTeamMember() etc. below), which is what stays locked. The
         // two rosters share nothing beyond both existing on this Startup.
 
-        auth()->user()->update(['name' => $data['founder_name']]);
+        // Contact Information's Founder Name field is now 3 separate inputs
+        // (First/Middle/Last) rather than one free-text field, but users.name
+        // stays a single composed string — every other display of the
+        // founder's name in the app reads straight off it. Same
+        // whitespace-joined shape InformationSheet::splitFounderName()
+        // expects back apart (first, then middle, then last/surname).
+        $composedName = collect([$data['first_name'], $data['middle_name'] ?? null, $data['last_name']])
+            ->filter(fn ($part) => filled($part))
+            ->implode(' ');
+
+        auth()->user()->update(['name' => $composedName]);
 
         if ($request->hasFile('startup_photo')) {
             if ($startup->startup_photo_path) {
@@ -162,13 +172,13 @@ class StartupProfileController extends Controller
         $this->abortIfInformationSheetLocked($startup);
 
         // The Information Sheet's Core Team table is the only caller of this
-        // route, and Section II must never drop below the 3-member minimum
+        // route, and Section II must never drop below the 1-member minimum
         // (see UpdateStartupProfileRequest for the same floor on the
         // Startup Profile page's own bulk save).
         abort_if(
-            $teamMember->startup->teamMembers()->count() <= 3,
+            $teamMember->startup->teamMembers()->count() <= 1,
             422,
-            'The Core Team table must keep at least 3 entries. Add a replacement before removing this one.'
+            'The Core Team table must keep at least 1 entry. Add a replacement before removing this one.'
         );
 
         $teamMember->delete();

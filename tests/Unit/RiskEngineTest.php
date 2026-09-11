@@ -31,68 +31,6 @@ class RiskEngineTest extends TestCase
         return collect($result['indicators'])->firstWhere('key', $key);
     }
 
-    public function test_no_information_sheet_triggers_the_critical_indicator_with_a_day_tier(): void
-    {
-        $startup = Startup::factory()->create();
-        $this->backdate($startup, ['created_at' => now()->subDays(5)]);
-
-        $result = RiskEngine::assess($startup->fresh());
-        $indicator = $this->indicator($result, 'no_information_sheet');
-
-        $this->assertNotNull($indicator);
-        $this->assertSame('Critical', $indicator['severity']);
-        $this->assertSame(5, $indicator['base_score']);
-        $this->assertSame(2, $indicator['additional_score']); // 4-7 day tier
-        $this->assertSame(7, $indicator['score']);
-    }
-
-    public function test_incomplete_information_sheet_triggers_when_no_submission_date_is_set(): void
-    {
-        $startup = Startup::factory()->create();
-        // Mirrors the Startup Profile save flow: a row exists (business_description
-        // only) but the founder never went through the real Information Sheet
-        // submission, so submission_date is still null.
-        $sheet = InformationSheet::factory()->create([
-            'startup_id' => $startup->startup_id,
-            'submission_date' => null,
-        ]);
-        $this->backdate($sheet, ['created_at' => now()->subDays(9)]);
-
-        $result = RiskEngine::assess($startup->fresh());
-
-        $indicator = $this->indicator($result, 'incomplete_information_sheet');
-        $this->assertNotNull($indicator);
-        $this->assertSame('High', $indicator['severity']);
-        $this->assertSame(4, $indicator['base_score']);
-        $this->assertSame(3, $indicator['additional_score']); // 8+ day tier
-        $this->assertSame(7, $indicator['score']);
-
-        $this->assertNull($this->indicator($result, 'no_information_sheet'));
-        $this->assertNull($this->indicator($result, 'information_sheet_not_evaluated'));
-    }
-
-    public function test_information_sheet_not_evaluated_triggers_the_high_indicator_and_excludes_no_info_sheet(): void
-    {
-        $startup = Startup::factory()->create();
-        $sheet = InformationSheet::factory()->create([
-            'startup_id' => $startup->startup_id,
-            'approval_status' => 'Pending',
-        ]);
-        $this->backdate($sheet, ['submission_date' => now()->subDays(9)]);
-
-        $result = RiskEngine::assess($startup->fresh());
-
-        $indicator = $this->indicator($result, 'information_sheet_not_evaluated');
-        $this->assertNotNull($indicator);
-        $this->assertSame('High', $indicator['severity']);
-        $this->assertSame(4, $indicator['base_score']);
-        $this->assertSame(3, $indicator['additional_score']); // 8+ day tier
-        $this->assertSame(7, $indicator['score']);
-
-        $this->assertNull($this->indicator($result, 'no_information_sheet'));
-        $this->assertNull($this->indicator($result, 'incomplete_information_sheet'));
-    }
-
     public function test_no_mentor_assigned_to_a_pending_roadblock_triggers_the_medium_indicator(): void
     {
         $startup = Startup::factory()->create();
@@ -203,8 +141,13 @@ class RiskEngineTest extends TestCase
     public function test_total_score_is_the_sum_of_every_triggered_indicator(): void
     {
         $startup = Startup::factory()->create();
-        $this->backdate($startup, ['created_at' => now()->subDays(1)]); // no info sheet: 5 + 1 = 6
-        Roadblock::factory()->create(['startup_id' => $startup->startup_id, 'status' => 'Failed']); // 4
+        $roadblock = Roadblock::factory()->create([
+            'startup_id' => $startup->startup_id,
+            'status' => 'Pending',
+            'mentor_id' => null,
+        ]);
+        $this->backdate($roadblock, ['created_at' => now()->subDays(8)]); // no_mentor_assigned: 3 + 3 = 6
+        Roadblock::factory()->create(['startup_id' => $startup->startup_id, 'status' => 'Failed']); // failed_mentorship: 4
 
         $result = RiskEngine::assess($startup->fresh());
 

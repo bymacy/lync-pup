@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreEvaluationScheduleRequest;
 use App\Http\Requests\Admin\UpdateEvaluationScheduleRequest;
 use App\Models\EvaluationSchedule;
+use App\Models\VersionHistory;
 use Illuminate\Http\RedirectResponse;
 
 class EvaluationScheduleController extends Controller
@@ -16,7 +17,11 @@ class EvaluationScheduleController extends Controller
         $data['end_time'] = $this->endTimeFor($data['start_time']);
         $data['status'] = 'Scheduled';
 
-        EvaluationSchedule::create($data);
+        $evaluationSchedule = EvaluationSchedule::create($data);
+
+        if ($evaluationSchedule->startup) {
+            VersionHistory::record($evaluationSchedule->startup, 'Information Sheet', 'set_evaluation');
+        }
 
         return back()->with('status', 'Evaluation scheduled successfully.');
     }
@@ -28,6 +33,10 @@ class EvaluationScheduleController extends Controller
         $data['status'] = 'Scheduled';
 
         $evaluationSchedule->update($data);
+
+        if ($evaluationSchedule->startup) {
+            VersionHistory::record($evaluationSchedule->startup, 'Information Sheet', 'reschedule_evaluation');
+        }
 
         return back()->with('status', 'Evaluation schedule saved successfully.');
     }

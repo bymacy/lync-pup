@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\FounderApplicationController;
 use App\Http\Controllers\Admin\CohortController;
 use App\Http\Controllers\Admin\RiskMonitoringController;
 use App\Http\Controllers\Admin\ExportController;
+use App\Http\Controllers\Admin\VersionHistoryController;
 use App\Http\Controllers\Startup\FounderReadinessController;
 
 
@@ -164,6 +165,8 @@ Route::middleware(['auth', 'role:Admin', 'select-cohort'])->prefix('admin')->nam
     Route::post('/assessment-hub/meetings', [AssessmentMeetingController::class, 'store'])->name('assessment-hub.meetings.store');
     Route::put('/assessment-hub/meetings/{assessmentMeeting}', [AssessmentMeetingController::class, 'update'])->name('assessment-hub.meetings.update');
     Route::delete('/assessment-hub/meetings/{assessmentMeeting}', [AssessmentMeetingController::class, 'destroy'])->name('assessment-hub.meetings.destroy');
+    Route::patch('/version-history/{versionHistory}', [VersionHistoryController::class, 'update'])->name('version-history.update');
+    Route::delete('/version-history/{versionHistory}', [VersionHistoryController::class, 'destroy'])->name('version-history.destroy');
 
     Route::get('/exports/documents', [ExportController::class, 'documents'])->name('exports.documents');
     Route::get('/exports/{startup}/status', [ExportController::class, 'documentStatus'])->name('exports.status');
@@ -227,6 +230,9 @@ Route::middleware(['auth', 'role:Startup', 'approved'])->prefix('startup')->name
         Route::post('information-sheet/references', [FounderInfoSheetController::class, 'storeReference'])->name('references.store');
         Route::patch('information-sheet/references/{reference}', [FounderInfoSheetController::class, 'updateReference'])->name('references.update');
         Route::delete('information-sheet/references/{reference}', [FounderInfoSheetController::class, 'destroyReference'])->name('references.destroy');
+
+        Route::post('information-sheet/files', [FounderInfoSheetController::class, 'storeFile'])->name('information-sheet.files.store');
+        Route::delete('information-sheet/files/{file}', [FounderInfoSheetController::class, 'destroyFile'])->name('information-sheet.files.destroy');
     });
 
     // Stage 3 — Meeting opens as soon as the sheet is submitted. It is where the

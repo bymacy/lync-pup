@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AssessmentDocument;
 use App\Models\ReadinessLevelAssessment;
 use App\Models\Startup;
+use App\Models\VersionHistory;
 use App\Notifications\ReadinessResultsReleased;
 use App\Notifications\WeeklyCheckInPosted;
 use App\Support\ReadinessRubric;
@@ -115,6 +116,8 @@ class AssessmentController extends Controller
             $startup->user?->notify(new ReadinessResultsReleased($validated['stage']));
         }
 
+        VersionHistory::record($startup, $validated['stage'], 'update_readiness_assessment');
+
         // Redirect back to the exact same RL type sub-tab the admin was on
         // (not just the same stage) — plain back() would land on the right
         // URL too, but a fresh page load still resets Alpine's activeType
@@ -186,6 +189,8 @@ class AssessmentController extends Controller
                 }
             }
         }
+
+        VersionHistory::record($startup, $validated['stage'], 'update_assessment_document');
 
         // Same as update() above — echo back which document sub-tab (6/7/8)
         // was open so Active-Assessment doesn't snap back to Document 6 on

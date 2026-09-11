@@ -59,3 +59,10 @@
         </td>
     </tr>
 </table>
+
+@php $exitStatus = data_get($data, 'exit_status'); @endphp
+<div class="field-row" style="margin-top: 12px;">
+    <span class="field-label">Exit Status:</span>
+    &nbsp;&nbsp;[{!! $exitStatus === 'Completed' ? 'X' : '&nbsp;' !!}] Completed
+    &nbsp;&nbsp;&nbsp;&nbsp;[{!! $exitStatus === 'Graduated' ? 'X' : '&nbsp;' !!}] Graduated
+</div>
