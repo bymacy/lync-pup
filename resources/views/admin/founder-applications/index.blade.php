@@ -4,7 +4,7 @@
         // Same recolorable-icon helper used by the Startup Profile page, so
         // this page's stat cards render with the identical big, pale
         // watermark-icon treatment.
-        $statIcon = function (string $name, string $class = 'h-24 w-24') {
+        $statIcon = function (string $name, string $class = 'h-20 w-20') {
             $path = public_path('images/icons/' . $name);
             if (! file_exists($path)) {
                 return '<span class="' . $class . ' inline-block"></span>';
@@ -26,7 +26,7 @@
         $pct = fn ($count, $total) => $total > 0 ? round(($count / $total) * 100) : 0;
 
         $stats = [
-            ['label' => 'Total Sign-Ups', 'value' => $totals['total'], 'iconSvg' => '<div class="stat-icon-box-total-app relative w-24 h-24">'.$statIcon('1person.svg', 'stat-icon-total-app absolute top-[2px] right-[8px] w-[88px] h-[88px]').'</div>', 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]'],
+           ['label' => 'Total Sign-Ups', 'value' => $totals['total'], 'iconSvg' => '<div class="stat-icon-box-total-app relative w-20 h-20">'.$statIcon('1person.svg', 'stat-icon-total-app absolute top-[2px] right-[6px] w-[75px] h-[75px]').'</div>', 'border' => 'border-[#CDE2FF]', 'bg' => 'bg-[#F8FBFF]'],
             ['label' => 'Verified', 'value' => $totals['verified'], 'iconSvg' => $statIcon('person-check.svg'), 'border' => 'border-[#AAFFBC]', 'bg' => 'bg-[#F2FFF2]', 'note' => $pct($totals['verified'], $totals['total']).'% have verified their email'],
             ['label' => 'Not Verified', 'value' => $totals['unverified'], 'iconSvg' => $statIcon('person-loading.svg'), 'border' => 'border-[#FFE2AA]', 'bg' => 'bg-[#FFFBF2]', 'note' => $pct($totals['unverified'], $totals['total']).'% still awaiting email verification'],
         ];
